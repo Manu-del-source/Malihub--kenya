@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * MaliHub Kenya design tokens.
+ * Values are HSL triplets (no hsl() wrapper) so Tailwind can compose
+ * them with opacity modifiers, e.g. bg-primary/20.
+ */
+@layer base {
+  :root {
+    /* Light theme — warm neutral canvas */
+    --background: 40 25% 97%;
+    --foreground: 222 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 30% 12%;
+
+    --muted: 40 15% 92%;
+    --muted-foreground: 222 12% 40%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 32 78% 52%;
+
+    /* Primary — copper horizon */
+    --primary: 32 78% 52%;
+    --primary-foreground: 26 40% 12%;
+    --primary-50: 33 90% 96%;
+    --primary-100: 33 85% 90%;
+    --primary-400: 32 82% 62%;
+    --primary-500: 32 78% 52%;
+    --primary-600: 28 72% 44%;
+    --primary-700: 24 65% 36%;
+
+    /* Secondary — Rift Valley dusk indigo */
+    --secondary: 258 32% 30%;
+    --secondary-foreground: 40 25% 97%;
+
+    --accent: 152 38% 28%;
+    --accent-foreground: 40 25% 97%;
+
+    /* Soft cyan highlight — trending/verified accents, hero glow */
+    --cyan: 189 70% 45%;
+    --cyan-foreground: 226 32% 7%;
+
+    --success: 152 45% 32%;
+    --warning: 38 92% 50%;
+    --destructive: 6 74% 48%;
+    --destructive-foreground: 40 25% 97%;
+  }
+
+  .dark {
+    /* Dark theme (default) — ink-indigo night */
+    --background: 226 32% 7%;
+    --foreground: 40 20% 95%;
+
+    --card: 226 28% 10%;
+    --card-foreground: 40 20% 95%;
+
+    --muted: 226 20% 15%;
+    --muted-foreground: 220 12% 65%;
+
+    --border: 226 18% 18%;
+    --input: 226 18% 18%;
+    --ring: 32 82% 62%;
+
+    --primary: 32 82% 62%;
+    --primary-foreground: 26 45% 10%;
+    --primary-50: 33 40% 16%;
+    --primary-100: 33 45% 22%;
+    --primary-400: 32 85% 68%;
+    --primary-500: 32 82% 62%;
+    --primary-600: 30 78% 54%;
+    --primary-700: 26 70% 46%;
+
+    --secondary: 258 30% 62%;
+    --secondary-foreground: 226 32% 7%;
+
+    --accent: 152 32% 48%;
+    --accent-foreground: 226 32% 7%;
+
+    --cyan: 189 75% 62%;
+    --cyan-foreground: 226 32% 7%;
+
+    --success: 152 40% 48%;
+    --warning: 38 90% 58%;
+    --destructive: 6 78% 58%;
+    --destructive-foreground: 226 32% 7%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    @apply bg-primary/30 text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism surface — used for nav bars, cards floating over gradients */
+  .glass {
+    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-glass;
+  }
+  .glass-sm {
+    @apply bg-card/70 backdrop-blur-md border border-white/10 shadow-glass-sm;
+  }
+
+  /* Skeleton loader shimmer */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.8s infinite;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animated dusk mesh — the hero's signature background. Three soft radial
+     glows (copper, indigo, cyan) drifting slowly past each other. */
+  .mesh-gradient {
+    background-image:
+      radial-gradient(38% 45% at 18% 22%, hsl(var(--primary) / 0.28), transparent 70%),
+      radial-gradient(42% 50% at 82% 12%, hsl(var(--secondary) / 0.32), transparent 70%),
+      radial-gradient(40% 45% at 65% 82%, hsl(var(--cyan) / 0.18), transparent 70%);
+    background-size: 180% 180%;
+    animation: mesh-drift 22s ease-in-out infinite alternate;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-gradient {
+      animation: none;
+    }
+  }
+
+  .animate-float-y {
+    animation: float-y 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-dot {
+    animation: pulse-dot 2.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float-y,
+    .animate-pulse-dot {
+      animation: none;
+    }
+  }
+}
+
+@keyframes mesh-drift {
+  0% { background-position: 0% 0%, 100% 0%, 50% 100%; }
+  100% { background-position: 8% 12%, 92% 10%, 45% 88%; }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0px) rotate(var(--float-rotate, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--float-rotate, 0deg)); }
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 hsl(var(--cyan) / 0.55); }
+  70% { box-shadow: 0 0 0 10px hsl(var(--cyan) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--cyan) / 0); }
+}
+
+/* Respect reduced-motion preferences globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

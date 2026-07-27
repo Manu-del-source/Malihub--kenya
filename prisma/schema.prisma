@@ -1,0 +1,513 @@
+// ============================================================================
+// MaliHub Kenya — Database Schema
+// PostgreSQL (Supabase) via Prisma
+//
+// Design notes:
+// - `User` mirrors Supabase's `auth.users` (id is the Supabase auth UUID).
+//   Supabase owns credentials/OTP/OAuth; Prisma owns application data and
+//   relations. A DB trigger (see prisma/migrations sql) inserts into
+//   public."User" + "Profile" on auth.users insert.
+// - Money is stored in integer cents (KES) to avoid float rounding issues.
+// - Full-text search uses a generated tsvector column + GIN index, added via
+//   raw SQL migration (Prisma doesn't model tsvector natively) — see
+//   prisma/migrations/xxxx_product_search/migration.sql.
+// - Soft moderation state lives on Product.status; hard deletes are avoided
+//   in favor of REMOVED/SUSPENDED so order history stays intact.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ProductCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  SOLD
+  SUSPENDED
+  REMOVED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  MPESA
+  CARD
+  CASH_ON_DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum SellerVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYMENT_UPDATE
+  NEW_MESSAGE
+  WISHLIST_ALERT
+  LISTING_STATUS
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+enum ReportReason {
+  SCAM
+  COUNTERFEIT
+  PROHIBITED_ITEM
+  MISLEADING
+  OFFENSIVE
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ─── Identity ───────────────────────────────────────────────────────────
+
+/// Mirrors Supabase auth.users — id is the Supabase auth UUID (not a Prisma default).
+model User {
+  id            String    @id @db.Uuid
+  email         String    @unique
+  phone         String?   @unique
+  role          UserRole  @default(BUYER)
+  emailVerified Boolean   @default(false) @map("email_verified")
+  isActive      Boolean   @default(true) @map("is_active")
+  isBanned      Boolean   @default(false) @map("is_banned")
+  lastSeenAt    DateTime? @map("last_seen_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  profile         Profile?
+  seller          Seller?
+  products        Product[]        @relation("ProductOwner")
+  orders          Order[]          @relation("BuyerOrders")
+  wishlists       Wishlist[]
+  reviews         Review[]         @relation("ReviewAuthor")
+  notifications   Notification[]
+  chatsAsBuyer    Chat[]           @relation("ChatBuyer")
+  chatsAsSeller   Chat[]           @relation("ChatSeller")
+  messagesSent    Message[]        @relation("MessageSender")
+  savedSearches   SavedSearch[]
+  cartItems       CartItem[]
+  reportsFiled    Report[]         @relation("ReportFiledBy")
+  supportTickets  SupportTicket[]
+  ticketMessages  TicketMessage[]
+
+  @@map("users")
+}
+
+model Profile {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  fullName      String   @map("full_name")
+  avatarUrl     String?  @map("avatar_url")
+  county        String?
+  subCounty     String?  @map("sub_county")
+  whatsapp      String?
+  bio           String?
+  onboarded     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Seller {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String                   @unique @map("user_id") @db.Uuid
+  businessName       String                   @map("business_name")
+  slug               String                   @unique
+  description        String?
+  logoUrl            String?                  @map("logo_url")
+  county             String
+  subCounty          String?                  @map("sub_county")
+  verificationStatus SellerVerificationStatus @default(UNVERIFIED) @map("verification_status")
+  idDocumentUrl      String?                  @map("id_document_url")
+  kraPin             String?                  @map("kra_pin")
+  ratingAverage       Decimal                 @default(0) @map("rating_average") @db.Decimal(3, 2)
+  ratingCount         Int                     @default(0) @map("rating_count")
+  totalSales          Int                     @default(0) @map("total_sales")
+  responseRatePct      Int?                   @map("response_rate_pct")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([verificationStatus])
+  @@map("sellers")
+}
+
+// ─── Catalog ────────────────────────────────────────────────────────────
+
+model Category {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String    @unique
+  iconName    String?   @map("icon_name")
+  imageUrl    String?   @map("image_url")
+  parentId    String?   @map("parent_id") @db.Uuid
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sellerId       String           @map("seller_id") @db.Uuid
+  ownerId        String           @map("owner_id") @db.Uuid
+  categoryId     String           @map("category_id") @db.Uuid
+  title          String
+  slug           String           @unique
+  description    String
+  priceCents     Int              @map("price_cents")
+  isNegotiable   Boolean          @default(false) @map("is_negotiable")
+  condition      ProductCondition
+  brand          String?
+  county         String
+  subCounty      String?          @map("sub_county")
+  status         ListingStatus    @default(PENDING_REVIEW)
+  viewCount      Int              @default(0) @map("view_count")
+  favoriteCount  Int              @default(0) @map("favorite_count")
+  isFeatured     Boolean          @default(false) @map("is_featured")
+  publishedAt    DateTime?        @map("published_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  // searchVector Unsupported("tsvector")? — added via raw SQL migration + GIN index
+
+  seller      Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  owner       User            @relation("ProductOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  category    Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images      ProductImage[]
+  orderItems  OrderItem[]
+  wishlists   Wishlist[]
+  reviews     Review[]
+  cartItems   CartItem[]
+  reports     Report[]
+
+  @@index([categoryId, status])
+  @@index([county, status])
+  @@index([sellerId])
+  @@index([status, publishedAt])
+  @@map("products")
+}
+
+model ProductImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  url          String
+  cloudinaryId String   @map("cloudinary_id")
+  sortOrder    Int      @default(0) @map("sort_order")
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// ─── Orders & Payments ────────────────────────────────────────────────────
+
+model Order {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber   String      @unique @map("order_number")
+  buyerId       String      @map("buyer_id") @db.Uuid
+  status        OrderStatus @default(PENDING)
+  subtotalCents Int         @map("subtotal_cents")
+  totalCents    Int         @map("total_cents")
+  deliveryCounty String?    @map("delivery_county")
+  deliveryAddress String?   @map("delivery_address")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  buyer    User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([buyerId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String   @map("order_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  quantity        Int      @default(1)
+  unitPriceCents  Int      @map("unit_price_cents")
+  totalCents      Int      @map("total_cents")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId               String        @map("order_id") @db.Uuid
+  method                PaymentMethod
+  status                PaymentStatus @default(PENDING)
+  amountCents           Int           @map("amount_cents")
+  currency              String        @default("KES")
+  mpesaCheckoutRequestId String?      @unique @map("mpesa_checkout_request_id")
+  mpesaMerchantRequestId String?      @map("mpesa_merchant_request_id")
+  mpesaReceiptNumber     String?      @unique @map("mpesa_receipt_number")
+  mpesaPhoneNumber       String?      @map("mpesa_phone_number")
+  resultCode            Int?          @map("result_code")
+  resultDesc            String?       @map("result_desc")
+  failureReason         String?       @map("failure_reason")
+  rawCallbackPayload    Json?         @map("raw_callback_payload")
+  retryCount            Int           @default(0) @map("retry_count")
+  paidAt                DateTime?     @map("paid_at")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ─── Engagement ─────────────────────────────────────────────────────────
+
+model Wishlist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlists")
+}
+
+model CartItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model Review {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  author  User    @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, authorId])
+  @@index([productId])
+  @@map("reviews")
+}
+
+model SavedSearch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  label     String
+  query     String?
+  filters   Json
+  isAlertOn Boolean  @default(true) @map("is_alert_on")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+// ─── Messaging ──────────────────────────────────────────────────────────
+
+model Chat {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyerId    String   @map("buyer_id") @db.Uuid
+  sellerId   String   @map("seller_id") @db.Uuid
+  productId  String?  @map("product_id") @db.Uuid
+  lastMessageAt DateTime? @map("last_message_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  buyer    User      @relation("ChatBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller   User      @relation("ChatSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([buyerId, sellerId, productId])
+  @@map("chats")
+}
+
+model Message {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId     String    @map("chat_id") @db.Uuid
+  senderId   String    @map("sender_id") @db.Uuid
+  content    String
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("messages")
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  type      NotificationType
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  body      String
+  linkUrl   String?             @map("link_url")
+  isRead    Boolean             @default(false) @map("is_read")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Trust & Safety / Admin ──────────────────────────────────────────────
+
+model Report {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId  String       @map("product_id") @db.Uuid
+  reporterId String       @map("reporter_id") @db.Uuid
+  reason     ReportReason
+  details    String?
+  status     ReportStatus @default(OPEN)
+  resolvedAt DateTime?    @map("resolved_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  product  Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reporter User    @relation("ReportFiledBy", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("reports")
+}
+
+model SupportTicket {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  subject   String
+  status    TicketStatus   @default(OPEN)
+  priority  TicketPriority @default(MEDIUM)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}

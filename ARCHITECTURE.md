@@ -106,6 +106,44 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   and redirects: signed-out users away from `/dashboard/*`, signed-in users
   away from auth pages, non-admins away from `/dashboard/admin/*`.
 
+## 5a. Auth implementation notes (Phase 4)
+
+- **Buyer/Seller/Both is not a fourth enum value.** `User.role` stays
+  `BUYER` or `SELLER` (`ADMIN`/`SUPER_ADMIN` are staff-only, set manually,
+  never through signup). Buying is never role-gated — anyone can buy
+  regardless of role. Choosing "Seller" or "Both" at /complete-profile sets
+  `role = SELLER` **and** creates a starter `Seller` row (business name
+  defaults to their full name, editable later); "Both" doesn't block
+  buying, it's purely a UI/copy distinction on top of the same `SELLER`
+  role + Seller row. Seller-dashboard access is gated on **having a
+  Seller row**, not on the role string.
+- **Two-tier role check**: `app_metadata.role` / `app_metadata.has_seller_profile`
+  / `app_metadata.onboarded` are mirrored into the JWT (via the Supabase
+  Admin API in `completeUserProfile`) so `middleware.ts` can gate
+  `/dashboard/*` at the edge with zero DB round trips. This is a fast path,
+  not the authorization boundary — Server Actions re-verify ownership
+  against Postgres directly, and RLS (§11, `manual_rls_policies.sql`) is
+  the backstop for anything that reaches Postgres another way.
+- **Onboarding is enforced in middleware**, not just the complete-profile
+  page: any authenticated user with `app_metadata.onboarded !== true` is
+  redirected to `/complete-profile` from anywhere except that page itself,
+  `/forgot-password`, `/reset-password`, `/verify-email`, and `/api/*`.
+- **One callback route for three flows**: `/api/auth/callback` handles
+  Google OAuth, email verification links, and password recovery links —
+  all three are Supabase's `?code=` exchange flow, differentiated only by
+  the `?next=` param each flow sets when it kicks off.
+- **Avatar photos use Supabase Storage**, not Cloudinary — they're
+  tightly coupled to the auth/profile flow that's already talking to
+  Supabase, and Cloudinary's signed-upload flow is unnecessary complexity
+  for a single small image. Product images (Phase 5) still use Cloudinary
+  per the original stack.
+- **Manual SQL migrations required**: `manual_auth_trigger.sql` (mirrors
+  `auth.users` → `public.users`/`profiles`), `manual_rls_policies.sql`, and
+  `manual_storage_avatars.sql` must all be run against Supabase Postgres —
+  see README for the exact steps. None of this is optional; the app will
+  not function without the trigger in particular, since there's no other
+  code path that creates the `public.users`/`profiles` mirror rows.
+
 ## 6. Database design
 
 Full schema: `prisma/schema.prisma`. Key decisions:
@@ -231,7 +269,9 @@ tipping into visual noise.
 - [x] **Phase 3 — Landing page** (hero with parallax/mesh gradient, intelligent
       search bar, categories, featured listings, bento features, animated
       stats, seller CTA, testimonials, FAQ, newsletter, footer)
-- [ ] Phase 4 — Authentication
+- [x] **Phase 4 — Authentication** (Supabase Auth: email/password + Google,
+      email verification, forgot/reset password, complete-profile onboarding,
+      role-based route protection, RLS policies, avatar storage)
 - [ ] Phase 5 — Marketplace (browse/search/product detail)
 - [ ] Phase 6 — Dashboards (seller/buyer/admin)
 - [ ] Phase 7 — Supabase integration hardening (RLS policies, triggers, seed)

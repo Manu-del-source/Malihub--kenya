@@ -7,6 +7,8 @@ import { Menu, X, Moon, Sun, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { useTheme } from "@/providers/theme-provider";
+import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
+import { signOutAction } from "@/app/(auth)/actions";
 
 const NAV_LINKS = [
   { label: "Explore", href: "/search" },
@@ -15,7 +17,7 @@ const NAV_LINKS = [
   { label: "Sell on MaliHub", href: "/#sell" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
@@ -55,15 +57,21 @@ export function SiteHeader() {
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
 
-            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button variant="primary" size="sm" asChild className="hidden sm:inline-flex">
-              <Link href="/register">
-                Start selling
-                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            </Button>
+            {user ? (
+              <AccountMenu user={user} />
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button variant="primary" size="sm" asChild className="hidden sm:inline-flex">
+                  <Link href="/register">
+                    Start selling
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              </>
+            )}
 
             <button
               type="button"
@@ -99,12 +107,32 @@ export function SiteHeader() {
                 </Link>
               ))}
               <div className="mt-1 flex gap-2 border-t border-border pt-3">
-                <Button variant="secondary" size="sm" asChild className="flex-1">
-                  <Link href="/login">Sign in</Link>
-                </Button>
-                <Button variant="primary" size="sm" asChild className="flex-1">
-                  <Link href="/register">Start selling</Link>
-                </Button>
+                {user ? (
+                  <>
+                    <Button variant="secondary" size="sm" asChild className="flex-1">
+                      <Link href="/dashboard/buyer" onClick={() => setMobileOpen(false)}>
+                        Dashboard
+                      </Link>
+                    </Button>
+                    <form action={signOutAction} className="flex-1">
+                      <button
+                        type="submit"
+                        className="h-9 w-full rounded-full border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+                      >
+                        Sign out
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="secondary" size="sm" asChild className="flex-1">
+                      <Link href="/login">Sign in</Link>
+                    </Button>
+                    <Button variant="primary" size="sm" asChild className="flex-1">
+                      <Link href="/register">Start selling</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

@@ -18,6 +18,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   SellerVerificationStatus,
+  ReportReason,
 } from "@prisma/client";
 
 export type {
@@ -40,6 +41,7 @@ export type {
   OrderStatus,
   PaymentStatus,
   SellerVerificationStatus,
+  ReportReason,
 };
 
 /** Product with its common includes — the shape most listing UIs consume. */

@@ -10,11 +10,11 @@ build-phase checklist.
 ```bash
 npm install
 cp .env.example .env.local   # fill in Supabase/Cloudinary/Daraja keys
-npx prisma migrate dev       # creates tables from prisma/schema.prisma
+npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 ```
 
 Then, against your Supabase project's SQL editor (or `supabase db push`),
-run these three files **in order**:
+run these files **in order**:
 
 1. `prisma/migrations/manual_auth_trigger.sql` — mirrors `auth.users` into
    `public.users`/`profiles` on signup. **Required** — nothing else creates
@@ -23,8 +23,8 @@ run these three files **in order**:
    user-owned tables.
 3. `prisma/migrations/manual_storage_avatars.sql` — creates the `avatars`
    Storage bucket + policies used by /complete-profile.
-4. `prisma/migrations/manual_product_search.sql` — full-text search (from
-   Phase 2, run it too if you haven't).
+4. `prisma/migrations/manual_product_search.sql` — full-text search
+   (tsvector + trigram indexes) that `/search` depends on directly.
 
 Also in the Supabase dashboard: **Authentication → Providers → Google**,
 enable it and add your OAuth client ID/secret, plus
@@ -32,8 +32,16 @@ enable it and add your OAuth client ID/secret, plus
 email" under Authentication → Settings should stay on (it's the default) —
 that's what makes /verify-email meaningful.
 
+In your **Cloudinary** dashboard: Settings → Upload → Upload presets →
+add an **unsigned** preset, and put its name in
+`NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`. The listing-creation image
+uploader (`next-cloudinary`'s widget) uploads directly from the browser
+using this preset — no server-side signing involved, so without it
+"Add photo" on /dashboard/seller/listings/new silently has nothing to
+upload to.
+
 ```bash
-npm run prisma:seed          # seeds categories + counties
+npm run prisma:seed          # seeds the 16 marketplace categories
 npm run dev
 ```
 
@@ -64,5 +72,10 @@ prisma/
 
 ## Status
 
-Phases 1–4 complete (architecture, scaffolding, landing page, authentication).
-See the checklist in `ARCHITECTURE.md` §13 for what's next.
+Phases 1–5 complete (architecture, scaffolding, landing page, authentication,
+marketplace core). See the checklist in `ARCHITECTURE.md` §13 for what's next.
+
+A note on `recharts`/`@faker-js/faker`: npm flags both as past end-of-life
+majors. Neither is a security issue (unlike the Next.js CVE above) and
+recharts isn't used by anything yet — worth bumping to current majors
+before Phase 6 wires up dashboard charts, rather than after.

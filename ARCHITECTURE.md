@@ -165,6 +165,48 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   (`category+status`, `county+status`, `seller`) since listing browse/filter
   is the highest-read path in the app.
 
+## 6a. Marketplace implementation notes (Phase 5)
+
+- **"Town" in the UI is `Product.subCounty` in the schema.** No column
+  rename — Kenya's admin hierarchy (county → sub-county → ward) already
+  maps close enough to (county → town) for marketplace purposes, and
+  renaming would have touched Phase 1's schema for cosmetic reasons only.
+- **Same service layer powers Server Actions and API routes.** Every
+  mutation in `services/listing-service.ts` is called from both
+  `(dashboard)/seller/listings/actions.ts` (Server Actions, used by the
+  actual UI) and the `/api/products/*` routes (REST, for future
+  mobile/external consumers) — ownership checks and business logic live
+  once, in the service, not duplicated per entry point.
+- **`ListingView` (a log table) vs. `Product.viewCount` (a running
+  counter)**: every render path that displays view counts reads the fast
+  counter; the log table exists only for dedup (`recordListingView` checks
+  it before incrementing) and future analytics. Summing the log table
+  per-request would be needlessly expensive for a number shown on every
+  card.
+- **View-count dedup is two-layered**: server-side, a logged-in viewer
+  can't inflate a listing's count more than once per 30 minutes
+  (`VIEW_DEDUPE_WINDOW_MINUTES` in `listing-service.ts`); anonymous
+  viewers are deduped client-side only, via `sessionStorage`
+  (`view-tracker.tsx`) — there's no reliable server-side identity to key
+  off for anonymous traffic without fingerprinting, which this project
+  deliberately doesn't do.
+- **Soft states, extended**: `ARCHIVED` was added to `ListingStatus`
+  alongside the states from Phase 1 (`DRAFT/PENDING_REVIEW/ACTIVE/SOLD/
+  SUSPENDED/REMOVED`). "Delete" in the seller dashboard still means
+  `REMOVED`, not a row delete — same reasoning as Phase 1 (order/review
+  history must never orphan). Every listing query that shouldn't surface
+  removed items filters `status: { not: "REMOVED" }` explicitly rather
+  than relying on a default scope, since Prisma has no query-level global
+  filters — worth remembering when Phase 6+ adds more listing queries.
+- **New listings skip `PENDING_REVIEW`.** The enum value still exists
+  (for a future moderation queue), but publishing today goes straight
+  `DRAFT → ACTIVE` — there's no moderation UI yet for anything to wait on,
+  so gating publish behind a review state nothing processes would just be
+  a dead end for sellers.
+- **Avatar photos: Supabase Storage (Phase 4). Listing photos: Cloudinary**
+  (`next-cloudinary`'s unsigned upload widget, `NEXT_PUBLIC_CLOUDINARY_
+  UPLOAD_PRESET`) — per the original stack choice, now actually wired up.
+
 ## 7. Payments: M-Pesa Daraja integration
 
 Flow for a checkout:
@@ -207,16 +249,41 @@ Flow for a checkout:
 - Triggers: order status change, payment success/failure, new chat message,
   wishlist item back-in-stock or price-drop, listing approved/rejected.
 
-## 9. Search & discovery
+## 9. Search & discovery (implemented in Phase 5)
 
-- Primary search: Postgres `tsvector` (section 6) via a Prisma
-  `$queryRaw` call ranked with `ts_rank`.
-- Filters (category, price range, county, brand, condition) compose as
-  additional `WHERE` clauses — combinable with search or standalone.
-- Sort options (`newest`, `price_asc`, `price_desc`, `most_viewed`) map to
-  `ORDER BY` clauses; cursor-based pagination (`createdAt` + `id` compound
-  cursor) powers infinite scroll without the page-drift issues of
-  offset pagination on a frequently-inserted table.
+- **Full-text search**: `search-service.ts` builds a raw SQL query against
+  the `search_vector` tsvector column (`manual_product_search.sql`) using
+  `websearch_to_tsquery` — this is a `WHERE` filter, not a ranking factor.
+  Deliberately *not* ranked by `ts_rank`: the brief calls for four explicit
+  sort modes (newest/price/most-viewed), so blending in relevance scoring
+  would make sort order behave differently whenever `q` is present vs.
+  absent — surprising, and not what was asked for. A `relevance` sort mode
+  ranked by `ts_rank` would be a reasonable future addition, additive to
+  the existing four.
+- **Filters** (category, county, town, brand, condition, price range)
+  compose as additional `WHERE` clauses, combinable with `q` or standalone.
+- **Pagination is seek-based, not offset**, and — unlike the original
+  sketch in this section — the cursor generalizes to *whichever* column
+  the active sort uses (`created_at`, `price_cents`, or `view_count`), not
+  always `created_at`. Cursor = base64 `{value, id}`; the `id` tie-break
+  matters because sort values collide often (many listings share a price
+  or a view count). Two-step execution: raw SQL resolves the ranked/sorted
+  *id list* for the page, then a normal typed `prisma.product.findMany`
+  hydrates those ids with the full relation shape — keeps the raw-SQL
+  surface area small and everything downstream fully typed.
+- **Autocomplete** uses the `pg_trgm` index (also from
+  `manual_product_search.sql`) via `similarity()`, not the tsvector column
+  — prefix/fuzzy title matching is a different problem than full-text
+  ranking, and trigram is what a type-ahead needs.
+- **Recent searches** are client-side only (`sessionStorage` in the hero
+  search bar), not a database table — they're ephemeral per-browser
+  history, a different concept from `SavedSearch` (a deliberate save with
+  alerts, still unbuilt as of Phase 5).
+- **Trending/"popular" terms** on the actual `/search` page come from real
+  data (`getTrendingSearchTerms` — active listings ranked by `viewCount`),
+  unlike the landing page's hero, which intentionally keeps curated
+  marketing copy (see `landing-data.ts`'s header comment) since a fresh
+  deploy has no organic traffic yet to rank by.
 
 ## 10. Design system (theme)
 
@@ -272,8 +339,12 @@ tipping into visual noise.
 - [x] **Phase 4 — Authentication** (Supabase Auth: email/password + Google,
       email verification, forgot/reset password, complete-profile onboarding,
       role-based route protection, RLS policies, avatar storage)
-- [ ] Phase 5 — Marketplace (browse/search/product detail)
-- [ ] Phase 6 — Dashboards (seller/buyer/admin)
+- [x] **Phase 5 — Marketplace core** (16-category taxonomy, full-text
+      search with filters/sort/infinite scroll, category pages, product
+      detail, listing CRUD with Cloudinary images, favorites, view
+      tracking, seller listings management + dashboard stats, API routes)
+- [ ] Phase 6 — Dashboards (buyer orders/notifications, admin panel —
+      seller listings management and stats already shipped in Phase 5)
 - [ ] Phase 7 — Supabase integration hardening (RLS policies, triggers, seed)
 - [ ] Phase 8 — M-Pesa Daraja integration
 - [ ] Phase 9 — Performance pass

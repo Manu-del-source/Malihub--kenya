@@ -46,8 +46,16 @@ enum ListingStatus {
   PENDING_REVIEW
   ACTIVE
   SOLD
+  ARCHIVED
   SUSPENDED
   REMOVED
+}
+
+enum ContactPreference {
+  CALL
+  WHATSAPP
+  CHAT
+  ANY
 }
 
 enum OrderStatus {
@@ -158,6 +166,7 @@ model User {
   reportsFiled    Report[]         @relation("ReportFiledBy")
   supportTickets  SupportTicket[]
   ticketMessages  TicketMessage[]
+  listingViews    ListingView[]
 
   @@map("users")
 }
@@ -239,6 +248,8 @@ model Product {
   isNegotiable   Boolean          @default(false) @map("is_negotiable")
   condition      ProductCondition
   brand          String?
+  quantity       Int              @default(1)
+  contactPreference ContactPreference @default(ANY) @map("contact_preference")
   county         String
   subCounty      String?          @map("sub_county")
   status         ListingStatus    @default(PENDING_REVIEW)
@@ -259,6 +270,7 @@ model Product {
   reviews     Review[]
   cartItems   CartItem[]
   reports     Report[]
+  listingViews ListingView[]
 
   @@index([categoryId, status])
   @@index([county, status])
@@ -461,6 +473,24 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+/// Individual view events, distinct from Product.viewCount (a fast running
+/// total). This table exists for dedup (see recordListingViewAction) and
+/// future analytics (views-over-time charts) — viewCount stays the field
+/// every read-path uses for display since summing this table per-request
+/// would be needlessly expensive.
+model ListingView {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  viewerId  String?  @map("viewer_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  viewer  User?   @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@map("listing_views")
 }
 
 // ─── Trust & Safety / Admin ──────────────────────────────────────────────

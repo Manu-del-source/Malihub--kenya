@@ -102,16 +102,22 @@ export const FEATURED_LISTINGS: ListingCardData[] = [
 ];
 
 export const CATEGORY_LISTING_COUNTS: Record<string, number> = {
+  electronics: 27600,
+  phones: 41200,
+  fashion: 33800,
   vehicles: 18400,
   property: 9200,
-  "phones-tablets": 41200,
-  electronics: 27600,
-  "home-furniture": 15300,
-  fashion: 33800,
-  "health-beauty": 8900,
+  furniture: 12100,
+  "home-appliances": 8700,
+  beauty: 8900,
   agriculture: 6100,
   jobs: 4700,
   services: 11500,
+  sports: 5200,
+  books: 3100,
+  kids: 4400,
+  pets: 2600,
+  other: 3900,
 };
 
 export const POPULAR_SEARCHES = [

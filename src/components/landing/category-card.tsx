@@ -4,12 +4,14 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Car, Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
+  WashingMachine, Dumbbell, BookOpen, Baby, PawPrint, Package,
   type LucideIcon,
 } from "lucide-react";
 import { fadeUp } from "@/lib/motion";
 
 const ICONS: Record<string, LucideIcon> = {
   Car, Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
+  WashingMachine, Dumbbell, BookOpen, Baby, PawPrint, Package,
 };
 
 export function CategoryCard({

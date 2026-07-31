@@ -12,18 +12,26 @@ export const KENYA_COUNTIES = [
 
 export type KenyaCounty = (typeof KENYA_COUNTIES)[number];
 
-/** Seed data for top-level categories — matches prisma/seed.ts inserts. */
+/** Canonical category list — seeded into the Category table by
+ * prisma/seed.ts. Category pages/filters/listing-creation all key off
+ * these slugs, so changing this list requires re-running the seed. */
 export const DEFAULT_CATEGORIES = [
+  { name: "Electronics", slug: "electronics", iconName: "Tv" },
+  { name: "Phones", slug: "phones", iconName: "Smartphone" },
+  { name: "Fashion", slug: "fashion", iconName: "Shirt" },
   { name: "Vehicles", slug: "vehicles", iconName: "Car" },
   { name: "Property", slug: "property", iconName: "Home" },
-  { name: "Phones & Tablets", slug: "phones-tablets", iconName: "Smartphone" },
-  { name: "Electronics", slug: "electronics", iconName: "Tv" },
-  { name: "Home & Furniture", slug: "home-furniture", iconName: "Sofa" },
-  { name: "Fashion", slug: "fashion", iconName: "Shirt" },
-  { name: "Health & Beauty", slug: "health-beauty", iconName: "Sparkles" },
+  { name: "Furniture", slug: "furniture", iconName: "Sofa" },
+  { name: "Home Appliances", slug: "home-appliances", iconName: "WashingMachine" },
+  { name: "Beauty", slug: "beauty", iconName: "Sparkles" },
   { name: "Agriculture", slug: "agriculture", iconName: "Wheat" },
   { name: "Jobs", slug: "jobs", iconName: "Briefcase" },
   { name: "Services", slug: "services", iconName: "Wrench" },
+  { name: "Sports", slug: "sports", iconName: "Dumbbell" },
+  { name: "Books", slug: "books", iconName: "BookOpen" },
+  { name: "Kids", slug: "kids", iconName: "Baby" },
+  { name: "Pets", slug: "pets", iconName: "PawPrint" },
+  { name: "Other", slug: "other", iconName: "Package" },
 ] as const;
 
 export const PRODUCT_CONDITIONS = [

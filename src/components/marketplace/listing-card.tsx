@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, MapPin, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FavoriteButton } from "@/components/marketplace/favorite-button";
 import { formatKes, timeAgo } from "@/utils";
 import { cn } from "@/utils";
 
@@ -27,6 +28,7 @@ export type ListingCardData = {
   sellerName: string;
   favoriteCount: number;
   condition: "NEW" | "LIKE_NEW" | "GOOD" | "FAIR";
+  isFavorited?: boolean;
 };
 
 const CONDITION_LABEL: Record<ListingCardData["condition"], string> = {
@@ -65,13 +67,11 @@ export function ListingCard({
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
 
-          <button
-            type="button"
-            aria-label={`Save ${listing.title} to wishlist`}
-            className="glass absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:text-destructive"
-          >
-            <Heart className="h-4 w-4" aria-hidden />
-          </button>
+          <FavoriteButton
+            productId={listing.id}
+            initialFavorited={listing.isFavorited ?? false}
+            className="absolute right-3 top-3"
+          />
 
           {listing.isVerifiedSeller && (
             <Badge variant="verified" className="absolute left-3 top-3 glass-sm">

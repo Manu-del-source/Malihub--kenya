@@ -147,9 +147,12 @@ export default async function ProductDetailPage({
         <div className="lg:sticky lg:top-24 lg:self-start">
           <SellerInfoCard
             seller={product.seller}
+            sellerUserId={product.ownerId}
+            productId={product.id}
             contactPreference={product.contactPreference}
             whatsapp={sellerProfile?.whatsapp}
             phone={sellerContact?.phone}
+            isOwnListing={user?.id === product.ownerId}
           />
         </div>
       </div>

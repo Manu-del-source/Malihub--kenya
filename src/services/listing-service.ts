@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/utils";
+import { notifyUser } from "@/services/notification-service";
 import type { ListingInput } from "@/lib/validations/listing";
 import type { Prisma, ReportReason } from "@prisma/client";
 
@@ -151,7 +152,27 @@ export async function unarchiveListing(productId: string, ownerId: string) {
 
 export async function markListingSold(productId: string, ownerId: string) {
   await assertOwnership(productId, ownerId);
-  await prisma.product.update({ where: { id: productId }, data: { status: "SOLD" } });
+  const product = await prisma.product.update({
+    where: { id: productId },
+    data: { status: "SOLD" },
+    select: { title: true, slug: true },
+  });
+
+  const favoriters = await prisma.wishlist.findMany({
+    where: { productId },
+    select: { userId: true },
+  });
+  await Promise.all(
+    favoriters.map((f: { userId: string }) =>
+      notifyUser({
+        userId: f.userId,
+        type: "LISTING_SOLD",
+        title: "A saved listing just sold",
+        body: `"${product.title}" — one of your favorites — has been marked as sold.`,
+        linkUrl: `/products/${product.slug}`,
+      }).catch((error) => console.error("Failed to send LISTING_SOLD notification", error))
+    )
+  );
 }
 
 export async function duplicateListing(productId: string, ownerId: string) {
@@ -236,6 +257,23 @@ export async function toggleFavorite(userId: string, productId: string) {
     prisma.wishlist.create({ data: { userId, productId } }),
     prisma.product.update({ where: { id: productId }, data: { favoriteCount: { increment: 1 } } }),
   ]);
+
+  // Fire-and-forget: notify the listing owner, but never let a
+  // notification failure break the favorite action itself.
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { title: true, slug: true, ownerId: true },
+  });
+  if (product && product.ownerId !== userId) {
+    notifyUser({
+      userId: product.ownerId,
+      type: "NEW_FAVORITE",
+      title: "Someone favorited your listing",
+      body: `Your listing "${product.title}" was just saved to a buyer's favorites.`,
+      linkUrl: `/products/${product.slug}`,
+    }).catch((error) => console.error("Failed to send NEW_FAVORITE notification", error));
+  }
+
   return { favorited: true };
 }
 

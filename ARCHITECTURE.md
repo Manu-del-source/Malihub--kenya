@@ -207,6 +207,41 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   (`next-cloudinary`'s unsigned upload widget, `NEXT_PUBLIC_CLOUDINARY_
   UPLOAD_PRESET`) — per the original stack choice, now actually wired up.
 
+## 6b. Communication & transactions implementation notes (Phase 6, in progress)
+
+- **`OrderReview` is a new model, not a repurposed `Review`.** `Review`
+  (Phase 1) rates a *product* and has no transaction attached; the
+  brief's "buyer rates seller / seller rates buyer" is fundamentally a
+  *person* rating tied to a *completed order*, in either direction.
+  Overloading `Review` with nullable person-fields would have made every
+  existing query need new null-checks for no benefit — a second model
+  with its own `(orderId, authorId, direction)` uniqueness constraint is
+  cleaner. `Review` remains in the schema, unused, for a possible future
+  product-quality-review feature — it isn't dead code so much as
+  not-yet-built scope.
+- **`Order.sellerId` is denormalized and required, not derived.** Phase
+  6's checkout is single-listing ("Buy Now"), so every order has exactly
+  one seller by construction — storing it directly avoids a
+  buyer→items→product→seller join on every "my orders as a seller" query.
+  A future multi-seller cart would need to split checkout into one Order
+  per seller at the point of purchase, not relax this field.
+- **`Message.content` and `imageUrl` are both nullable**, with the
+  application layer (not a DB constraint) enforcing that at least one is
+  present — a text-only message needs no image, an image-only message
+  needs no caption, but a message needs to carry *something*.
+- **Realtime is scoped to `chats`/`messages` only.** Everything else
+  (notifications, favorites, listing stats) uses polling or plain
+  request/response — adding Realtime to every table would multiply
+  client-side subscription overhead for features where a few seconds of
+  staleness is genuinely fine. Chat is the one place users perceive lag
+  directly, turn by turn, the way they would in any messaging app.
+- **RLS now covers `chats`/`messages`/`orders`/`order_items`/`payments`/
+  `order_reviews`** (`manual_phase6_rls_realtime.sql`), on top of Phase
+  4's user-data policies. Order/payment tables get *read* policies only —
+  every write to those tables goes through Prisma Server Actions (checkout,
+  the M-Pesa callback) on the privileged connection, so there's nothing
+  for the anon/authenticated roles to need insert/update access for.
+
 ## 7. Payments: M-Pesa Daraja integration
 
 Flow for a checkout:
@@ -238,16 +273,76 @@ Flow for a checkout:
    `PENDING`/`PROCESSING` past a timeout — covers the case where the callback
    never arrives (network blip on Safaricom's side).
 
-## 8. Notifications
+## 8. Notifications (implemented in Phase 6)
 
-- `Notification` rows are the single source of truth; `channel` decides
-  whether an email is also fanned out via Resend at creation time.
-  In-app notifications are read via a lightweight polling hook
-  (`useNotifications`, React Query, 30s interval) in Phase 6 — an upgrade to
-  Supabase Realtime subscriptions is a drop-in replacement later since the
-  data shape doesn't change.
-- Triggers: order status change, payment success/failure, new chat message,
-  wishlist item back-in-stock or price-drop, listing approved/rejected.
+- `notifyUser()` (`services/notification-service.ts`) is the single choke
+  point every other service calls through — always creates the
+  `Notification` row; conditionally fans out an email via Resend based on
+  `type`. A fixed set of types (`PAYMENT_UPDATE`, `ORDER_UPDATE`,
+  `LISTING_APPROVED`, `LISTING_REJECTED`) email by default — everything
+  else (new favorite, listing sold) stays in-app-only. Deliberately
+  conservative: it's easy to add a type to the email set later, harder to
+  win back trust from an over-notified inbox.
+  - Email failures never propagate to the caller — a broken Resend key
+    shouldn't break a favorite/message/order action, just silently skip
+    the email (logged server-side).
+- In-app notifications are read via a polling hook (`useNotifications`,
+  React Query, 45s interval + refetch-on-focus) — matches the original
+  plan in this section almost exactly. **Realtime is deliberately reserved
+  for chat** (§ messaging notes below), where sub-second latency actually
+  changes the experience; a 45s-stale unread badge count is an acceptable
+  trade for not running a second Realtime subscription on every page.
+- Notification bell lives in both the marketing header and the dashboard
+  header (`components/notifications/notification-bell.tsx`) — same
+  component, rendered from two different layouts, gated on `isSignedIn`.
+- Triggers wired up so far: new favorite on your listing, listing marked
+  sold (notifies everyone who favorited it). Order/payment/message/review
+  triggers land as those features are built.
+
+## 8a. Messaging implementation notes (Phase 6)
+
+- **One Realtime channel per chat**, combining three concerns Supabase
+  usually shows as separate examples (`postgres_changes`, `broadcast`,
+  `presence`) — each channel is its own websocket subscription, so
+  opening three per conversation would triple the connection overhead
+  for no benefit. `useChatRealtime` (`hooks/use-chat-realtime.ts`) owns
+  all three.
+- **Rate limiting is DB-backed, not in-memory or Redis.** An in-memory
+  counter doesn't work correctly on serverless (each invocation can hit a
+  different instance, so limits reset constantly); Redis is scaffolded
+  (`.env.example`'s `UPSTASH_REDIS_REST_URL`) but not required. Counting
+  recent `Message` rows by `senderId` (`assertUnderRateLimit` in
+  `chat-service.ts`) is correct regardless of deployment topology, at the
+  cost of one extra query per send — worth revisiting with Redis only if
+  that query becomes a measured bottleneck.
+- **XSS defense is architectural, not a sanitization library.** Message
+  content is only ever rendered as `{message.content}` — plain text
+  through React's default JSX escaping — never `dangerouslySetInnerHTML`,
+  never interpreted as markdown/HTML. `stripControlCharacters` in
+  `lib/validations/chat.ts` is defense-in-depth against control-character
+  abuse, not the actual XSS boundary; there's nothing to sanitize because
+  there's no HTML-rendering path to inject into.
+- **Presence and "typing" are two different Realtime primitives on
+  purpose.** Presence answers "who's currently connected to this
+  channel" (join/leave events, `channel.track()`); typing is a
+  fire-and-forget broadcast with a client-side 3s expiry
+  (`TYPING_TIMEOUT_MS`) — there's no "stopped typing" event to listen
+  for, so the receiver just assumes typing has stopped if no new
+  broadcast arrives in time. Simpler and more robust than trying to
+  catch every path that should clear the indicator (blur, send, close
+  tab, network drop).
+- **Chat list membership excludes rows the viewer soft-deleted**
+  (`buyerDeletedAt`/`sellerDeletedAt`), independent of the other
+  participant's state — `getUserChats`'s `WHERE` clause is intentionally
+  asymmetric per user, not a shared "deleted" flag. Sending a new message
+  into a chat either party had deleted un-deletes it for the *recipient*
+  only (see `sendMessage`'s transaction) — reviving a conversation by
+  messaging into it again is expected behavior, not a bug to guard
+  against.
+- **Emoji picker is a small curated grid, not a full unicode emoji
+  library.** Deliberate scope call for MVP chat — a dependency like
+  emoji-mart is a reasonable upgrade if usage data ever shows people
+  wanting more than the ~35 curated options.
 
 ## 9. Search & discovery (implemented in Phase 5)
 
@@ -308,8 +403,8 @@ tipping into visual noise.
   admin-only Server Actions — never by anything reachable from a Client
   Component bundle.
 - M-Pesa callback endpoint validates the source (Safaricom's published IP
-  ranges, checked in Phase 8) in addition to payload shape, since it's an
-  unauthenticated public endpoint by necessity.
+  ranges) in addition to payload shape, since it's an unauthenticated
+  public endpoint by necessity.
 - Rate limiting (Upstash Redis, optional env vars already scaffolded) on
   auth endpoints and the STK push trigger, to prevent OTP-bombing a phone
   number or hammering Daraja's sandbox rate limits.
@@ -343,9 +438,24 @@ tipping into visual noise.
       search with filters/sort/infinite scroll, category pages, product
       detail, listing CRUD with Cloudinary images, favorites, view
       tracking, seller listings management + dashboard stats, API routes)
-- [ ] Phase 6 — Dashboards (buyer orders/notifications, admin panel —
-      seller listings management and stats already shipped in Phase 5)
-- [ ] Phase 7 — Supabase integration hardening (RLS policies, triggers, seed)
-- [ ] Phase 8 — M-Pesa Daraja integration
-- [ ] Phase 9 — Performance pass
-- [ ] Phase 10 — Deployment prep
+- [ ] **Phase 6 — Marketplace communication & transactions** (supersedes
+      the original Phases 6–8 sketch below — messaging, payments, and
+      orders turned out to belong in one phase, not three, since orders
+      depend on payments which depend on nothing else being half-built)
+  - [x] Schema: `OrderReview`, `Order.sellerId`, `Message` image support,
+        expanded `NotificationType`, buyer rating aggregates
+  - [x] RLS + Realtime enablement for chat/orders/reviews
+        (`manual_phase6_rls_realtime.sql`)
+  - [x] Notifications: service layer, email fan-out, bell + center UI,
+        wired into favorites/sold triggers
+  - [x] Messaging (conversations, Realtime chat, typing/presence, image
+        sharing, read receipts, edit/delete, archive/delete, block users,
+        conversation search, rate limiting)
+  - [ ] M-Pesa (STK Push, callback, idempotent processing, transaction
+        history, receipts)
+  - [ ] Orders (checkout flow, lifecycle, seller order management)
+  - [ ] Reviews (post-order mutual rating, seller/buyer rating display)
+  - [ ] Analytics (views-over-time, conversion rate, top listings)
+  - [ ] Moderation (admin report queue, listing suspension, ban)
+- [ ] Phase 7 — Performance pass
+- [ ] Phase 8 — Deployment prep

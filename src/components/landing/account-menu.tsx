@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as Avatar from "@radix-ui/react-avatar";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutDashboard, Store, LogOut } from "lucide-react";
+import { LayoutDashboard, Store, MessageCircle, LogOut } from "lucide-react";
 import { signOutAction } from "@/app/(auth)/actions";
 
 export type HeaderUser = {
@@ -82,6 +82,15 @@ export function AccountMenu({ user }: { user: HeaderUser }) {
             >
               <LayoutDashboard className="h-4 w-4 text-muted-foreground" aria-hidden />
               Dashboard
+            </Link>
+            <Link
+              href="/messages"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/90 hover:bg-muted"
+            >
+              <MessageCircle className="h-4 w-4 text-muted-foreground" aria-hidden />
+              Messages
             </Link>
             {user.hasSellerProfile && (
               <Link

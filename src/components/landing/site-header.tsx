@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { useTheme } from "@/providers/theme-provider";
 import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOutAction } from "@/app/(auth)/actions";
 
 const NAV_LINKS = [
@@ -56,6 +57,8 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
+
+            <NotificationBell isSignedIn={!!user} />
 
             {user ? (
               <AccountMenu user={user} />

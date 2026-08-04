@@ -97,6 +97,11 @@ enum NotificationType {
   NEW_MESSAGE
   WISHLIST_ALERT
   LISTING_STATUS
+  NEW_FAVORITE
+  LISTING_SOLD
+  LISTING_APPROVED
+  LISTING_REJECTED
+  NEW_REVIEW
   SYSTEM
 }
 
@@ -167,6 +172,10 @@ model User {
   supportTickets  SupportTicket[]
   ticketMessages  TicketMessage[]
   listingViews    ListingView[]
+  orderReviewsAuthored OrderReview[] @relation("OrderReviewAuthor")
+  orderReviewsReceived OrderReview[] @relation("OrderReviewReviewee")
+  usersBlocked  BlockedUser[] @relation("BlockerOf")
+  blockedByUsers BlockedUser[] @relation("BlockedBy")
 
   @@map("users")
 }
@@ -181,6 +190,8 @@ model Profile {
   whatsapp      String?
   bio           String?
   onboarded     Boolean  @default(false)
+  buyerRatingAverage Decimal? @map("buyer_rating_average") @db.Decimal(3, 2)
+  buyerRatingCount   Int      @default(0) @map("buyer_rating_count")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -210,6 +221,7 @@ model Seller {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   products Product[]
+  orders   Order[]
 
   @@index([verificationStatus])
   @@map("sellers")
@@ -300,6 +312,13 @@ model Order {
   id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orderNumber   String      @unique @map("order_number")
   buyerId       String      @map("buyer_id") @db.Uuid
+  /// Denormalized from the (single) seller of this order's items. Phase 6's
+  /// checkout is single-listing ("Buy Now"), so every order has exactly one
+  /// seller today — this field exists so seller order-management queries
+  /// don't need a join through items→product→seller. A future multi-seller
+  /// cart would need to split checkout into one Order per seller rather
+  /// than relax this to nullable/multi-valued.
+  sellerId      String      @map("seller_id") @db.Uuid
   status        OrderStatus @default(PENDING)
   subtotalCents Int         @map("subtotal_cents")
   totalCents    Int         @map("total_cents")
@@ -309,11 +328,14 @@ model Order {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  buyer    User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  buyer    User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller   Seller        @relation(fields: [sellerId], references: [id], onDelete: Restrict)
   items    OrderItem[]
   payments Payment[]
+  reviews  OrderReview[]
 
   @@index([buyerId])
+  @@index([sellerId])
   @@index([status])
   @@map("orders")
 }
@@ -408,6 +430,37 @@ model Review {
   @@map("reviews")
 }
 
+enum ReviewDirection {
+  BUYER_TO_SELLER
+  SELLER_TO_BUYER
+}
+
+/// Post-transaction mutual rating (Phase 6) — distinct from `Review` above,
+/// which rates a *product* and predates any transaction. This rates a
+/// *person*, tied to a completed `Order`, in either direction. Kept as a
+/// separate model rather than overloading `Review` since the two have
+/// different identity (product vs. person) and different uniqueness rules.
+model OrderReview {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId    String          @map("order_id") @db.Uuid
+  authorId   String          @map("author_id") @db.Uuid
+  revieweeId String          @map("reviewee_id") @db.Uuid
+  direction  ReviewDirection
+  rating     Int
+  comment    String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  order    Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author   User  @relation("OrderReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reviewee User  @relation("OrderReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  // One review per person per direction per order — a buyer can't rate the
+  // same seller twice for the same purchase.
+  @@unique([orderId, authorId, direction])
+  @@index([revieweeId])
+  @@map("order_reviews")
+}
+
 model SavedSearch {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
@@ -431,6 +484,13 @@ model Chat {
   sellerId   String   @map("seller_id") @db.Uuid
   productId  String?  @map("product_id") @db.Uuid
   lastMessageAt DateTime? @map("last_message_at")
+  /// Per-user, independent state — archiving/deleting is something each
+  /// participant does to their own view of the conversation, never both
+  /// sides at once (that would mean actually deleting shared history).
+  buyerArchived   Boolean   @default(false) @map("buyer_archived")
+  sellerArchived  Boolean   @default(false) @map("seller_archived")
+  buyerDeletedAt  DateTime? @map("buyer_deleted_at")
+  sellerDeletedAt DateTime? @map("seller_deleted_at")
   createdAt  DateTime @default(now()) @map("created_at")
 
   buyer    User      @relation("ChatBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
@@ -441,12 +501,32 @@ model Chat {
   @@map("chats")
 }
 
+/// One-directional block — A blocking B stops A↔B messaging regardless of
+/// who initiates, but is invisible to B (no "you've been blocked" signal,
+/// matching how most consumer messaging products handle this to avoid
+/// escalating harassment situations).
+model BlockedUser {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlockerOf", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocked_users")
+}
+
 model Message {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   chatId     String    @map("chat_id") @db.Uuid
   senderId   String    @map("sender_id") @db.Uuid
-  content    String
+  content    String?
+  imageUrl   String?   @map("image_url")
   readAt     DateTime? @map("read_at")
+  editedAt   DateTime? @map("edited_at")
+  deletedAt  DateTime? @map("deleted_at")
   createdAt  DateTime  @default(now()) @map("created_at")
 
   chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)

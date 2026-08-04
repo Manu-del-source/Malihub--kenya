@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Container } from "@/components/ui/container";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "@/app/(auth)/actions";
 
@@ -32,6 +33,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground sm:flex" aria-label="Dashboard">
+            <Link href="/messages" className="transition-colors hover:text-foreground">
+              Messages
+            </Link>
             <Link href="/dashboard/buyer" className="transition-colors hover:text-foreground">
               Buyer
             </Link>
@@ -47,15 +51,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
             )}
           </nav>
 
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
-            >
-              <LogOut className="h-3.5 w-3.5" aria-hidden />
-              Sign out
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <NotificationBell isSignedIn />
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden />
+                Sign out
+              </button>
+            </form>
+          </div>
         </Container>
       </header>
 

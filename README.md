@@ -25,6 +25,12 @@ run these files **in order**:
    Storage bucket + policies used by /complete-profile.
 4. `prisma/migrations/manual_product_search.sql` — full-text search
    (tsvector + trigram indexes) that `/search` depends on directly.
+5. `prisma/migrations/manual_phase6_rls_realtime.sql` — RLS for
+   chats/messages/orders/order_reviews, and enables Supabase Realtime on
+   `messages`/`chats`. **Required** for the chat UI's live updates to work
+   at all — without the `alter publication supabase_realtime add table`
+   statements in this file, Realtime subscriptions on those tables will
+   simply never fire, with no error to point at why.
 
 Also in the Supabase dashboard: **Authentication → Providers → Google**,
 enable it and add your OAuth client ID/secret, plus
@@ -60,6 +66,7 @@ src/
   components/     ui/, landing/, auth/, marketplace/, dashboard/, shared/
   hooks/          Client-side hooks (useNotifications, useCart, etc.)
   services/       External integrations (auth-service.ts, mpesa.ts, cloudinary.ts)
+  emails/         React Email templates, sent via services/email-service.ts
   lib/            Supabase clients, Prisma client, constants, validations/
   utils/          Pure helper functions (formatKes, slugify, timeAgo, ...)
   types/          Domain types + Supabase generated types
@@ -70,12 +77,43 @@ prisma/
   migrations/     Prisma migrations + manual full-text-search SQL
 ```
 
+## Verification
+
+Before any Phase 6 feature work, three checks must pass clean:
+`npx tsc --noEmit`, `npm run lint`, `npm run build`. As of this update:
+
+- **`tsc` and `lint`: clean.**
+- **`npm run build`**: the `next build` compilation step itself succeeds
+  (webpack bundles the full route tree with no errors); the build script's
+  leading `prisma generate` step requires network access to
+  `binaries.prisma.sh` to download the query engine. In network-restricted
+  environments (locked-down CI, some sandboxes) that step fails with a 403
+  and the build script exits before reaching `next build` at all — this is
+  an environment/network condition, not a code defect. If you hit this:
+  confirm outbound access to `binaries.prisma.sh`, or set
+  `PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1` if you're intentionally
+  offline. On a normal developer machine or standard CI runner this isn't
+  an issue.
+
+A note on `@react-email/components` (and the `react-email` package
+itself): npm currently flags **every** version — including the actively-
+maintained 6.x line Resend ships blog posts about — as "no longer
+supported." Multiple developers have hit this exact same confusion
+recently; it reads as an npm-registry-side/administrative issue rather
+than actual project abandonment (the changelog and blog are still being
+updated). Nothing to fix here by swapping packages — just flagging it so
+it doesn't look like an oversight.
+
+`recharts` and `@faker-js/faker` — flagged as past-EOL in earlier phases —
+are now current majors (`recharts@3`, `faker@10`); neither was a security
+issue, just staleness.
+
 ## Status
 
-Phases 1–5 complete (architecture, scaffolding, landing page, authentication,
-marketplace core). See the checklist in `ARCHITECTURE.md` §13 for what's next.
-
-A note on `recharts`/`@faker-js/faker`: npm flags both as past end-of-life
-majors. Neither is a security issue (unlike the Next.js CVE above) and
-recharts isn't used by anything yet — worth bumping to current majors
-before Phase 6 wires up dashboard charts, rather than after.
+Phases 1–5 complete. **Phase 6 (Messaging, M-Pesa, Orders, Reviews,
+Analytics, Moderation) is in progress** — schema, RLS/Realtime setup, the
+full notification system, and **Messaging** (Realtime chat, typing/presence,
+image sharing, read receipts, edit/delete, block/archive/delete, rate
+limiting) are done and verified (`tsc`/`lint`/build all clean — see
+Verification above). M-Pesa is next. See the checklist in
+`ARCHITECTURE.md` §13.

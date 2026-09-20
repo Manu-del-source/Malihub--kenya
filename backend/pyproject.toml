@@ -1,0 +1,144 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MaliHub Kenya — independent FastAPI backend
+#
+# Installed as a package (`pip install -e ./backend`) rather than run off a bare
+# requirements.txt, so `app.*` imports resolve the same way in a shell, under
+# uvicorn, and in the test suite, and so the optional extras below mean
+# something.
+#
+# Deliberately NOT here, and why:
+#   * No web framework besides FastAPI. No microservices, no task queue, no
+#     service mesh — Phase 8 is a foundation, not a platform.
+#   * No `supabase-py`. Supabase is the identity provider; this service verifies
+#     the JWTs it signs with PyJWT and never calls its API.
+#   * No `payhero` SDK, no `cloudinary`, no `resend` client library. PayHero and
+#     server-side Cloudinary transfer are stubs in Phase 8 (see
+#     app/providers/), and Resend is a single POST that `httpx` already covers.
+#     Adding three vendor SDKs to make zero vendor calls is dependency weight
+#     with a supply-chain cost and no benefit.
+#   * No ORM migrations tool (Alembic). Prisma owns the DDL — see
+#     app/models/base.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[project]
+name = "malihub-backend"
+version = "0.8.0"
+description = "MaliHub Kenya — independent FastAPI backend (Phase 8 foundation)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "MaliHub Kenya" }]
+
+dependencies = [
+    # HTTP framework + ASGI server
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.32,<1.0",
+
+    # Configuration & validation
+    "pydantic>=2.9,<3.0",
+    "pydantic-settings>=2.6,<3.0",
+
+    # Outbound HTTP: Resend today, PayHero and Cloudinary in Phase 9.
+    # Also what starlette's TestClient runs on, so it is needed for tests too.
+    "httpx>=0.27,<1.0",
+
+    # Supabase JWT verification (HS256). Asymmetric/JWKS needs the extra below.
+    "pyjwt>=2.9,<3.0",
+
+    # Redis: cache, rate limiting, short-lived state.
+    "redis>=5.2,<8.0",
+
+    # PostgreSQL access. asyncpg is the driver; SQLAlchemy maps the tables
+    # Prisma creates.
+    "sqlalchemy[asyncio]>=2.0,<2.1",
+    "asyncpg>=0.30,<1.0",
+]
+
+[project.optional-dependencies]
+# Supabase projects that sign access tokens asymmetrically publish a JWKS
+# endpoint instead of using a shared HS256 secret. Verifying those needs
+# `cryptography` (a large binary wheel), so it is opt-in: set
+# SUPABASE_JWT_ALGORITHMS=RS256 and install this extra.
+jwks = ["cryptography>=43.0"]
+
+dev = [
+    "pytest>=8.3,<10.0",
+    "pytest-asyncio>=0.24,<2.0",
+    "ruff>=0.8,<1.0",
+    "cryptography>=43.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+# ─── pytest ──────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `pythonpath` so `import app.…` works when pytest is invoked from backend/
+# without installing the package first.
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "error",
+    # Starlette/httpx deprecate each other on a rolling basis in this
+    # environment; they are not ours to fix and must not fail the suite.
+    "ignore::DeprecationWarning",
+    "ignore:.*starlette.testclient.*:Warning",
+]
+markers = [
+    "integration: hits a real PostgreSQL/Redis (skipped unless the env vars are set)",
+]
+
+# ─── ruff ────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I isort, N naming, UP pyupgrade, B bugbear,
+# S bandit (security), A builtins shadowing, C4 comprehensions, SIM
+# simplification, RUF miscellaneous.
+#
+# `S` is on because this service handles payment credentials and PII. Two of
+# its rules are disabled with a reason at the call site rather than globally:
+#   S104 (bind to all interfaces) — required in a container; see core/config.py.
+#   S101 (assert)               — allowed in tests only, via the per-file ignore.
+select = ["E", "W", "F", "I", "N", "UP", "B", "S", "A", "C4", "SIM", "RUF"]
+ignore = [
+    # Docstrings and comments in this codebase carry a lot of architecture
+    # rationale; E501 is enforced by the formatter's line-length instead.
+    "E501",
+    # `__init__.py` files re-export deliberately (see providers/*/__init__.py).
+    "F401",
+    # RUF002/RUF003 flag typographic characters in docstrings and comments
+    # (`×`, `–`, `§`). Those are deliberate in prose; RUF001 stays on so
+    # confusables inside *string literals* — the ones that can reach a parser
+    # or a log line — are still caught.
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 forbids a function call in an argument default. `Depends(...)` in a
+# signature IS the FastAPI dependency-injection idiom — the framework reads
+# the default at import time, and hoisting it to a module-level singleton
+# would break per-request scoping. Listed here so B008 still fires on every
+# other call-in-default, which is a real bug.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Body", "fastapi.Path"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR2004", "B008"]
+"**/__init__.py" = ["F401", "I001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

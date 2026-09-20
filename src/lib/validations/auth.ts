@@ -5,7 +5,7 @@ import { KENYA_COUNTIES } from "@/lib/constants";
  * Kenyan phone numbers, accepted in any of the common local formats
  * (0712345678, +254712345678, 254712345678, 0112345678 for Safaricom/
  * Airtel/Telkom ranges) — normalized to 2547XXXXXXXX / 2541XXXXXXXX by
- * toMpesaMsisdn() at the point of use, not here (this schema just
+ * toKenyanMsisdn() at the point of use, not here (this schema just
  * validates shape).
  */
 const kenyanPhoneRegex = /^(?:\+?254|0)(7|1)\d{8}$/;

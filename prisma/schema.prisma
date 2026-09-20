@@ -1,10 +1,11 @@
 // ============================================================================
 // MaliHub Kenya — Database Schema
-// PostgreSQL (Supabase) via Prisma
+// Independent PostgreSQL via Prisma
 //
 // Design notes:
 // - `User` mirrors Supabase's `auth.users` (id is the Supabase auth UUID).
-//   Supabase owns credentials/OTP/OAuth; Prisma owns application data and
+//   Supabase owns credentials/OTP/OAuth and NOTHING ELSE — it is the identity
+//   provider, not the application database. Prisma owns application data and
 //   relations. A DB trigger (see prisma/migrations sql) inserts into
 //   public."User" + "Profile" on auth.users insert.
 // - Money is stored in integer cents (KES) to avoid float rounding issues.
@@ -13,6 +14,21 @@
 //   prisma/migrations/xxxx_product_search/migration.sql.
 // - Soft moderation state lives on Product.status; hard deletes are avoided
 //   in favor of REMOVED/SUSPENDED so order history stays intact.
+// - Payments are provider-agnostic (`provider` + `providerTransactionId` +
+//   `providerReference` + `metadata`), never shaped around one processor.
+//
+// ─── Portability (Phase 8) ─────────────────────────────────────────────────
+// Everything *in this file* is plain, standard PostgreSQL and runs unmodified
+// on any managed provider (Neon, RDS, Cloud SQL, Supabase, self-hosted):
+// UUID PKs, `gen_random_uuid()` (core since PG 13), enums, JSONB, and the
+// `tsvector` search column added by raw SQL. Point `DATABASE_URL` at a
+// different Postgres and `prisma migrate deploy` and this schema is portable.
+//
+// The Supabase couplings are all in the *manual SQL layer* alongside it, not
+// in the schema: `auth.uid()`/`auth.jwt()` RLS helpers, the `on_auth_user_created`
+// trigger, the Realtime publication, and the `avatars` Storage bucket. Those
+// are additive defense-in-depth on top of the Prisma data path — see
+// ARCHITECTURE.md §6c for the full inventory and the migration path off them.
 // ============================================================================
 
 generator client {
@@ -20,8 +36,12 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  // Pooled connection string (Neon pooler, PgBouncer, Supavisor, ...).
+  url = env("DATABASE_URL")
+  // Unpooled connection string, used only for migrations. Provider-neutral:
+  // set it to the same value as DATABASE_URL when your Postgres has no
+  // separate pooler endpoint.
   directUrl = env("DIRECT_URL")
 }
 
@@ -69,10 +89,33 @@ enum OrderStatus {
   REFUNDED
 }
 
+/// The *channel* a customer pays through — deliberately provider-neutral.
+/// `MOBILE_MONEY` covers M-Pesa, Airtel Money, etc.; which processor actually
+/// moves the money is `PaymentProvider` below. This enum was `MPESA | CARD |
+/// CASH_ON_DELIVERY` before Phase 8 — `MPESA` conflated a channel with a
+/// specific rail/provider, which is exactly the coupling the payment
+/// architecture is designed to avoid.
 enum PaymentMethod {
-  MPESA
+  MOBILE_MONEY
   CARD
+  BANK_TRANSFER
   CASH_ON_DELIVERY
+}
+
+/// The *processor* that moves the money. One row per integration.
+///
+/// - `PAYHERO` — the first live provider (implemented in Phase 9).
+/// - `DARAJA`  — reserved for a future direct Safaricom integration. The enum
+///               value exists so adding that provider later is a code change,
+///               not a destructive enum migration. **No implementation exists
+///               and none is planned for Phase 8** — a `Payment` must never be
+///               created with this value until `DarajaProvider` ships.
+/// - `MANUAL`  — offline/settled-by-hand money (e.g. cash on delivery recorded
+///               by an admin). No external processor is involved.
+enum PaymentProvider {
+  PAYHERO
+  DARAJA
+  MANUAL
 }
 
 enum PaymentStatus {
@@ -357,30 +400,82 @@ model OrderItem {
   @@map("order_items")
 }
 
+/// Provider-agnostic payment record (Phase 8).
+///
+/// Every column here means the same thing no matter which processor handled
+/// the money. The old M-Pesa-specific columns (`mpesaCheckoutRequestId`,
+/// `mpesaMerchantRequestId`, `mpesaReceiptNumber`, `mpesaPhoneNumber`,
+/// `resultCode`, `resultDesc`) are gone — they are now expressed through the
+/// generic provider columns below. Mapping table:
+///
+///   mpesaCheckoutRequestId  → providerTransactionId
+///   mpesaReceiptNumber      → providerReference
+///   mpesaPhoneNumber        → payerReference
+///   resultCode / resultDesc → failureCode / failureReason
+///   mpesaMerchantRequestId  → metadata.merchantRequestId
+///
+/// `metadata` is intentionally the *only* place provider-specific detail
+/// lives. Anything the app queries, filters, indexes, or reconciles on is a
+/// real column — JSON is for opaque detail we only ever read back for
+/// support/audit (raw provider response fields, masked card brand/last4,
+/// provider fee breakdowns, Daraja's `MerchantRequestID`).
 model Payment {
-  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId               String        @map("order_id") @db.Uuid
-  method                PaymentMethod
-  status                PaymentStatus @default(PENDING)
-  amountCents           Int           @map("amount_cents")
-  currency              String        @default("KES")
-  mpesaCheckoutRequestId String?      @unique @map("mpesa_checkout_request_id")
-  mpesaMerchantRequestId String?      @map("mpesa_merchant_request_id")
-  mpesaReceiptNumber     String?      @unique @map("mpesa_receipt_number")
-  mpesaPhoneNumber       String?      @map("mpesa_phone_number")
-  resultCode            Int?          @map("result_code")
-  resultDesc            String?       @map("result_desc")
-  failureReason         String?       @map("failure_reason")
-  rawCallbackPayload    Json?         @map("raw_callback_payload")
-  retryCount            Int           @default(0) @map("retry_count")
-  paidAt                DateTime?     @map("paid_at")
-  createdAt             DateTime      @default(now()) @map("created_at")
-  updatedAt             DateTime      @updatedAt @map("updated_at")
+  id       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId  String          @map("order_id") @db.Uuid
+  provider PaymentProvider @default(PAYHERO)
+  method   PaymentMethod
+  status   PaymentStatus   @default(PENDING)
+  /// Integer minor units (KES cents), per the money convention in §6 of
+  /// ARCHITECTURE.md — never a float, never a provider-formatted string.
+  amountCents Int    @map("amount_cents")
+  currency    String @default("KES")
+  /// The processor's own transaction identifier (PayHero `transaction_id`,
+  /// Daraja `CheckoutRequestID`). Unique so a retried/duplicated provider
+  /// callback can be matched to exactly one row and processed idempotently.
+  providerTransactionId String? @unique @map("provider_transaction_id")
+  /// The processor's settlement/receipt reference a customer can quote to
+  /// their bank or operator (PayHero/Daraja M-Pesa receipt number, a card
+  /// network reference). Unique for the same idempotency reason.
+  providerReference String? @unique @map("provider_reference")
+  /// *Our* reference handed to the provider when initiating the charge
+  /// (the order number). Providers echo it back in callbacks and
+  /// reconciliation exports, so it's the join key when a callback arrives
+  /// before we've stored `providerTransactionId`. Required, not nullable:
+  /// a Payment is always created from a known Order.
+  customerReference String @map("customer_reference")
+  /// Provider-reported payer handle, normalized and de-identified where the
+  /// provider allows it (an MSISDN for mobile money, a masked PAN for card).
+  /// This is the one piece of payer PII we keep on the row, because support
+  /// and refund flows genuinely need it; it is never logged (see §13).
+  payerReference String? @map("payer_reference")
+  /// Provider-specific, opaque detail. Not indexed, not queried.
+  metadata Json?
+  /// Normalized failure signalling. `failureCode` is a string on purpose:
+  /// Daraja reports integers (0 = accepted, 1032 = cancelled), PayHero
+  /// reports string statuses — a string column holds both without a lossy
+  /// cast, and the provider adapter owns the translation.
+  failureCode   String? @map("failure_code")
+  failureReason String? @map("failure_reason")
+  /// Verbatim provider callback body, kept for dispute resolution and replay
+  /// after signature verification. Store the *raw* payload, never a
+  /// re-serialized version — the point is being able to re-verify it.
+  rawCallbackPayload Json? @map("raw_callback_payload")
+  /// Attempts against the same Order. A retry creates a NEW Payment row and
+  /// bumps this counter rather than mutating a failed one, so the audit
+  /// trail of every attempt survives.
+  retryCount Int       @default(0) @map("retry_count")
+  paidAt     DateTime? @map("paid_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([status])
+  /// Reconciliation sweeps ("every PAYHERO payment stuck in PENDING/PROCESSING
+  /// for > N minutes") are provider-scoped by nature, so they get a
+  /// provider-leading composite index.
+  @@index([provider, status])
   @@map("payments")
 }
 
@@ -620,4 +715,57 @@ model TicketMessage {
 
   @@index([ticketId])
   @@map("ticket_messages")
+}
+
+// ─── Security & audit ─────────────────────────────────────────────────────
+
+/// Append-only security audit trail, written exclusively through
+/// `src/services/audit-service.ts` (`logAuditEvent`).
+///
+/// Phase 7 shipped the service and the RLS policy for this table
+/// (`manual_phase7_security.sql` targets `public.audit_logs`) but the Prisma
+/// model itself never landed in the schema — so `prisma.auditLog` in
+/// audit-service.ts had no generated client accessor. Added in Phase 8 to
+/// close that gap; the table name, column names and `@@map` here match the
+/// SQL Phase 7 already expects.
+///
+/// Deliberate design choices:
+/// - **No foreign keys.** `actorId` points at `users.id` in shape only. An
+///   audit trail must outlive its subject: cascade-deleting a banned or
+///   deleted user would erase exactly the history you need to explain the
+///   ban, and failed-login rows routinely describe emails that never became
+///   users at all. Integrity here is worth less than immutability.
+/// - **`action` is a free-form string at the DB level**, constrained by the
+///   `AuditAction` union in audit-service.ts rather than by a Postgres enum.
+///   Adding a new audited action is then a one-line TypeScript change, not a
+///   destructive `ALTER TYPE` migration.
+/// - **Append-only by convention.** Nothing updates or deletes these rows;
+///   `updatedAt` is intentionally absent so an accidental write shows up in
+///   review.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action     String
+  /// Supabase auth UUID of whoever acted. Null for pre-authentication events
+  /// (a failed login, a rate-limited signup) where no user row exists yet.
+  actorId    String?  @map("actor_id") @db.Uuid
+  actorEmail String?  @map("actor_email")
+  /// Free-form subject labels ("listing", "user", "report") paired with
+  /// `targetId`. Kept as strings, not a relation, for the same reason as
+  /// `actorId`.
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  /// Non-sensitive event detail. Never put passwords, tokens, API keys or
+  /// full payment payloads in here — see the logging redaction rules (§13).
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  /// `countRecentFailedLogins()` filters action + createdAt; the admin
+  /// timeline view filters actorEmail + createdAt. Both get a covering
+  /// composite index rather than single-column ones.
+  @@index([action, createdAt])
+  @@index([actorEmail, createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
 }

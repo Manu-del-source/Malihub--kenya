@@ -60,8 +60,16 @@ export function timeAgo(date: Date | string): string {
   return new Date(date).toLocaleDateString("en-KE");
 }
 
-/** Normalize a Kenyan phone number to the 2547XXXXXXXX format Daraja expects. */
-export function toMpesaMsisdn(phone: string): string {
+/**
+ * Normalize a Kenyan phone number to the 2547XXXXXXXX / 2541XXXXXXXX MSISDN
+ * format mobile-money rails expect.
+ *
+ * Named for the *format*, not for a provider: M-Pesa, Airtel Money and any
+ * aggregator in front of them (PayHero today, Daraja directly in future) all
+ * want the same E.164-style Kenyan MSISDN, so this helper belongs to none of
+ * them. It was `toMpesaMsisdn()` before Phase 8's payment generalization.
+ */
+export function toKenyanMsisdn(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("254")) return digits;
   if (digits.startsWith("0")) return `254${digits.slice(1)}`;

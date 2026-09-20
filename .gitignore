@@ -12,3 +12,28 @@ dist
 next-env.d.ts
 .turbo
 coverage
+
+# ─── FastAPI backend ──────────────────────────────────────────────
+# Python virtual environments. `backend/.venv` is the conventional local one;
+# the others are here so a venv created anywhere in the tree is never staged.
+backend/.venv/
+.venv/
+.venv*/
+venv/
+
+# Secrets. `backend/.env` is the backend's own config and must never be
+# committed — `backend/.env.example` is the tracked template.
+backend/.env
+backend/.env.local
+backend/.env*.local
+
+# Bytecode, caches and test/tooling artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+backend/dist/
+*.egg-info/

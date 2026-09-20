@@ -16,10 +16,13 @@ import type {
   ProductCondition,
   ListingStatus,
   OrderStatus,
+  PaymentMethod,
+  PaymentProvider,
   PaymentStatus,
   SellerVerificationStatus,
   ReportReason,
   NotificationType,
+  AuditLog,
 } from "@prisma/client";
 
 export type {
@@ -40,10 +43,13 @@ export type {
   ProductCondition,
   ListingStatus,
   OrderStatus,
+  PaymentMethod,
+  PaymentProvider,
   PaymentStatus,
   SellerVerificationStatus,
   ReportReason,
   NotificationType,
+  AuditLog,
 };
 
 /** Product with its common includes — the shape most listing UIs consume. */

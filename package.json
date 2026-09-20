@@ -17,7 +17,12 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "backend:install": "cd backend && python -m pip install -e '.[dev]'",
+    "backend:dev": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "backend:test": "cd backend && python -m pytest",
+    "backend:lint": "cd backend && python -m ruff check app tests",
+    "backend:format": "cd backend && python -m ruff format app tests"
   },
   "dependencies": {
     "next": "15.5.22",

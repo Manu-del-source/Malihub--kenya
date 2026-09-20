@@ -6,8 +6,10 @@ pieces fit together; every later phase implements against it.
 ## 1. Goals & non-goals
 
 **Goals:** a premium, fast, accessible Kenyan marketplace (Apple/Airbnb/Stripe
-register, not Jiji's), with real M-Pesa payments, three distinct dashboards
-(seller/buyer/admin), and a data model that scales past the MVP.
+register, not Jiji's), with real mobile-money payments behind a
+provider-agnostic interface (PayHero first, direct Daraja reserved), three
+distinct dashboards (seller/buyer/admin), and a data model that scales past
+the MVP.
 
 **Non-goals for v1:** multi-currency, multi-country, native mobile apps,
 real-time video, and a custom-built chat infra (v1 messaging is DB-backed
@@ -22,35 +24,72 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
 │  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────┐    │
 │  │ Server         │  │ Client         │  │ Route Handlers        │    │
 │  │ Components     │  │ Components     │  │ /api/*                │    │
-│  │ (data reads,   │  │ (forms, cart,  │  │ (mutations, webhooks, │    │
-│  │  RSC-first)    │  │  motion, chat) │  │  Daraja callbacks)     │    │
+│  │ (data reads,   │  │ (forms, cart,  │  │ (mutations, webhooks) │    │
+│  │  RSC-first)    │  │  motion, chat) │  │                       │    │
 │  └───────┬───────┘  └───────┬───────┘  └───────────┬───────────┘    │
 │          │                  │                       │                │
 │          └────────────┬─────┴───────────┬───────────┘                │
-│                        │                 │                            │
-└────────────────────────┼─────────────────┼────────────────────────────┘
-                         │                 │
-              ┌──────────▼──────┐   ┌──────▼───────────┐
-              │  Prisma Client    │   │  Supabase Auth    │
-              │  (app data:       │   │  (identity,       │
-              │  products, orders,│   │   sessions,        │
-              │  payments, etc.)  │   │   OAuth, RLS)      │
-              └──────────┬────────┘   └──────┬────────────┘
-                         │                    │
-              ┌──────────▼────────────────────▼───────────┐
-              │        Supabase Postgres (single DB)       │
-              └──────────┬──────────────────────┬──────────┘
-                         │                       │
-              ┌──────────▼───────┐   ┌───────────▼───────────┐
-              │  Cloudinary       │   │  M-Pesa Daraja API     │
-              │  (image storage + │   │  (STK Push, callbacks, │
-              │   transforms)     │   │   B2C/reconciliation)  │
-              └───────────────────┘   └────────────────────────┘
+└───────────────────────┼─────────────────┼────────────────────────────┘
+                        │                 │
+                        │      ┌──────────▼────────────────────────────┐
+                        │      │  FastAPI backend (Phase 8)  /api/v1    │
+                        │      │  payments, webhooks, health, and the   │
+                        │      │  provider adapters that need a long-   │
+                        │      │  lived process and signed callbacks    │
+                        │      └───┬──────────────┬───────────────┬────┘
+                        │          │              │               │
+             ┌──────────▼──────┐   │   ┌──────────▼─────────┐     │
+             │  Prisma Client   │   │   │  SQLAlchemy mirror │     │
+             │  (app data:      │   │   │  (payments domain; │     │
+             │  products, orders│   │   │   maps, never      │     │
+             │  payments, …)    │   │   │   creates)         │     │
+             └──────────┬───────┘   │   └──────────┬─────────┘     │
+                        └───────┬───┴──────────────┘               │
+                                │                                  │
+             ┌──────────────────▼───────────────────┐   ┌──────────▼─────────┐
+             │  PostgreSQL — application database    │   │  Redis (Upstash)   │
+             │  `public.*`, owned by Prisma          │   │  cache, rate-limit │
+             │  migrations. Any managed provider.    │   │  and temp state    │
+             └───────────────────────────────────────┘   │  only — never a    │
+                                                         │  primary store     │
+             ┌───────────────────────┐                   └────────────────────┘
+             │  Supabase Auth        │
+             │  identity ONLY:       │
+             │  credentials, sessions│
+             │  OAuth, JWT issuance  │
+             └───────────────────────┘
+
+             ┌───────────────────┐   ┌────────────────────────┐
+             │  Cloudinary       │   │  Payment providers     │
+             │  (image storage + │   │  PayHero (Phase 9)     │
+             │   transforms)     │   │  Daraja (reserved)     │
+             └───────────────────┘   └────────────────────────┘
 ```
 
-Single Postgres instance (Supabase) serves both Supabase Auth (`auth.users`)
-and application data (`public.*` via Prisma). This avoids the two-databases-
-that-drift-apart failure mode common in Supabase+Prisma stacks.
+**The Supabase boundary is authentication.** Supabase issues and verifies user
+sessions, and there is no second auth system and no second password store
+anywhere in this repository. Concretely:
+
+- **Supabase is not the application database.** Application data lives in an
+  independent PostgreSQL instance, reached through Prisma from Next.js and
+  through a read/write mirror from FastAPI. Hosting that Postgres *on* Supabase
+  remains possible, but nothing in the code depends on it: no Supabase-specific
+  database feature is used, so any standard managed PostgreSQL 13+ (Neon, RDS,
+  …) works unchanged. See §6c.
+- **Supabase is not the file store for anything new.** Marketplace images go to
+  Cloudinary, and the backend's `StorageProvider` abstraction (§14) is
+  Cloudinary-shaped for that reason — deliberately not a Supabase Storage
+  client. One Phase 4 exception survives: profile **avatars** use a Supabase
+  Storage bucket (`src/components/auth/avatar-upload.tsx`, created by
+  `manual_storage_avatars.sql`). It is working functionality and was left
+  alone; the rule is that nothing *new* is built on it, and a future phase may
+  consolidate avatars onto Cloudinary rather than grow the exception.
+- **Supabase tokens are consumed, never issued, by the backend** (§5).
+
+**Two processes, one schema.** Next.js and FastAPI deploy independently and
+talk to the same Postgres and the same Redis. Prisma owns every DDL change;
+the SQLAlchemy layer only maps tables that already exist and must never emit
+schema. See §6c and §14.
 
 ## 3. Rendering strategy
 
@@ -105,6 +144,25 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 - Middleware (`src/middleware.ts`) refreshes the session cookie every request
   and redirects: signed-out users away from `/dashboard/*`, signed-in users
   away from auth pages, non-admins away from `/dashboard/admin/*`.
+- **The FastAPI backend consumes Supabase tokens; it never issues them.**
+  A `TokenVerifier` abstraction (`backend/app/core/security.py`) accepts the
+  `Authorization: Bearer <supabase jwt>` header and validates it either by
+  shared secret (HS256, `SUPABASE_JWT_SECRET`) or by JWKS
+  (`SUPABASE_JWKS_URL` + an asymmetric algorithm). There is deliberately no
+  second sign-in path, no local password store, and no session table: if
+  Supabase did not issue the token, the backend rejects it.
+  - A `service_role` JWT presented as a user token is **refused with 403**.
+    That key is a server-side admin credential and must never arrive from a
+    browser; accepting it would turn any leaked anon-side token into full
+    admin access.
+  - The role is read from `app_metadata.role`, matching §5 — the JWT claim is
+    the fast path, and anything security-sensitive re-checks it.
+  - Tokens are accepted **only** from the `Authorization` header, never from a
+    cookie or a query string: a token in a URL lands in access logs, browser
+    history and `Referer` headers.
+  - If neither verification mode is configured the backend fails **closed** —
+    every authenticated route returns 503 rather than treating requests as
+    anonymous. In production this is a startup error, not a runtime one.
 
 ## 5a. Auth implementation notes (Phase 4)
 
@@ -242,36 +300,168 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   the M-Pesa callback) on the privileged connection, so there's nothing
   for the anon/authenticated roles to need insert/update access for.
 
-## 7. Payments: M-Pesa Daraja integration
+## 6c. Database portability & who owns the DDL (Phase 8)
 
-Flow for a checkout:
+Two rules, both of which exist because the alternative is a class of bug that
+only appears in production.
 
-1. Buyer confirms order → Server Action creates `Order` (status `PENDING`)
-   and `Payment` (status `PENDING`, method `MPESA`).
-2. Server Action calls the Daraja **STK Push** endpoint (`services/mpesa.ts`,
-   built in Phase 8) with the buyer's MSISDN (normalized via
-   `toMpesaMsisdn()`), amount, and `AccountReference` = order number.
-3. Daraja responds synchronously with a `CheckoutRequestID` — stored on the
-   `Payment` row immediately so the callback can be matched even if it
-   arrives before the STK push response does (race condition Safaricom's
-   docs explicitly warn about).
-4. Safaricom calls back to `POST /api/mpesa/callback` (a Route Handler, not
-   a Server Action, since it's an external POST with no browser session).
-   The handler: verifies the payload shape, looks up the `Payment` by
-   `mpesaCheckoutRequestId`, and updates status to `SUCCESS`/`FAILED` —
-   **idempotently** (checked by `resultCode` already being set) since
-   Safaricom retries callbacks.
-5. On `SUCCESS`: `Order.status → PAID`, a `Notification` is created for the
-   buyer and seller, and a receipt is generated from the stored
-   `mpesaReceiptNumber`.
-6. **Failed payment recovery:** failed/timeout payments surface a "Retry
-   Payment" action that reuses the same `Order` with a new `Payment` row
-   (never mutates a failed one, preserving the audit trail) and increments
-   `retryCount`.
-7. A **query job** (`/api/mpesa/query`, invoked by a scheduled function) polls
-   Daraja's transaction status endpoint for any `Payment` stuck in
-   `PENDING`/`PROCESSING` past a timeout — covers the case where the callback
-   never arrives (network blip on Safaricom's side).
+**The application database is portable PostgreSQL.** Nothing added from Phase
+8 onward uses a Supabase-specific database feature. Concretely:
+
+- UUID keys are `gen_random_uuid()`, which is core PostgreSQL 13+ — not the
+  `uuid-ossp` extension and not a Supabase helper.
+- JSON is `jsonb`, timestamps are `timestamptz`, enums are plain Postgres
+  `CREATE TYPE … AS ENUM`. All standard.
+- Authorization in the application layer is explicit ownership checks in code,
+  not Row Level Security. RLS remains in place for the Supabase-client read
+  paths (§5), but no new feature depends on it — which is what allows the
+  backend to connect with an ordinary application role.
+- Full-text search uses the standard `tsvector`/GIN pattern already in place
+  from Phase 5, not a Supabase extension.
+
+Supabase Postgres remains a perfectly good *host* for this database. The point
+is that the choice is a deployment decision, not a dependency: moving to Neon
+or RDS is a `DATABASE_URL` change and nothing else.
+
+**Prisma owns the schema; the backend only maps it.** `prisma/schema.prisma`
+is the single source of truth for tables, columns, indexes, constraints and
+enums, and Prisma migrations are the only thing that changes them. The
+SQLAlchemy classes in `backend/app/models/` are a *mirror*:
+
+- They never call `create_all()` and emit no DDL. Two migration histories
+  against one database is how a schema ends up in a state neither tool
+  describes. `backend/tests/test_models.py` enforces this textually.
+- Every Postgres enum is declared `create_type=False`, because Prisma already
+  created the type.
+- Column names are Prisma's `@map` names, and index/constraint names are the
+  ones Prisma generates, so `prisma migrate diff` reports no drift.
+- The mirror is deliberately *small* — the payment domain only. Mirroring all
+  whole schema up front would create one thing to keep in sync per model, for
+  code that does not exist yet. Each model gets mirrored when a backend service
+  needs it.
+
+The tests parse `prisma/schema.prisma` and compare it against the mirror, so a
+schema change that the backend was not told about fails the suite rather than
+writing to a column that does not exist.
+
+## 7. Payments: provider-agnostic architecture
+
+Phase 8 replaced the M-Pesa-Daraja-specific design in this section with a
+provider-agnostic one. The reason is not speculative flexibility: M-Pesa is a
+*rail*, Daraja and PayHero are *processors* on it, and the original schema
+conflated the two — `PaymentMethod.MPESA` named a processor where a channel
+belonged, and every column was prefixed `mpesa`. Adding a card processor to
+that schema is a migration and a rewrite; adding one to this schema is an
+adapter.
+
+### 7a. The model
+
+`Payment` records *which processor moved the money*, separately from *which
+channel the customer used*:
+
+| Field | Meaning |
+| --- | --- |
+| `provider` | `PAYHERO` · `DARAJA` (reserved) · `MANUAL` — the processor |
+| `method` | `MOBILE_MONEY` · `CARD` · `BANK_TRANSFER` · `CASH_ON_DELIVERY` — the channel |
+| `status` | `PENDING → PROCESSING → SUCCESS / FAILED / CANCELLED / REFUNDED` |
+| `amountCents` | Integer minor units. Never a float, never a provider-formatted string (§6) |
+| `currency` | ISO 4217, default `KES` |
+| `providerTransactionId` | The processor's own id (PayHero `transaction_id`, Daraja `CheckoutRequestID`). Unique — this is the idempotency key a retried callback is matched against |
+| `providerReference` | The settlement/receipt reference a customer can quote to their bank or operator. Unique |
+| `customerReference` | *Our* reference (the order number), echoed back in callbacks. Required — a Payment always comes from a known Order |
+| `payerReference` | Provider-reported payer handle, normalized (an MSISDN, a masked PAN). The one piece of payer PII on the row, kept because support and refunds genuinely need it, and never logged (§11) |
+| `metadata` | Opaque provider-specific detail as JSON. Not indexed, not queried |
+| `failureCode` / `failureReason` | Normalized failure signalling. `failureCode` is a string on purpose: Daraja reports integers (`0` accepted, `1032` cancelled), PayHero reports string statuses — a string column holds both without a lossy cast, and the adapter owns the translation |
+| `rawCallbackPayload` | The verbatim callback body, kept for dispute resolution and replay. Raw, never re-serialized: the point is being able to re-verify the signature |
+| `retryCount` | Attempts against the same Order. A retry creates a **new** Payment row and bumps this counter rather than mutating a failed one, so every attempt stays auditable |
+
+The Phase 7 → 8 rename, applied in
+`prisma/migrations/manual_phase8_provider_agnostic_payments.sql`:
+`mpesaCheckoutRequestId → providerTransactionId`,
+`mpesaReceiptNumber → providerReference`, `mpesaPhoneNumber → payerReference`,
+`resultCode → failureCode`, `resultDesc → failureReason`,
+`mpesaMerchantRequestId → metadata.merchantRequestId`. Existing rows are
+backfilled rather than dropped — `MOBILE_MONEY → DARAJA`,
+`CARD/BANK_TRANSFER → PAYHERO`, `COD → MANUAL` — so no payment history is lost.
+
+### 7b. The provider interface
+
+`backend/app/providers/payments/base.py` defines a typed `PaymentProvider`
+protocol with four operations:
+
+- `initialize(request)` — start a charge; returns the provider's transaction id.
+- `check_status(provider_transaction_id)` — poll the provider.
+- `parse_webhook(envelope)` — verify and decode an inbound callback. The
+  envelope carries `raw_body: bytes`, because signature verification must run
+  over the exact bytes received, not a re-serialized dict.
+- `verify_payment(provider_reference)` — confirm a claimed reference resolves
+  to the amount and currency we expect.
+
+`check_status` and `verify_payment` are separate operations on purpose. The
+first asks "what does the provider say happened?"; the second asks "does what
+the provider says match *our order*?" — and only the second is safe to settle
+on, because a customer-supplied reference that resolves to someone else's
+payment must not mark our order paid.
+
+Providers register in a registry (`registry.py`) keyed by `PaymentProvider`.
+Registering a name twice raises at startup rather than silently replacing an
+adapter. `DARAJA` and `MANUAL` are **reserved**: the enum values exist so
+adding them is a code change rather than a destructive enum migration, but no
+adapter is registered and requesting one returns an explanation, not a 500.
+
+### 7c. What Phase 8 does *not* do
+
+This is a deliberate boundary, and it is enforced by tests rather than by
+convention:
+
+- **No PayHero API calls.** `PayHeroProvider` is a typed stub. Every operation
+  raises `NotImplementedFeatureError` → HTTP 501. It reports
+  `available = false` even when credentials are present, because *configured*
+  and *working* are different claims and conflating them is how a half-built
+  integration reaches production.
+- **No STK Push, no Daraja, no Safaricom callbacks.** The Phase 7 Daraja route
+  handlers (`/api/mpesa/*`) are removed. No `MPESA_*` variable is read by
+  anything in this repository.
+- **No payment-mutating endpoint.** The only payment route in Phase 8 is
+  `GET /api/v1/payments/providers`, which reports registered and reserved
+  providers and exposes no credentials. There is no initiate endpoint and no
+  webhook route — a webhook route that cannot verify a signature is worse than
+  no webhook route.
+- **No production payment credentials**, real or placeholder-shaped.
+  `PAYHERO_ENABLED` defaults to `false` and every credential in
+  `.env.example` is empty.
+- **No persistence in the service layer.** `PaymentService` orchestrates
+  providers and returns typed results; it does not write rows yet, because
+  there is no flow to write them from.
+
+Phase 9 implements PayHero for real: sandbox credentials, STK Push, a
+signature-verifying webhook endpoint, idempotent callback processing, and the
+order/notifications side effects below.
+
+### 7d. The flow, once implemented (Phase 9)
+
+1. Buyer confirms order → `Order` (`PENDING`) and `Payment` (`PENDING`,
+   `provider = PAYHERO`, `method = MOBILE_MONEY`).
+2. The backend calls the provider's `initialize()` with the buyer's MSISDN
+   (normalized to `2547XXXXXXXX` by `toKenyanMsisdn()` in `src/utils`), the
+   amount in cents, and `customerReference` = order number.
+3. The provider responds with its transaction id, stored on the `Payment` row
+   **immediately** — the callback can arrive before the initiate response does,
+   a race the providers' own docs warn about.
+4. The provider posts a callback to the backend's webhook route. The handler
+   verifies the signature over the raw bytes, looks up the `Payment` by
+   `providerTransactionId`, stores `rawCallbackPayload`, and applies the
+   transition **idempotently**: a payment already in a terminal status
+   (`SUCCESS`, `FAILED`, `CANCELLED`, `REFUNDED`) is a no-op, because providers
+   retry callbacks and a retry must not settle twice or notify twice.
+5. On `SUCCESS`: `Order.status → PAID`, notifications for buyer and seller
+   (§8), and a receipt from `providerReference`.
+6. **Failed payment recovery:** the buyer sees "Retry Payment", which reuses the
+   same `Order` with a new `Payment` row and increments `retryCount`.
+7. A **reconciliation sweep** polls `check_status()` for any payment stuck in
+   `PENDING`/`PROCESSING` past a timeout — the case where the callback never
+   arrives. The `payments_provider_status_idx` index exists for exactly this
+   query, which is provider-scoped by nature.
 
 ## 8. Notifications (implemented in Phase 6)
 
@@ -398,19 +588,72 @@ tipping into visual noise.
 
 ## 11. Security
 
+### Next.js application
+
 - Service-role Supabase client (`createServiceRoleClient`) is isolated to
   `src/lib/supabase/server.ts` and only ever imported by webhook handlers and
   admin-only Server Actions — never by anything reachable from a Client
   Component bundle.
-- M-Pesa callback endpoint validates the source (Safaricom's published IP
-  ranges) in addition to payload shape, since it's an unauthenticated
-  public endpoint by necessity.
-- Rate limiting (Upstash Redis, optional env vars already scaffolded) on
-  auth endpoints and the STK push trigger, to prevent OTP-bombing a phone
-  number or hammering Daraja's sandbox rate limits.
-- Every Server Action re-validates input with the same Zod schema used on
-  the client — client validation is UX, server validation is the actual
-  boundary.
+- Every Server Action re-validates input with the same Zod schema used on the
+  client — client validation is UX, server validation is the actual boundary.
+- Uploads are validated by content, not by declared type:
+  `src/lib/validations/upload-security.ts` checks magic bytes and the
+  Cloudinary hostname *and cloud name*, because `res.cloudinary.com` is shared
+  by every Cloudinary customer and a hostname allowlist alone would accept a
+  link into someone else's bucket.
+- CSRF protection (`src/lib/csrf.ts`), rate limiting (`src/lib/rate-limit.ts`)
+  and the shared Redis client (`src/lib/redis.ts`) are the Phase 7 controls and
+  remain in force. The audit trail is `src/services/audit-service.ts`.
+
+### FastAPI backend
+
+- **Errors never leak internals.** One envelope for every failure —
+  `{"error": {"code", "message", "details", "request_id"}}` — with a `code`
+  that is stable enough to branch on and a `message` safe to show a user. An
+  unhandled exception returns a generic 500 whose `details` contain only the
+  exception *type*, and in production not even that. Stack traces go to the log
+  with the request id, never to the response.
+- **Logging is redacted at the handler.** `RedactionFilter`
+  (`backend/app/core/logging.py`) removes anything under a secret-bearing key
+  (`api_key`, `password`, `authorization`, `signature`, `webhook_secret`, …),
+  partially masks identifying-but-useful fields (`email`, `ip_address`,
+  `user_agent`) so two users remain distinguishable without either being
+  identifiable, and scrubs credentials interpolated into free-form message text
+  — DSNs, `Bearer …`, `key=value` pairs, JWTs and known key prefixes
+  (`sk_live_`, `re_`, `AKIA`, …). Booleans and counters *about* a secret
+  (`has_credentials=True`) are preserved: redacting those destroys precisely
+  the diagnostic that tells you a deployment is misconfigured.
+  `payerReference` and `rawCallbackPayload` are never logged — payment PII
+  stays on the row.
+- **CORS is an explicit allowlist.** `allow_origins = ["*"]` is rejected at
+  startup in production, and so is an empty or unset origin list — the wildcard
+  with credentials is the misconfiguration that turns any site into an
+  authenticated client. Origins come from `CORS_ALLOWED_ORIGINS`.
+- **Tokens arrive only in the `Authorization` header**, never in a cookie or a
+  query string (§5). A `service_role` JWT is refused with 403.
+- **Interactive API docs are off in production.** `/docs` and `/openapi.json`
+  describe every route and schema; serving that publicly is reconnaissance
+  handed to an attacker. `ENABLE_DOCS=false` is enforced, not merely default.
+- **Rate limiting** reuses the Phase 7 Redis and the same bucket arithmetic as
+  `src/lib/rate-limit.ts`, under a distinct key namespace
+  (`malihub:api:ratelimit:v1:…`) so the two services cannot consume each
+  other's budget. It **fails open** by default: a Redis outage should degrade
+  throttling, not take the API down — and it logs a warning every time it does,
+  because silently-unlimited is the failure mode you would otherwise not see.
+- **Webhook verification runs over raw bytes** and a failed verification
+  returns 401 with the code only. The endpoint is public by necessity, so the
+  response must not become an oracle for forging a signature: the specifics go
+  to the log, not to the caller.
+- **Security headers** are set on every response, and a request id is
+  propagated (`X-Request-ID`) so a customer report can be matched to a log
+  line. An inbound id is reused only if well-formed; otherwise a fresh one is
+  generated.
+- **Configuration is validated at boot.** `Settings.validate_for_environment()`
+  refuses to start in production with a wildcard CORS origin, with docs
+  enabled, or with a public URL pointing at localhost, and warns loudly about
+  anything merely degraded (no Redis, no database, no email provider). Problems
+  surface once, at startup, with the whole picture — not as a 500 three days
+  later.
 
 ## 12. Performance
 
@@ -451,11 +694,94 @@ tipping into visual noise.
   - [x] Messaging (conversations, Realtime chat, typing/presence, image
         sharing, read receipts, edit/delete, archive/delete, block users,
         conversation search, rate limiting)
-  - [ ] M-Pesa (STK Push, callback, idempotent processing, transaction
-        history, receipts)
+  - [ ] Payments (deferred to Phase 9 — the Daraja route handlers were
+        removed in Phase 8 and replaced by the provider-agnostic
+        architecture in §7; PayHero is the first live integration)
   - [ ] Orders (checkout flow, lifecycle, seller order management)
   - [ ] Reviews (post-order mutual rating, seller/buyer rating display)
   - [ ] Analytics (views-over-time, conversion rate, top listings)
   - [ ] Moderation (admin report queue, listing suspension, ban)
-- [ ] Phase 7 — Performance pass
-- [ ] Phase 8 — Deployment prep
+- [x] **Phase 7 — Security hardening** (CSRF, rate limiting, shared Redis
+      client, upload content validation, audit service, theme-init hardening)
+- [x] **Phase 8 — Production architecture** (this revision; see §14)
+  - [x] Independent FastAPI service in `backend/` with `/api/v1` versioning
+  - [x] Environment-driven configuration with production startup validation
+  - [x] CORS allowlist, security headers, request-id correlation
+  - [x] Structured JSON logging with credential/PII redaction
+  - [x] Single error envelope; no stack traces or secrets in responses
+  - [x] `/api/v1/health` liveness and `/api/v1/health/ready` readiness
+  - [x] Provider-agnostic `Payment` model + migration (renames, not drops)
+  - [x] Typed `PaymentProvider` interface, registry, `PayHeroProvider` stub
+  - [x] Storage abstraction (Cloudinary-shaped) with upload policy enforced
+  - [x] Email abstraction (Resend adapter) that never fails the caller
+  - [x] Supabase token verification abstraction — auth-only boundary (§5)
+  - [x] SQLAlchemy mirror of the payments domain, Prisma still owns the DDL
+  - [x] 362 backend tests; `prisma/schema.prisma` parsed and compared
+  - [ ] PayHero integration — **Phase 9** (real API calls, STK Push,
+        signature-verifying webhook, persistence, order side effects)
+
+## 14. Backend service reference (Phase 8)
+
+`backend/` is an independent FastAPI application. It shares the database, Redis
+and Supabase project with Next.js but has its own dependency list, its own
+environment file and its own deployment.
+
+```
+backend/
+  app/
+    main.py            app factory, lifespan, middleware order
+    api/
+      deps.py          shared dependencies (auth, rate limit, pagination)
+      v1/
+        router.py      the /api/v1 router
+        endpoints/     health.py, payments.py
+    core/              config, errors, logging, middleware, security, db, redis
+    models/            SQLAlchemy mirror of the payments domain (§6c)
+    schemas/           Pydantic request/response models
+    services/          payment_service, email_service, rate_limit, health
+    providers/
+      payments/        base (interface), payhero (stub), registry
+      storage/         base (interface + shared policy), cloudinary
+      email/           base (interface + templates), resend
+  tests/               no network, no database, no credentials required
+  pyproject.toml       dependencies, pytest and ruff configuration
+  .env.example         every variable, commented, all values safe placeholders
+```
+
+**Middleware order matters** and is deliberate in `main.py`:
+`CORS → RequestContext → SecurityHeaders → ExceptionGuard`. CORS is outermost so
+a rejected preflight still gets CORS headers (otherwise the browser reports a
+CORS error instead of the real one); `RequestContext` is next so every later
+layer — including the exception guard — can attach the request id; the exception
+guard is innermost so it sees every failure the app raises.
+
+**Versioning.** All routes live under `/api/v1`. A breaking change means a `v2`
+router beside it, never an edit in place: payment integrations are called by
+providers whose callback URLs cannot be updated atomically with a deploy.
+
+**Endpoints in Phase 8.**
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `GET /api/v1/health` | none | Liveness. Touches no dependency, so it stays up while the database is down — which is exactly when you need it |
+| `GET /api/v1/health/ready` | none | Readiness. Probes database and Redis with a 2s cap; returns 503 only when a dependency is genuinely unavailable, and `degraded` (200) when one is merely not configured outside production |
+| `GET /api/v1/payments/providers` | none | Registered and reserved providers. Exposes no credentials — `configured` and `available` are booleans, never values |
+
+**Running it.** See README.md. The short version:
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Storage and email are abstractions, not integrations.** `StorageProvider`
+mirrors the Cloudinary-shaped API the frontend already uses — deliberately not
+a Supabase Storage client (§2) — and it enforces the same upload policy
+as `src/lib/validations/upload-security.ts` (size, MIME allowlist, magic bytes,
+folder traversal, SVG excluded because it is a script container). Transfer
+operations are stubbed with 501. `EmailProvider` has one working adapter
+(Resend) whose send path **never raises**: a failed notification must not take
+down the action that triggered it.

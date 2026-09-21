@@ -429,6 +429,7 @@ model Product {
   cartItems   CartItem[]
   reports     Report[]
   listingViews ListingView[]
+  chats       Chat[]
 
   @@index([categoryId, status])
   @@index([county, status])
@@ -994,6 +995,14 @@ model Chat {
 
   buyer    User      @relation("ChatBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller   User      @relation("ChatSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  /// The listing this conversation is about — optional, because a buyer can
+  /// also open a general chat with a seller (`productId` null). Declaring the
+  /// relation (not just the scalar above) is what makes the `@@unique` triple
+  /// readable: every query that shows a thread needs the listing's title, so
+  /// the include has to exist on the client. `SetNull`, never `Cascade` — a
+  /// listing going away must not take the conversation history with it, which
+  /// is the same reason `Product.status` soft-deletes instead of removing rows.
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   messages Message[]
 
   @@unique([buyerId, sellerId, productId])

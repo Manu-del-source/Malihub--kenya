@@ -60,8 +60,12 @@ export async function getOrCreateChat(buyerId: string, sellerId: string, product
   }
   await assertNotBlocked(buyerId, sellerId);
 
-  const existing = await prisma.chat.findUnique({
-    where: { buyerId_sellerId_productId: { buyerId, sellerId, productId: productId ?? null } },
+  // Compound-unique `findUnique` can't take a null in the nullable
+  // `productId` column (Prisma types it as non-nullable, and Postgres treats
+  // NULLs as distinct anyway), so the "same buyer + seller + listing" lookup
+  // is a findFirst — listing-less chats are then found correctly too.
+  const existing = await prisma.chat.findFirst({
+    where: { buyerId, sellerId, productId: productId ?? null },
   });
   if (existing) {
     const isBuyer = existing.buyerId === buyerId;

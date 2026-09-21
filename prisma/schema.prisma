@@ -326,6 +326,7 @@ model Product {
   cartItems   CartItem[]
   reports     Report[]
   listingViews ListingView[]
+  chats       Chat[]
 
   @@index([categoryId, status])
   @@index([county, status])
@@ -590,6 +591,12 @@ model Chat {
 
   buyer    User      @relation("ChatBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller   User      @relation("ChatSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  /// Optional: a conversation is usually about a specific listing (the listing
+  /// page's "Message seller" button always passes one) but can be listing-less.
+  /// SetNull, not Cascade — a hard-deleted listing must never take conversation
+  /// history with it. Products are soft-removed in normal operation, so this
+  /// only matters for admin purges.
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   messages Message[]
 
   @@unique([buyerId, sellerId, productId])

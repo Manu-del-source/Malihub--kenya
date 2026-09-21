@@ -214,6 +214,22 @@ enum CommissionRuleType {
   FIXED
 }
 
+/// Deliberately the same five values as `PayoutStatus`, not a fresh
+/// vocabulary — a refund and a payout are the same *shape* of thing (an
+/// instruction to move money, submitted to a provider, confirmed later by a
+/// trusted callback, never assumed complete from the submission response
+/// alone). Kept as a separate enum rather than reusing `PayoutStatus`
+/// itself because a refund and a payout are different events on `Refund`
+/// and `Payout` rows respectively — sharing the enum name would invite a
+/// future migration to conflate them.
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum NotificationType {
   ORDER_UPDATE
   PAYMENT_UPDATE
@@ -299,6 +315,7 @@ model User {
   orderReviewsReceived OrderReview[] @relation("OrderReviewReviewee")
   usersBlocked  BlockedUser[] @relation("BlockerOf")
   blockedByUsers BlockedUser[] @relation("BlockedBy")
+  refundsInitiated Refund[] @relation("RefundInitiator")
 
   @@map("users")
 }
@@ -467,8 +484,7 @@ model Order {
   /// multi-seller cart splits into one Order per seller before checkout, so
   /// this never needs to become an array.
   settlement Settlement?
-
-  @@index([buyerId])
+  refunds    Refund[]
   @@index([sellerId])
   @@index([status])
   @@map("orders")
@@ -563,6 +579,7 @@ model Payment {
 
   events     PaymentEvent[]
   settlement Settlement?
+  refunds    Refund[]
 
   @@index([orderId])
   @@index([status])
@@ -714,7 +731,17 @@ model Settlement {
   /// The specific successful `Payment` this settlement is computed from.
   /// An Order can accumulate multiple `Payment` attempts (see
   /// `Payment.retryCount`); this points at the one that actually succeeded.
-  paymentId String @map("payment_id") @db.Uuid
+  /// `@unique`, not just a plain foreign key: this is a genuine one-to-one,
+  /// same as `orderId` above. A settlement is created once per successful
+  /// payment and adjusted in place afterward (`refundAmountCents`,
+  /// `adjustmentAmountCents`) rather than superseded by a second row — a
+  /// later partial refund against this payment updates this same
+  /// Settlement, it does not create another Settlement pointing at the same
+  /// Payment. If that ever needs to change (e.g. a payment that funds more
+  /// than one settlement), the design questions to resolve first are in
+  /// `docs/payments/settlement-lifecycle.md`, not a mechanical drop of this
+  /// constraint.
+  paymentId String @unique @map("payment_id") @db.Uuid
 
   grossAmountCents      Int @map("gross_amount_cents")
   commissionAmountCents Int @map("commission_amount_cents")
@@ -800,6 +827,60 @@ model Payout {
   @@index([settlementId])
   @@index([provider, status])
   @@map("payouts")
+}
+
+/// A refund against one specific `Payment`. Deliberately its own model, not
+/// a status flag on `Payment` — Phase 9 brief §14 requires a refund to carry
+/// its own amount, reason, initiator, and provider reference, and to support
+/// partial refunds (a `Payment` can accumulate more than one `Refund`, up to
+/// its `amountCents`, which `RefundService` — not yet built — is
+/// responsible for enforcing; this schema does not itself cap the sum).
+///
+/// `orderId` is denormalized here the same way `Settlement.sellerId` is
+/// denormalized rather than derived through a join — so an order's refund
+/// history can be queried without joining through `Payment`.
+model Refund {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId String @map("payment_id") @db.Uuid
+  orderId   String @map("order_id") @db.Uuid
+
+  amountCents Int     @map("amount_cents")
+  reason      String?
+  /// Who requested this refund — an admin acting on a dispute, a seller
+  /// approving a return, or (via an admin-mediated flow) a buyer's request.
+  /// Always a `User`, never "system" — an automated refund (e.g. a
+  /// cancellation-window auto-refund) should still be attributed to the
+  /// service account or admin user that configured the automation, so
+  /// "who authorized this money movement" is always answerable.
+  initiatedByUserId String @map("initiated_by_user_id") @db.Uuid
+
+  provider PaymentProvider
+  /// The provider's own refund/transaction id. Null until the provider
+  /// acknowledges the request — same "never assume from the submission
+  /// response alone" rule as `Payout.providerPayoutId`.
+  providerRefundId String? @map("provider_refund_id")
+  /// Caller-generated, required — the same duplicate-submission defence as
+  /// `Payout.idempotencyKey`, for the same reason: a retrying job re-driving
+  /// a refund request is a real failure mode a provider-side id can't catch
+  /// (that id doesn't exist yet on the first, possibly duplicate, attempt).
+  idempotencyKey String @unique @map("idempotency_key")
+
+  status        RefundStatus @default(PENDING)
+  failureCode   String?      @map("failure_code")
+  failureReason String?      @map("failure_reason")
+
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  initiatedBy User    @relation("RefundInitiator", fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
 }
 
 // ─── Engagement ─────────────────────────────────────────────────────────

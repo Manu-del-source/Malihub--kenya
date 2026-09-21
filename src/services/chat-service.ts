@@ -60,8 +60,17 @@ export async function getOrCreateChat(buyerId: string, sellerId: string, product
   }
   await assertNotBlocked(buyerId, sellerId);
 
-  const existing = await prisma.chat.findUnique({
-    where: { buyerId_sellerId_productId: { buyerId, sellerId, productId: productId ?? null } },
+  // Not `findUnique` on the `@@unique([buyerId, sellerId, productId])` triple:
+  // Prisma types each field of a compound-unique input as non-nullable even
+  // when the underlying column is optional, so the "general chat, no listing"
+  // case (`productId` null) does not compile. `findFirst` over the same three
+  // columns selects the same rows. The `orderBy` keeps it deterministic —
+  // Postgres treats NULLs as distinct in a unique constraint, so a buyer and
+  // seller can legitimately hold more than one listing-less chat, and without
+  // an ordering the idempotency promised above would depend on scan order.
+  const existing = await prisma.chat.findFirst({
+    where: { buyerId, sellerId, productId: productId ?? null },
+    orderBy: { createdAt: "asc" },
   });
   if (existing) {
     const isBuyer = existing.buyerId === buyerId;

@@ -28,6 +28,22 @@ from app.providers.payments.base import (
     WebhookEnvelope,
     WebhookEvent,
 )
+from app.providers.payments.marketplace import (
+    MarketplaceCapability,
+    MarketplaceProvider,
+    PayoutRequest,
+    PayoutResult,
+    PayoutStatus,
+    PayoutStatusRequest,
+    PayoutStatusResult,
+    PayoutWebhookEvent,
+    SellerAccountStatusRequest,
+    SellerAccountStatusResult,
+    SellerOnboardingRequest,
+    SellerOnboardingResult,
+    SellerPayoutAccountStatus,
+    SellerPayoutAccountType,
+)
 from app.providers.payments.payhero import PayHeroProvider
 from app.providers.payments.registry import (
     PaymentProviderRegistry,
@@ -37,6 +53,8 @@ from app.providers.payments.registry import (
 )
 
 __all__ = [
+    "MarketplaceCapability",
+    "MarketplaceProvider",
     "PayHeroProvider",
     "Payer",
     "PaymentEventType",
@@ -50,9 +68,21 @@ __all__ = [
     "PaymentStatusRequest",
     "PaymentStatusResult",
     "PaymentVerificationResult",
+    "PayoutRequest",
+    "PayoutResult",
+    "PayoutStatus",
+    "PayoutStatusRequest",
+    "PayoutStatusResult",
+    "PayoutWebhookEvent",
     "ProviderCapability",
     "RefundRequest",
     "RefundResult",
+    "SellerAccountStatusRequest",
+    "SellerAccountStatusResult",
+    "SellerOnboardingRequest",
+    "SellerOnboardingResult",
+    "SellerPayoutAccountStatus",
+    "SellerPayoutAccountType",
     "WebhookEnvelope",
     "WebhookEvent",
     "build_default_registry",

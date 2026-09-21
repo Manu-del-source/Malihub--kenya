@@ -134,6 +134,102 @@ enum SellerVerificationStatus {
   REJECTED
 }
 
+// ─── Marketplace payments (Phase 9) ────────────────────────────────────────
+// Four concerns kept as four models, deliberately not folded into `Payment`:
+// a Payment is "did the buyer's money arrive"; a Settlement is "what does the
+// seller net from it, after commission/fees/refunds"; a Payout is "did that
+// net amount actually move to the seller"; a PaymentEvent is the raw,
+// idempotency-keyed record of every provider callback, independent of
+// whether the app understood or acted on it. Collapsing any two of these is
+// how a retried webhook ends up double-crediting a seller.
+
+/// Which rail a seller's payout account resolves to. Kept separate from
+/// `PaymentMethod` (the *buyer's* channel) — a seller can be paid to M-Pesa
+/// even when the buyer paid by card, and conflating the two would be the same
+/// mistake `PaymentMethod.MPESA` was before Phase 8 (see the enum comment
+/// above `PaymentMethod`).
+enum SellerPayoutAccountType {
+  MPESA
+  BANK
+}
+
+/// A seller payout account's onboarding lifecycle. Mirrors
+/// `SellerVerificationStatus`'s shape deliberately — same lifecycle, applied
+/// to "can this account receive money" instead of "is this seller who they
+/// say they are".
+enum SellerPayoutAccountStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+/// What a `PaymentEvent` row's processing resolved to. Every inbound provider
+/// callback gets exactly one of these, whether or not the app acted on it —
+/// `IGNORED` covers a duplicate delivery or an event type the app doesn't
+/// react to; it must still be recorded, or a provider's retry policy can't be
+/// distinguished from a bug that dropped the callback.
+enum PaymentEventProcessingStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+/// A `Settlement` row's status. Deliberately does NOT include a `PROCESSING`
+/// state — that belongs to `Payout`, the thing that actually moves money.
+/// A Settlement's own lifecycle is only ever "not yet payable" → "payable" →
+/// "paid", plus the one exception a marketplace needs: a refund or dispute
+/// arriving after the seller has already been paid.
+enum SettlementStatus {
+  PENDING
+  ELIGIBLE
+  SETTLED
+  REVERSED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// What a `CommissionRule` matches against, in priority order (seller and
+/// category rules both beat the platform default; `CommissionService` -
+/// see `app/services/commission_service.py` - documents the exact
+/// precedence). Not a "the more specific rule always wins" free-for-all:
+/// precedence is centralized in code, not left to whichever rule a query
+/// happens to return first.
+enum CommissionRuleScope {
+  DEFAULT
+  SELLER
+  CATEGORY
+}
+
+enum CommissionRuleType {
+  PERCENTAGE
+  FIXED
+}
+
+/// Deliberately the same five values as `PayoutStatus`, not a fresh
+/// vocabulary — a refund and a payout are the same *shape* of thing (an
+/// instruction to move money, submitted to a provider, confirmed later by a
+/// trusted callback, never assumed complete from the submission response
+/// alone). Kept as a separate enum rather than reusing `PayoutStatus`
+/// itself because a refund and a payout are different events on `Refund`
+/// and `Payout` rows respectively — sharing the enum name would invite a
+/// future migration to conflate them.
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum NotificationType {
   ORDER_UPDATE
   PAYMENT_UPDATE
@@ -219,6 +315,7 @@ model User {
   orderReviewsReceived OrderReview[] @relation("OrderReviewReviewee")
   usersBlocked  BlockedUser[] @relation("BlockerOf")
   blockedByUsers BlockedUser[] @relation("BlockedBy")
+  refundsInitiated Refund[] @relation("RefundInitiator")
 
   @@map("users")
 }
@@ -266,6 +363,11 @@ model Seller {
   products Product[]
   orders   Order[]
 
+  payoutAccounts  SellerPayoutAccount[]
+  settlements     Settlement[]
+  payouts         Payout[]
+  commissionRules CommissionRule[]
+
   @@index([verificationStatus])
   @@map("sellers")
 }
@@ -286,6 +388,7 @@ model Category {
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryTree")
   products Product[]
+  commissionRules CommissionRule[]
 
   @@index([parentId])
   @@map("categories")
@@ -372,13 +475,17 @@ model Order {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  buyer    User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
-  seller   Seller        @relation(fields: [sellerId], references: [id], onDelete: Restrict)
-  items    OrderItem[]
-  payments Payment[]
-  reviews  OrderReview[]
-
-  @@index([buyerId])
+  buyer      User          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller     Seller        @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  items      OrderItem[]
+  payments   Payment[]
+  reviews    OrderReview[]
+  /// One settlement per Order — consistent with this Order model being
+  /// single-seller by design (see the `sellerId` comment above). A
+  /// multi-seller cart splits into one Order per seller before checkout, so
+  /// this never needs to become an array.
+  settlement Settlement?
+  refunds    Refund[]
   @@index([sellerId])
   @@index([status])
   @@map("orders")
@@ -471,6 +578,10 @@ model Payment {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  events     PaymentEvent[]
+  settlement Settlement?
+  refunds    Refund[]
+
   @@index([orderId])
   @@index([status])
   /// Reconciliation sweeps ("every PAYHERO payment stuck in PENDING/PROCESSING
@@ -478,6 +589,299 @@ model Payment {
   /// provider-leading composite index.
   @@index([provider, status])
   @@map("payments")
+}
+
+/// Immutable record of one inbound provider callback. Separate from `Payment`
+/// on purpose: a `Payment` row is the app's *current* understanding of a
+/// transaction; a `PaymentEvent` is *what the provider actually sent*, kept
+/// even if the app rejected, ignored, or failed to process it. Reconciling a
+/// dispute means replaying this table, not trusting the mutable `Payment`
+/// row's present state.
+model PaymentEvent {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Nullable, not required: a callback can reference a `providerReference`
+  /// the app has never seen (wrong reference, a provider retry after the
+  /// `Payment` row was somehow lost) and must still be recorded rather than
+  /// rejected outright at the persistence layer — rejecting happens in the
+  /// service, with a reason, not by making this relation impossible to
+  /// satisfy.
+  paymentId String? @map("payment_id") @db.Uuid
+
+  provider PaymentProvider
+  /// The provider's own event/notification id. Unique with `provider` — this
+  /// pair, not `providerTransactionId`, is the idempotency key for "have we
+  /// already processed this specific callback", because one transaction can
+  /// legitimately generate more than one event (initiated, then succeeded).
+  providerEventId String @map("provider_event_id")
+  /// Provider vocabulary, not `PaymentEventType` — that enum (in
+  /// `providers/payments/base.py`) is the *normalized* small vocabulary the
+  /// app reacts to; this column keeps whatever string the provider actually
+  /// sent, for reconciliation when a provider's raw event type matters.
+  eventType String @map("event_type")
+  /// SHA-256 of the verified raw body. Lets a duplicate delivery be detected
+  /// even before the provider assigns/repeats an event id, and gives a
+  /// tamper-evidence check independent of the provider's own signature.
+  payloadHash String @map("payload_hash")
+  /// Redacted provider payload — never the verbatim raw body. Use the same
+  /// `_strip_sensitive` field list `providers/payments/base.py` already
+  /// defines (`raw`, `signature`, `payer`, `phone_number`) before writing
+  /// here; see `docs/payments/webhook-security.md`.
+  rawPayload Json? @map("raw_payload")
+
+  processingStatus PaymentEventProcessingStatus @default(RECEIVED) @map("processing_status")
+  processedAt      DateTime?                     @map("processed_at")
+  receivedAt       DateTime                      @default(now()) @map("received_at")
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  /// The idempotency guarantee: the same provider cannot register the same
+  /// event id twice, at the database level, not just in application logic.
+  @@unique([provider, providerEventId])
+  @@index([paymentId])
+  @@index([processingStatus, receivedAt])
+  @@map("payment_events")
+}
+
+/// A seller's registered payout destination with a marketplace-capable
+/// payment provider. Deliberately provider-shaped the same way `Payment` is:
+/// `provider` + `providerAccountId` + `providerMetadata`, nothing
+/// processor-specific promoted to a real column. What this table explicitly
+/// never stores: an M-Pesa PIN, a bank password, a card CVV, or any raw
+/// banking credential — the provider owns that onboarding surface (see
+/// `docs/payments/payment-architecture.md`), MaliHub only stores the
+/// resulting reference.
+model SellerPayoutAccount {
+  id       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sellerId String                    @map("seller_id") @db.Uuid
+  provider PaymentProvider
+  /// The provider's own identifier for this payee (a Paystack
+  /// `subaccount_code`, a Flutterwave subaccount id, ...). Never a secret —
+  /// safe to log, safe to show the seller.
+  providerAccountId String                    @map("provider_account_id")
+  accountType        SellerPayoutAccountType   @map("account_type")
+  status             SellerPayoutAccountStatus @default(PENDING_VERIFICATION)
+  /// Exactly one default account per seller; enforced in the service layer
+  /// (a partial unique index on `(sellerId) WHERE isDefault` is the Postgres
+  /// way to enforce it at the DB level too — add via a manual SQL migration
+  /// if/when this matters, same pattern as `manual_phase8_provider_agnostic_payments.sql`).
+  isDefault Boolean @default(false) @map("is_default")
+  /// Non-secret provider detail only: bank name, masked account tail,
+  /// verification metadata. Never a token, secret, or credential — those
+  /// belong in the app's secret manager, not a JSON column a support agent's
+  /// query can surface.
+  providerMetadata Json? @map("provider_metadata")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  seller  Seller   @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  payouts Payout[]
+
+  @@unique([provider, providerAccountId])
+  @@index([sellerId, isDefault])
+  @@index([status])
+  @@map("seller_payout_accounts")
+}
+
+/// A configurable commission rate. Resolution precedence (most specific
+/// wins), implemented in `CommissionService`, not in a database query:
+/// an active `SELLER`-scoped rule for this seller > an active
+/// `CATEGORY`-scoped rule for the product's category > the active `DEFAULT`
+/// rule. Exactly one `DEFAULT` rule should be active at a time; the service
+/// — not a database constraint — is responsible for that invariant, because
+/// "exactly one" is easy to express in code and awkward as SQL.
+model CommissionRule {
+  id     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope  CommissionRuleScope @default(DEFAULT)
+  /// Set only when scope = SELLER.
+  sellerId String? @map("seller_id") @db.Uuid
+  /// Set only when scope = CATEGORY.
+  categoryId String? @map("category_id") @db.Uuid
+
+  type CommissionRuleType
+  /// Basis points (1/100th of a percent), not a float percentage — 500 =
+  /// 5.00%. Integer, so the rounding behaviour of a rate change is exact and
+  /// reviewable, the same reason amounts are integer cents rather than a
+  /// decimal/float KES value.
+  percentageBps Int? @map("percentage_bps")
+  /// Set only when type = FIXED. Same integer-cents convention as `Payment`.
+  fixedAmountCents Int? @map("fixed_amount_cents")
+
+  isActive      Boolean   @default(true) @map("is_active")
+  effectiveFrom DateTime  @default(now()) @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  seller   Seller?   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([scope, isActive])
+  @@index([sellerId])
+  @@index([categoryId])
+  @@map("commission_rules")
+}
+
+/// What a seller nets from one Order, after MaliHub's commission and any
+/// provider fee/refund adjustment. One row per Order (see the `Order.settlement`
+/// comment) — never a row spanning multiple sellers, however many providers
+/// support multi-party splits, because `Order` itself is single-seller.
+model Settlement {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId  String @unique @map("order_id") @db.Uuid
+  sellerId String @map("seller_id") @db.Uuid
+  /// The specific successful `Payment` this settlement is computed from.
+  /// An Order can accumulate multiple `Payment` attempts (see
+  /// `Payment.retryCount`); this points at the one that actually succeeded.
+  /// `@unique`, not just a plain foreign key: this is a genuine one-to-one,
+  /// same as `orderId` above. A settlement is created once per successful
+  /// payment and adjusted in place afterward (`refundAmountCents`,
+  /// `adjustmentAmountCents`) rather than superseded by a second row — a
+  /// later partial refund against this payment updates this same
+  /// Settlement, it does not create another Settlement pointing at the same
+  /// Payment. If that ever needs to change (e.g. a payment that funds more
+  /// than one settlement), the design questions to resolve first are in
+  /// `docs/payments/settlement-lifecycle.md`, not a mechanical drop of this
+  /// constraint.
+  paymentId String @unique @map("payment_id") @db.Uuid
+
+  grossAmountCents      Int @map("gross_amount_cents")
+  commissionAmountCents Int @map("commission_amount_cents")
+  /// What the payment provider charged MaliHub for collecting the payment.
+  /// Zero until the selected provider's fee model is confirmed — see
+  /// `docs/payments/provider-comparison.md`, which deliberately does not
+  /// assume this is charged to the seller.
+  providerFeeCents     Int @default(0) @map("provider_fee_cents")
+  refundAmountCents    Int @default(0) @map("refund_amount_cents")
+  adjustmentAmountCents Int @default(0) @map("adjustment_amount_cents")
+  /// gross - commission - providerFee - refund + adjustment. Computed and
+  /// written by `SettlementService`, never derived at query time — a
+  /// reversal or refund must recompute and rewrite this explicitly so the
+  /// audit trail shows the change, not just the new number.
+  netAmountCents Int @map("net_amount_cents")
+
+  status     SettlementStatus @default(PENDING)
+  /// Set once the marketplace's configurable settlement-timing policy is
+  /// satisfied (see `docs/payments/settlement-lifecycle.md`) — delivery
+  /// confirmation, a cancellation window, etc. Null while still PENDING.
+  eligibleAt DateTime?        @map("eligible_at")
+  /// Set when every Payout against this settlement reaches COMPLETED.
+  settledAt  DateTime?        @map("settled_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  seller  Seller  @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  payouts Payout[]
+
+  @@index([sellerId, status])
+  @@index([status, eligibleAt])
+  @@map("settlements")
+}
+
+/// One instruction to actually move a Settlement's net proceeds to a seller.
+/// Separate from `Settlement` because a payout can fail and retry
+/// independently of the (already-fixed) financial calculation it pays out —
+/// re-running the math on retry would be the bug this split prevents.
+model Payout {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sellerId        String @map("seller_id") @db.Uuid
+  settlementId    String @map("settlement_id") @db.Uuid
+  payoutAccountId String @map("payout_account_id") @db.Uuid
+
+  amountCents Int    @map("amount_cents")
+  currency    String @default("KES")
+  provider    PaymentProvider
+  /// The provider's own payout/transfer id. Null until the provider
+  /// acknowledges the request — see the caution on `Payment.paidAt` in the
+  /// module comment above: never set from a submission response alone.
+  providerPayoutId String? @unique @map("provider_payout_id")
+  /// Caller-generated, required. The defence against "MaliHub's own retry
+  /// logic submits the same payout twice" — a concern a provider-side event
+  /// id can't cover, because that id doesn't exist until the provider has
+  /// already accepted the (possibly duplicate) request.
+  idempotencyKey String @unique @map("idempotency_key")
+
+  status        PayoutStatus @default(PENDING)
+  failureCode   String?      @map("failure_code")
+  failureReason String?      @map("failure_reason")
+  /// Non-secret provider response detail only, same redaction rule as
+  /// `Payment.metadata`.
+  metadata Json?
+
+  /// Set when MaliHub submits the request to the provider — NOT proof the
+  /// money moved. Mirrors the `Payment.paidAt` distinction: never mark a
+  /// Payout COMPLETED because MaliHub successfully made the API call.
+  initiatedAt DateTime? @map("initiated_at")
+  /// Set only from a trusted provider confirmation (webhook or verified
+  /// status poll), matching the Phase 9 brief's rule that a payout is never
+  /// COMPLETED merely because MaliHub submitted it.
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  seller        Seller              @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  settlement    Settlement          @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  payoutAccount SellerPayoutAccount @relation(fields: [payoutAccountId], references: [id], onDelete: Restrict)
+
+  @@index([sellerId, status])
+  @@index([settlementId])
+  @@index([provider, status])
+  @@map("payouts")
+}
+
+/// A refund against one specific `Payment`. Deliberately its own model, not
+/// a status flag on `Payment` — Phase 9 brief §14 requires a refund to carry
+/// its own amount, reason, initiator, and provider reference, and to support
+/// partial refunds (a `Payment` can accumulate more than one `Refund`, up to
+/// its `amountCents`, which `RefundService` — not yet built — is
+/// responsible for enforcing; this schema does not itself cap the sum).
+///
+/// `orderId` is denormalized here the same way `Settlement.sellerId` is
+/// denormalized rather than derived through a join — so an order's refund
+/// history can be queried without joining through `Payment`.
+model Refund {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId String @map("payment_id") @db.Uuid
+  orderId   String @map("order_id") @db.Uuid
+
+  amountCents Int     @map("amount_cents")
+  reason      String?
+  /// Who requested this refund — an admin acting on a dispute, a seller
+  /// approving a return, or (via an admin-mediated flow) a buyer's request.
+  /// Always a `User`, never "system" — an automated refund (e.g. a
+  /// cancellation-window auto-refund) should still be attributed to the
+  /// service account or admin user that configured the automation, so
+  /// "who authorized this money movement" is always answerable.
+  initiatedByUserId String @map("initiated_by_user_id") @db.Uuid
+
+  provider PaymentProvider
+  /// The provider's own refund/transaction id. Null until the provider
+  /// acknowledges the request — same "never assume from the submission
+  /// response alone" rule as `Payout.providerPayoutId`.
+  providerRefundId String? @map("provider_refund_id")
+  /// Caller-generated, required — the same duplicate-submission defence as
+  /// `Payout.idempotencyKey`, for the same reason: a retrying job re-driving
+  /// a refund request is a real failure mode a provider-side id can't catch
+  /// (that id doesn't exist yet on the first, possibly duplicate, attempt).
+  idempotencyKey String @unique @map("idempotency_key")
+
+  status        RefundStatus @default(PENDING)
+  failureCode   String?      @map("failure_code")
+  failureReason String?      @map("failure_reason")
+
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  initiatedBy User    @relation("RefundInitiator", fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
 }
 
 // ─── Engagement ─────────────────────────────────────────────────────────

@@ -196,6 +196,34 @@ export async function completeProfileAction(
       authIdentityFromSupabaseUser(user),
       parsed.data
     );
+
+    // The profile write committed and app_metadata was synced on the server,
+    // but Supabase does not re-mint the JWT already sitting in the browser's
+    // auth cookie — it keeps carrying the pre-onboarding claims. Middleware
+    // reads its onboarding check from that session, so navigating to the
+    // dashboard now would bounce the user straight back to /complete-profile
+    // (redirect loop). Refreshing the session exchanges the refresh token for
+    // a JWT with the new `onboarded: true` claim, and this action's response
+    // carries the rotated cookies back to the browser.
+    //
+    // Best-effort by design: the Neon transaction above is the source of
+    // truth, so a failed refresh must NOT turn completed onboarding into a
+    // failed action — only log it.
+    try {
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error("Failed to refresh auth session after profile completion", {
+          userId: user.id,
+          message: refreshError.message,
+        });
+      }
+    } catch (refreshError) {
+      console.error("Failed to refresh auth session after profile completion", {
+        userId: user.id,
+        error: refreshError,
+      });
+    }
+
     return {
       success: true,
       data: { redirectTo: wantsToSell ? "/dashboard/seller" : "/dashboard/buyer" },

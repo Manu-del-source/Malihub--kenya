@@ -6,8 +6,12 @@
 // - `User` mirrors Supabase's `auth.users` (id is the Supabase auth UUID).
 //   Supabase owns credentials/OTP/OAuth and NOTHING ELSE — it is the identity
 //   provider, not the application database. Prisma owns application data and
-//   relations. A DB trigger (see prisma/migrations sql) inserts into
-//   public."User" + "Profile" on auth.users insert.
+//   relations. Application code provisions those mirror rows idempotently
+//   (src/services/account-provisioning.ts) on sign-up, sign-in, the auth
+//   callback, and inside the /complete-profile transaction. The optional
+//   trigger in prisma/migrations/manual_auth_trigger.sql only exists where
+//   `auth.users` lives in the same database (Supabase-hosted app DB) and is
+//   not required on an independent Postgres (ARCHITECTURE.md §6c).
 // - Money is stored in integer cents (KES) to avoid float rounding issues.
 // - Full-text search uses a generated tsvector column + GIN index, added via
 //   raw SQL migration (Prisma doesn't model tsvector natively) — see

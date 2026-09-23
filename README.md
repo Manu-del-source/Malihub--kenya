@@ -38,8 +38,12 @@ Then, against your Supabase project's SQL editor (or `supabase db push`),
 run these files **in order**:
 
 1. `prisma/migrations/manual_auth_trigger.sql` — mirrors `auth.users` into
-   `public.users`/`profiles` on signup. **Required** — nothing else creates
-   those rows.
+   `public.users`/`profiles` on signup. **Only relevant when the application
+   database itself is hosted on Supabase Postgres** (it needs `auth.users`
+   in the same database). With an independent application database — Neon,
+   RDS, … — skip it: those rows are provisioned by application code
+   (`src/services/account-provisioning.ts`) on sign-up, sign-in, the auth
+   callback, and the /complete-profile submit.
 2. `prisma/migrations/manual_rls_policies.sql` — Row Level Security for
    user-owned tables.
 3. `prisma/migrations/manual_storage_avatars.sql` — creates the `avatars`

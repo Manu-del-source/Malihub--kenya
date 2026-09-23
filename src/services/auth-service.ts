@@ -1,82 +1,82 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { slugify } from "@/utils";
 import type { CompleteProfileInput } from "@/lib/validations/auth";
-import type { Prisma } from "@prisma/client";
+import {
+  AuthServiceError,
+  authIdentityFromSupabaseUser,
+  ensureUserProvisioned,
+  saveCompletedProfile,
+  type AuthIdentity,
+  type SupabaseIdentityUser,
+} from "@/services/account-provisioning";
 
-export class AuthServiceError extends Error {}
+// Re-exported so callers keep importing user-facing auth errors / the identity
+// mapper from the auth service (the canonical home of auth plumbing).
+export { AuthServiceError, authIdentityFromSupabaseUser };
+export type { AuthIdentity };
 
 /**
  * Runs everything that needs to happen once a user submits /complete-profile:
- *  1. Claim their phone number + finish their Profile row (onboarded = true).
+ *  1. Provision their `users`/`profiles` rows if they don't exist yet, then
+ *     claim their phone number and finish the profile (onboarded = true).
  *  2. If they opted into selling, create a starter Seller row.
  *  3. Mirror the resulting role into the Supabase JWT's app_metadata, so
  *     middleware can read it at the edge without a DB round trip on every
  *     request (see ARCHITECTURE.md §5).
  *
- * Wrapped in a Prisma transaction for the User/Profile/Seller writes; the
- * JWT sync happens after commit since it's a separate system (Supabase
- * Auth) that can't participate in the Postgres transaction.
+ * Step 1 happens inside the same transaction as the updates, so the
+ * "record to update not found" (`P2025`) failure a freshly initialized
+ * database used to produce is impossible: the row is created in the same
+ * transaction that updates it. The JWT sync happens after commit since it's a
+ * separate system (Supabase Auth) that can't participate in the Postgres
+ * transaction.
  */
-export async function completeUserProfile(userId: string, input: CompleteProfileInput) {
-  const wantsToSell = input.accountIntent === "SELLER" || input.accountIntent === "BOTH";
-  const role = wantsToSell ? "SELLER" : "BUYER";
-
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // Phone numbers are unique — surface a friendly conflict instead of a
-    // raw Postgres constraint error if someone else already claimed it.
-    const existingPhone = await tx.user.findFirst({
-      where: { phone: input.phone, NOT: { id: userId } },
-      select: { id: true },
-    });
-    if (existingPhone) {
-      throw new AuthServiceError(
-        "That phone number is already linked to another MaliHub account."
-      );
-    }
-
-    await tx.user.update({
-      where: { id: userId },
-      data: { phone: input.phone, role },
-    });
-
-    await tx.profile.update({
-      where: { userId },
-      data: {
-        fullName: input.fullName,
-        county: input.county,
-        avatarUrl: input.avatarUrl || null,
-        onboarded: true,
-      },
-    });
-
-    if (wantsToSell) {
-      const existingSeller = await tx.seller.findUnique({ where: { userId } });
-      if (!existingSeller) {
-        await tx.seller.create({
-          data: {
-            userId,
-            businessName: input.fullName,
-            slug: slugify(input.fullName),
-            county: input.county,
-          },
-        });
-      }
-    }
-  });
+export async function completeUserProfile(identity: AuthIdentity, input: CompleteProfileInput) {
+  const { role, wantsToSell } = await saveCompletedProfile(prisma, identity, input);
 
   // Best-effort: if this fails, middleware's fallback DB check (see
   // src/middleware.ts) still catches it on the next request — the JWT
   // claim is a fast path, not the source of truth.
   try {
     const supabase = createServiceRoleClient();
-    await supabase.auth.admin.updateUserById(userId, {
+    await supabase.auth.admin.updateUserById(identity.id, {
       app_metadata: { role, has_seller_profile: wantsToSell, onboarded: true },
     });
   } catch (error) {
-    console.error("Failed to sync role into Supabase app_metadata", error);
+    console.error("Failed to sync role into Supabase app_metadata", {
+      userId: identity.id,
+      error,
+    });
   }
 
   return { role, wantsToSell };
+}
+
+/**
+ * Best-effort provisioning for the points where a Supabase session is
+ * established (sign-up, sign-in, OAuth / email-confirmation callback).
+ *
+ * Supabase authenticating a user does not, by itself, create their
+ * application rows — Supabase's database trigger can't fire on an independent
+ * Postgres (see src/services/account-provisioning.ts). Provisioning here means
+ * rows exist before the user reaches any page that reads them; /complete-profile
+ * provisions authoritatively inside its transaction regardless.
+ *
+ * Failures are logged, never thrown: a mirror-row hiccup must not turn a
+ * successful sign-in into an error, and the onboarding write retries this same
+ * idempotent upsert.
+ */
+export async function provisionUserRows(
+  user: SupabaseIdentityUser,
+  context: "sign-up" | "sign-in" | "auth callback"
+): Promise<void> {
+  try {
+    await ensureUserProvisioned(prisma, authIdentityFromSupabaseUser(user));
+  } catch (error) {
+    console.error(`Failed to provision application rows on ${context}`, {
+      userId: user.id,
+      error,
+    });
+  }
 }

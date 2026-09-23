@@ -15,7 +15,12 @@ import {
   type ResetPasswordInput,
   type CompleteProfileInput,
 } from "@/lib/validations/auth";
-import { completeUserProfile, AuthServiceError } from "@/services/auth-service";
+import {
+  completeUserProfile,
+  authIdentityFromSupabaseUser,
+  provisionUserRows,
+  AuthServiceError,
+} from "@/services/auth-service";
 import type { ApiResult } from "@/types";
 
 async function getOrigin() {
@@ -51,6 +56,17 @@ export async function signUpAction(input: RegisterInput): Promise<ApiResult<{ em
     return { success: false, error: "Something went wrong creating your account. Please try again." };
   }
 
+  // Supabase owns the identity; the application rows live in Postgres and
+  // have to be provisioned here (a fresh account has neither). Best-effort:
+  // /complete-profile provisions the same rows authoritatively on submit.
+  //
+  // When the email is already registered Supabase returns an obfuscated user
+  // with an empty `identities` array rather than an error — provisioning that
+  // decoy id would create a stray row, so only real new identities count.
+  if (data.user.identities?.length) {
+    await provisionUserRows(data.user, "sign-up");
+  }
+
   return { success: true, data: { email: parsed.data.email } };
 }
 
@@ -68,6 +84,13 @@ export async function signInAction(
 
   if (error) {
     return { success: false, error: mapSupabaseError(error.message) };
+  }
+
+  // Self-heal accounts whose application rows predate (or were missed by)
+  // provisioning — e.g. identities created before the app database moved to
+  // its own Postgres. Best-effort: sign-in must still succeed without it.
+  if (data.user) {
+    await provisionUserRows(data.user, "sign-in");
   }
 
   // New/incomplete profiles go straight to onboarding regardless of where
@@ -169,7 +192,10 @@ export async function completeProfileAction(
   }
 
   try {
-    const { wantsToSell } = await completeUserProfile(user.id, parsed.data);
+    const { wantsToSell } = await completeUserProfile(
+      authIdentityFromSupabaseUser(user),
+      parsed.data
+    );
     return {
       success: true,
       data: { redirectTo: wantsToSell ? "/dashboard/seller" : "/dashboard/buyer" },
@@ -178,9 +204,38 @@ export async function completeProfileAction(
     if (error instanceof AuthServiceError) {
       return { success: false, error: error.message };
     }
-    console.error("completeProfileAction failed", error);
+
+    // Log the real failure with enough context to identify it in production
+    // (Prisma errors carry a `code` — P2025 "record to update not found" is
+    // the one that used to mean "the application rows were never created").
+    console.error("completeProfileAction failed", {
+      userId: user.id,
+      code: errorCodeOf(error),
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+    });
+
+    if (errorCodeOf(error) === "P2002") {
+      return {
+        success: false,
+        error: "That phone number or email is already linked to another MaliHub account.",
+      };
+    }
+
     return { success: false, error: "Something went wrong saving your profile. Please try again." };
   }
+}
+
+/**
+ * Reads Prisma's error `code` without importing the generated runtime client
+ * (this module is also bundled for the browser-side action boundary).
+ */
+function errorCodeOf(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const { code } = error as { code?: unknown };
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
 }
 
 export async function resendVerificationAction(email: string): Promise<ApiResult<null>> {

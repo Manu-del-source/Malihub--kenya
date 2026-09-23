@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient, UserRole } from "@prisma/client";
 import { slugify } from "@/utils";
 import type { CompleteProfileInput } from "@/lib/validations/auth";
 
@@ -69,6 +69,46 @@ export type SupabaseIdentityUser = {
   email_confirmed_at?: string | null;
   user_metadata?: Record<string, unknown> | null;
 };
+
+/**
+ * Application onboarding claims as stored authoritatively in Neon.
+ * Supabase app_metadata mirrors this shape for fast middleware checks, but it
+ * must never be used to produce this value.
+ */
+export type AuthoritativeOnboardingState = {
+  onboarded: boolean;
+  role: UserRole;
+  hasSellerProfile: boolean;
+};
+
+/**
+ * Reads the application state that is mirrored into Supabase app_metadata.
+ *
+ * A missing user/profile is an incomplete account, never an onboarded one.
+ * The BUYER fallback matches the Prisma default and lets callers repair a
+ * partially provisioned identity without manufacturing elevated privileges.
+ * Database failures deliberately propagate so callers cannot mistake an
+ * unavailable lookup for a completed profile.
+ */
+export async function getAuthoritativeOnboardingState(
+  db: AccountDataStore,
+  userId: string
+): Promise<AuthoritativeOnboardingState> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      profile: { select: { onboarded: true } },
+      seller: { select: { id: true } },
+    },
+  });
+
+  return {
+    onboarded: user?.profile?.onboarded === true,
+    role: user?.role ?? "BUYER",
+    hasSellerProfile: Boolean(user?.seller),
+  };
+}
 
 function metadataString(metadata: Record<string, unknown> | null | undefined, key: string) {
   const value = metadata?.[key];

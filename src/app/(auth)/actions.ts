@@ -19,7 +19,9 @@ import {
   completeUserProfile,
   authIdentityFromSupabaseUser,
   provisionUserRows,
+  syncSupabaseAppMetadata,
   AuthServiceError,
+  type AuthoritativeOnboardingState,
 } from "@/services/auth-service";
 import type { ApiResult } from "@/types";
 
@@ -28,6 +30,56 @@ async function getOrigin() {
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const protocol = h.get("x-forwarded-proto") ?? "https";
   return process.env.NEXT_PUBLIC_APP_URL ?? `${protocol}://${host}`;
+}
+
+type UserSessionClient = Awaited<ReturnType<typeof createClient>>;
+
+/** Refreshes the cookie-backed user session after an app_metadata repair. */
+async function refreshUserSessionBestEffort(
+  supabase: UserSessionClient,
+  userId: string,
+  context: "sign-in" | "profile completion"
+): Promise<void> {
+  try {
+    const { error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error(`Failed to refresh auth session after ${context}`, {
+        userId,
+        message: error.message,
+      });
+    }
+  } catch (error) {
+    console.error(`Failed to refresh auth session after ${context}`, {
+      userId,
+      error,
+    });
+  }
+}
+
+/**
+ * Accepts only same-origin path redirects. In particular, protocol-relative
+ * (`//host`) and backslash-normalized URLs must not be accepted merely because
+ * their first character is a slash.
+ */
+function safeInternalRedirect(redirectTo: string | undefined): string | null {
+  if (!redirectTo?.startsWith("/") || redirectTo.startsWith("//") || redirectTo.includes("\\")) {
+    return null;
+  }
+
+  try {
+    const base = new URL("https://malihub.internal");
+    const destination = new URL(redirectTo, base);
+    if (destination.origin !== base.origin) return null;
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+function dashboardFor(state: AuthoritativeOnboardingState): string {
+  // Seller-dashboard access is based on the Seller record, matching
+  // middleware and ARCHITECTURE.md §5a. Every role can still buy.
+  return state.hasSellerProfile ? "/dashboard/seller" : "/dashboard/buyer";
 }
 
 /** Registers a new account. Supabase sends the verification email itself
@@ -86,19 +138,65 @@ export async function signInAction(
     return { success: false, error: mapSupabaseError(error.message) };
   }
 
-  // Self-heal accounts whose application rows predate (or were missed by)
-  // provisioning — e.g. identities created before the app database moved to
-  // its own Postgres. Best-effort: sign-in must still succeed without it.
-  if (data.user) {
-    await provisionUserRows(data.user, "sign-in");
+  if (!data.user) {
+    console.error("Supabase sign-in succeeded without returning a user");
+    return { success: false, error: "Something went wrong signing you in. Please try again." };
   }
 
-  // New/incomplete profiles go straight to onboarding regardless of where
-  // they were headed; everyone else honors `redirectTo` (set by middleware
-  // when it bounced them off a protected route) or falls back to their
-  // buyer dashboard.
-  const onboarded = data.user?.app_metadata?.onboarded === true;
-  const destination = onboarded ? (redirectTo && redirectTo.startsWith("/") ? redirectTo : "/dashboard/buyer") : "/complete-profile";
+  // Self-heal accounts whose application rows predate (or were missed by)
+  // provisioning — e.g. identities created before the app database moved to
+  // its own Postgres. Provisioning is best-effort, but the authoritative read
+  // below is not: a database failure must never be interpreted as onboarded.
+  await provisionUserRows(data.user, "sign-in");
+
+  let state: AuthoritativeOnboardingState | null = null;
+  try {
+    state = await syncSupabaseAppMetadata(data.user.id);
+  } catch (metadataError) {
+    // Authentication itself succeeded, but the application cannot safely keep
+    // a session with unverified/stale onboarding claims. The fail-closed path
+    // below clears it instead of risking another middleware redirect loop.
+    console.error("Failed to synchronize onboarding state after sign-in", {
+      userId: data.user.id,
+      error: metadataError,
+    });
+  }
+
+  if (!state) {
+    // A stale authenticated session cannot safely pass through claim-based
+    // middleware. Clear it rather than returning a misleading onboarding
+    // redirect (an already-onboarded profile page redirects to the dashboard,
+    // which would otherwise form another loop with stale JWT metadata).
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error("Failed to clear auth session after metadata sync failure", {
+          userId: data.user.id,
+          message: signOutError.message,
+        });
+      }
+    } catch (signOutError) {
+      console.error("Failed to clear auth session after metadata sync failure", {
+        userId: data.user.id,
+        error: signOutError,
+      });
+    }
+    return {
+      success: false,
+      error: "We couldn't load your MaliHub account. Please try signing in again.",
+    };
+  }
+
+  // This must use the same cookie-backed client that signed the user in. The
+  // Admin client changed app_metadata server-side, but only refreshSession()
+  // re-mints the JWT and writes its rotated cookies into this action response.
+  await refreshUserSessionBestEffort(supabase, data.user.id, "sign-in");
+
+  // Neon, not the pre-refresh Supabase user payload, decides whether the user
+  // completed onboarding.
+  const destination = state.onboarded
+    ? safeInternalRedirect(redirectTo) ?? dashboardFor(state)
+    : "/complete-profile";
 
   return { success: true, data: { redirectTo: destination } };
 }
@@ -208,21 +306,9 @@ export async function completeProfileAction(
     //
     // Best-effort by design: the Neon transaction above is the source of
     // truth, so a failed refresh must NOT turn completed onboarding into a
-    // failed action — only log it.
-    try {
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.error("Failed to refresh auth session after profile completion", {
-          userId: user.id,
-          message: refreshError.message,
-        });
-      }
-    } catch (refreshError) {
-      console.error("Failed to refresh auth session after profile completion", {
-        userId: user.id,
-        error: refreshError,
-      });
-    }
+    // failed action — only log it. The shared helper still makes exactly one
+    // refresh call on this same per-request client.
+    await refreshUserSessionBestEffort(supabase, user.id, "profile completion");
 
     return {
       success: true,

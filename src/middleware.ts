@@ -26,6 +26,9 @@ export async function middleware(request: NextRequest) {
 
   // Signed-in but hasn't finished onboarding yet → send them to finish it,
   // no matter where they were headed (dashboard OR back to login/register).
+  // app_metadata is the edge-friendly cache; sign-in/profile completion
+  // repair it from authoritative Neon state and refresh the JWT before a
+  // dashboard redirect. Do not query Neon on every middleware invocation.
   // Takes priority over the auth-route bounce below.
   if (user && user.app_metadata?.onboarded !== true) {
     const isExempt = ONBOARDING_EXEMPT.some((route) => pathname.startsWith(route));

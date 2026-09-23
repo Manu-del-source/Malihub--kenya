@@ -4,6 +4,7 @@ import {
   AuthServiceError,
   authIdentityFromSupabaseUser,
   ensureUserProvisioned,
+  getAuthoritativeOnboardingState,
   saveCompletedProfile,
   type AccountDataStore,
   type AuthIdentity,
@@ -99,6 +100,11 @@ type FakeStore = {
       where: { phone: string; NOT?: { id: string } };
       select?: { id: boolean };
     }): Promise<{ id: string } | null>;
+    findUnique(args: { where: { id: string } }): Promise<{
+      role: UserRole;
+      profile: { onboarded: boolean } | null;
+      seller: { id: string } | null;
+    } | null>;
   };
   profile: {
     upsert(args: {
@@ -198,6 +204,19 @@ function createFakeAccountStore(): FakeStore {
         }
         return null;
       },
+      async findUnique({ where }) {
+        store.operations.push(`user.findUnique:${where.id}`);
+        const user = tables.users.get(where.id);
+        if (!user) return null;
+        const seller = tables.sellers.get(where.id);
+        return {
+          role: user.role,
+          profile: tables.profiles.has(where.id)
+            ? { onboarded: tables.profiles.get(where.id)!.onboarded }
+            : null,
+          seller: seller ? { id: seller.userId } : null,
+        };
+      },
     },
     profile: {
       async upsert({ where, create, update }) {
@@ -288,6 +307,45 @@ const COMPLETE_INPUT: CompleteProfileInput = {
 function asStore(store: FakeStore) {
   return store as unknown as AccountDataStore & TransactionalAccountDataStore;
 }
+
+describe("authoritative onboarding state", () => {
+  it("reads onboarded, role, and Seller existence from application rows", async () => {
+    const store = createFakeAccountStore();
+    await ensureUserProvisioned(asStore(store), IDENTITY);
+    await store.user.update({ where: { id: IDENTITY.id }, data: { role: "SELLER" } });
+    await store.profile.update({ where: { userId: IDENTITY.id }, data: { onboarded: true } });
+    store.tables.sellers.set(IDENTITY.id, {
+      userId: IDENTITY.id,
+      businessName: "Yegon Electronics",
+      slug: "yegon-electronics-ab12c",
+      county: "Uasin Gishu",
+    });
+
+    assert.deepEqual(await getAuthoritativeOnboardingState(asStore(store), IDENTITY.id), {
+      onboarded: true,
+      role: "SELLER",
+      hasSellerProfile: true,
+    });
+  });
+
+  it("treats missing application rows as an incomplete BUYER without elevating access", async () => {
+    const store = createFakeAccountStore();
+
+    assert.deepEqual(await getAuthoritativeOnboardingState(asStore(store), IDENTITY.id), {
+      onboarded: false,
+      role: "BUYER",
+      hasSellerProfile: false,
+    });
+
+    await ensureUserProvisioned(asStore(store), IDENTITY);
+    store.tables.profiles.clear();
+    assert.deepEqual(await getAuthoritativeOnboardingState(asStore(store), IDENTITY.id), {
+      onboarded: false,
+      role: "BUYER",
+      hasSellerProfile: false,
+    });
+  });
+});
 
 describe("account provisioning — freshly initialized database", () => {
   let store: FakeStore;

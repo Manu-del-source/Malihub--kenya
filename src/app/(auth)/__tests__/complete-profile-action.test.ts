@@ -92,6 +92,11 @@ type FakePrisma = {
     findFirst(args: {
       where: { phone: string; NOT?: { id: string } };
     }): Promise<{ id: string } | null>;
+    findUnique(args: { where: { id: string } }): Promise<{
+      role: string;
+      profile: { onboarded: boolean } | null;
+      seller: { id: string } | null;
+    } | null>;
   };
   profile: {
     upsert(args: { where: { userId: string }; create: ProfileRow }): Promise<ProfileRow>;
@@ -123,6 +128,19 @@ const fakePrisma: FakePrisma = {
         if (row.phone === where.phone && row.id !== where.NOT?.id) return { id: row.id };
       }
       return null;
+    },
+    async findUnique({ where }) {
+      events.push("onboarding-state:lookup");
+      const user = db.users.get(where.id);
+      if (!user) return null;
+      const seller = db.sellers.get(where.id);
+      return {
+        role: user.role,
+        profile: db.profiles.has(where.id)
+          ? { onboarded: db.profiles.get(where.id)!.onboarded }
+          : null,
+        seller: seller ? { id: seller.userId } : null,
+      };
     },
   },
   profile: {

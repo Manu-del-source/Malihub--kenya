@@ -1,12 +1,16 @@
 -- Mirrors Supabase's auth.users into public.users + public.profiles so
 -- Prisma's app-data models always have a matching row to attach to.
+--
+-- ⚠ Only applicable when the *application* database is Supabase Postgres:
+-- this trigger lives on Supabase's own `auth.users` table and cannot exist
+-- in a separate Postgres (Neon, RDS, ...). Application code now provisions
+-- the mirror rows idempotently (src/services/account-provisioning.ts, wired
+-- into sign-up / sign-in / the auth callback / the /complete-profile write),
+-- so this file is an additive belt-and-braces for Supabase-hosted
+-- deployments, not a requirement. See ARCHITECTURE.md §5, §5a, §6c.
+--
 -- Run this once against your Supabase Postgres instance (SQL editor, or
 -- `supabase db push` if you've adopted the Supabase CLI migration flow).
---
--- Why a trigger and not app code: signups can also happen via Google OAuth,
--- where Supabase creates the auth.users row directly — there's no Server
--- Action in the request path to do this insert from app code. The trigger
--- guarantees the mirror row exists no matter which path created the user.
 
 create or replace function public.handle_new_auth_user()
 returns trigger

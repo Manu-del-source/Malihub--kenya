@@ -126,9 +126,14 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 
 - Supabase Auth owns credentials, email verification, password reset, and
   Google OAuth. Prisma's `User`/`Profile` tables mirror `auth.users` by
-  sharing the same UUID primary key — a Postgres trigger
-  (`on_auth_user_created`) inserts the mirror rows so application code never
-  has to remember to do it manually.
+  sharing the same UUID primary key. **Application code provisions those
+  mirror rows** (`src/services/account-provisioning.ts`, an idempotent
+  upsert called on sign-up, sign-in, the OAuth/email-confirm callback, and
+  authoritatively inside the /complete-profile transaction) — Supabase
+  authenticating a user does not, by itself, create rows in an independent
+  Postgres (§6c). A `manual_auth_trigger.sql` trigger still exists for
+  deployments whose *application* database is Supabase Postgres; it is
+  additive, not required, and cannot fire on Neon/RDS.
 - **Role** (`BUYER | SELLER | ADMIN | SUPER_ADMIN`) is stored in Prisma
   *and* mirrored into the Supabase JWT via `app_metadata` (set through a
   Supabase Edge Function / admin API call on role change), so middleware can
@@ -195,12 +200,13 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   Supabase, and Cloudinary's signed-upload flow is unnecessary complexity
   for a single small image. Product images (Phase 5) still use Cloudinary
   per the original stack.
-- **Manual SQL migrations required**: `manual_auth_trigger.sql` (mirrors
-  `auth.users` → `public.users`/`profiles`), `manual_rls_policies.sql`, and
-  `manual_storage_avatars.sql` must all be run against Supabase Postgres —
-  see README for the exact steps. None of this is optional; the app will
-  not function without the trigger in particular, since there's no other
-  code path that creates the `public.users`/`profiles` mirror rows.
+- **Manual SQL migrations required**: `manual_rls_policies.sql` and
+  `manual_storage_avatars.sql` must be run against Supabase Postgres — see
+  README for the exact steps. `manual_auth_trigger.sql` is only meaningful
+  when the *application* database is Supabase Postgres; on an independent
+  Postgres (Neon/RDS, §6c) it cannot run at all, and provisioning is done
+  by application code instead (`src/services/account-provisioning.ts`).
+  Row creation therefore never depends on the trigger — see §5.
 
 ## 6. Database design
 

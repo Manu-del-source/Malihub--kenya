@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import {
+  isNeonAuthPocEnabled,
+  isNeonAuthPocPath,
+  isNeonAuthProtectedPath,
+  isNeonAuthProxyPath,
+} from "@/lib/neon-auth/config";
 
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 const ONBOARDING_EXEMPT = ["/complete-profile", "/forgot-password", "/reset-password", "/verify-email", "/api"];
@@ -7,7 +13,54 @@ const SELLER_PREFIX = "/dashboard/seller";
 const BUYER_PREFIX = "/dashboard/buyer";
 const ADMIN_PREFIX = "/dashboard/admin";
 
+/**
+ * Neon Managed Better Auth proof of concept (docs/neon-auth-poc).
+ *
+ * Handles only `/neon-auth-test/*` and returns before the Supabase session
+ * refresh below, so a POC request never touches Supabase (and a Supabase
+ * request never touches Neon Auth). The SDK (`@/lib/neon-auth/middleware`) is
+ * imported lazily so the production path carries none of its code.
+ */
+async function handleNeonAuthPocRequest(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+
+  // 1. The SDK's own proxy route (sign-up/sign-in/sign-out/get-session).
+  //    It must stay reachable while signed out — Neon Auth's middleware is
+  //    never applied to it.
+  if (isNeonAuthProxyPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 2. Public POC pages (the landing/sign-in pages must render while signed out
+  //    so the POC can display its unauthenticated state).
+  if (!isNeonAuthProtectedPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // 3. The one protected POC route. Inert unless the POC is configured (and,
+  //    in production, explicitly enabled) — otherwise the page itself reports
+  //    that it is not configured.
+  if (!isNeonAuthPocEnabled()) {
+    return NextResponse.next();
+  }
+
+  const { getNeonAuthPocMiddleware } = await import("@/lib/neon-auth/middleware");
+  const neonAuthMiddleware = getNeonAuthPocMiddleware();
+  if (!neonAuthMiddleware) {
+    return NextResponse.next();
+  }
+
+  return neonAuthMiddleware(request);
+}
+
 export async function middleware(request: NextRequest) {
+  // POC routes short-circuit BEFORE updateSession() so Neon Auth can be
+  // evaluated without Supabase credentials and without touching the
+  // production session/refresh path.
+  if (isNeonAuthPocPath(request.nextUrl.pathname)) {
+    return handleNeonAuthPocRequest(request);
+  }
+
   const { response, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 

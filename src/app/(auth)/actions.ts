@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { safeInternalRedirect } from "@/lib/redirect-safety";
 import {
   registerSchema,
   loginSchema,
@@ -19,10 +20,19 @@ import {
   completeUserProfile,
   authIdentityFromSupabaseUser,
   provisionUserRows,
-  syncSupabaseAppMetadata,
+  refreshUserSession,
+  settleAuthenticatedAccount,
+  dashboardFor,
   AuthServiceError,
-  type AuthoritativeOnboardingState,
 } from "@/services/auth-service";
+import {
+  AuthError,
+  classifyPrismaError,
+  classifySupabaseAuthError,
+  classifyUnknownError,
+  userFacingMessage,
+} from "@/services/auth-errors";
+import { AUTH_EVENTS, createAuthLog } from "@/services/auth-logging";
 import type { ApiResult } from "@/types";
 
 async function getOrigin() {
@@ -32,54 +42,18 @@ async function getOrigin() {
   return process.env.NEXT_PUBLIC_APP_URL ?? `${protocol}://${host}`;
 }
 
-type UserSessionClient = Awaited<ReturnType<typeof createClient>>;
-
-/** Refreshes the cookie-backed user session after an app_metadata repair. */
-async function refreshUserSessionBestEffort(
-  supabase: UserSessionClient,
-  userId: string,
-  context: "sign-in" | "profile completion"
-): Promise<void> {
-  try {
-    const { error } = await supabase.auth.refreshSession();
-    if (error) {
-      console.error(`Failed to refresh auth session after ${context}`, {
-        userId,
-        message: error.message,
-      });
-    }
-  } catch (error) {
-    console.error(`Failed to refresh auth session after ${context}`, {
-      userId,
-      error,
-    });
-  }
-}
-
 /**
- * Accepts only same-origin path redirects. In particular, protocol-relative
- * (`//host`) and backslash-normalized URLs must not be accepted merely because
- * their first character is a slash.
+ * Maps a raw Supabase error to its classified form AND its user-facing copy.
+ * The raw error is logged (with the real cause) by the caller; only the safe
+ * copy reaches the UI.
  */
-function safeInternalRedirect(redirectTo: string | undefined): string | null {
-  if (!redirectTo?.startsWith("/") || redirectTo.startsWith("//") || redirectTo.includes("\\")) {
-    return null;
-  }
-
-  try {
-    const base = new URL("https://malihub.internal");
-    const destination = new URL(redirectTo, base);
-    if (destination.origin !== base.origin) return null;
-    return `${destination.pathname}${destination.search}${destination.hash}`;
-  } catch {
-    return null;
-  }
-}
-
-function dashboardFor(state: AuthoritativeOnboardingState): string {
-  // Seller-dashboard access is based on the Seller record, matching
-  // middleware and ARCHITECTURE.md §5a. Every role can still buy.
-  return state.hasSellerProfile ? "/dashboard/seller" : "/dashboard/buyer";
+function authFailure(
+  error: unknown,
+  operation: "sign-in" | "sign-up" | "password-reset" | "oauth-exchange",
+) {
+  const classified =
+    error instanceof AuthError ? error : classifySupabaseAuthError(error, operation);
+  return { classified, message: userFacingMessage(classified) };
 }
 
 /** Registers a new account. Supabase sends the verification email itself
@@ -89,6 +63,9 @@ export async function signUpAction(input: RegisterInput): Promise<ApiResult<{ em
   if (!parsed.success) {
     return { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors };
   }
+
+  const log = createAuthLog("sign-up");
+  log.start({ email: parsed.data.email });
 
   const supabase = await createClient();
   const origin = await getOrigin();
@@ -102,15 +79,23 @@ export async function signUpAction(input: RegisterInput): Promise<ApiResult<{ em
   });
 
   if (error) {
-    return { success: false, error: mapSupabaseError(error.message) };
+    const { classified, message } = authFailure(error, "sign-up");
+    log.failure(classified, { email: parsed.data.email });
+    return { success: false, error: message };
   }
   if (!data.user) {
+    const classified = new AuthError("INTERNAL_ERROR", "Sign-up returned no user.", {
+      boundary: "supabase-auth",
+      detail: { note: "signUp returned no user" },
+    });
+    log.failure(classified);
     return { success: false, error: "Something went wrong creating your account. Please try again." };
   }
 
-  // Supabase owns the identity; the application rows live in Postgres and
-  // have to be provisioned here (a fresh account has neither). Best-effort:
-  // /complete-profile provisions the same rows authoritatively on submit.
+  // Supabase owns the identity; the application rows live in Postgres. A fresh
+  // account has neither, so we provision best-effort here. /complete-profile
+  // and the next sign-in provision the same rows authoritatively (idempotent),
+  // so a failure here is not fatal — it is classified and logged.
   //
   // When the email is already registered Supabase returns an obfuscated user
   // with an empty `identities` array rather than an error — provisioning that
@@ -122,83 +107,85 @@ export async function signUpAction(input: RegisterInput): Promise<ApiResult<{ em
   return { success: true, data: { email: parsed.data.email } };
 }
 
+/**
+ * Email + password sign-in. The flow is intentionally a straight line:
+ *
+ *   authenticate (Supabase)
+ *     → settleAuthenticatedAccount
+ *         (ensure Neon account → sync claims → refresh session)
+ *     → compute a safe destination from the CANONICAL Neon state
+ *     → return success
+ *
+ * Routing decisions come ONLY from the authoritative Neon state — never from
+ * the pre-refresh Supabase payload or stale app_metadata. On any failure after
+ * authentication we fail closed: the session is cleared and a classified,
+ * controlled error is returned (the real cause is in the server log).
+ */
 export async function signInAction(
   input: LoginInput,
-  redirectTo?: string
+  redirectTo?: string,
 ): Promise<ApiResult<{ redirectTo: string }>> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const log = createAuthLog("sign-in");
+  log.start({ email: parsed.data.email });
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { success: false, error: mapSupabaseError(error.message) };
+    const { classified, message } = authFailure(error, "sign-in");
+    log.failure(classified, { email: parsed.data.email });
+    return { success: false, error: message };
   }
 
   if (!data.user) {
-    console.error("Supabase sign-in succeeded without returning a user");
+    const classified = new AuthError("INTERNAL_ERROR", "Sign-in returned no user.", {
+      boundary: "supabase-auth",
+      detail: { note: "signInWithPassword returned no user" },
+    });
+    log.failure(classified);
     return { success: false, error: "Something went wrong signing you in. Please try again." };
   }
 
-  // Self-heal accounts whose application rows predate (or were missed by)
-  // provisioning — e.g. identities created before the app database moved to
-  // its own Postgres. Provisioning is best-effort, but the authoritative read
-  // below is not: a database failure must never be interpreted as onboarded.
-  await provisionUserRows(data.user, "sign-in");
-
-  let state: AuthoritativeOnboardingState | null = null;
   try {
-    state = await syncSupabaseAppMetadata(data.user.id);
-  } catch (metadataError) {
-    // Authentication itself succeeded, but the application cannot safely keep
-    // a session with unverified/stale onboarding claims. The fail-closed path
-    // below clears it instead of risking another middleware redirect loop.
-    console.error("Failed to synchronize onboarding state after sign-in", {
-      userId: data.user.id,
-      error: metadataError,
+    const state = await settleAuthenticatedAccount({
+      supabaseUser: data.user,
+      sessionClient: supabase,
+      context: "sign-in",
+      log,
     });
-  }
 
-  if (!state) {
-    // A stale authenticated session cannot safely pass through claim-based
-    // middleware. Clear it rather than returning a misleading onboarding
-    // redirect (an already-onboarded profile page redirects to the dashboard,
-    // which would otherwise form another loop with stale JWT metadata).
+    // Neon, not the pre-refresh Supabase payload, decides whether the user
+    // completed onboarding.
+    const destination = state.onboarded
+      ? safeInternalRedirect(redirectTo) ?? dashboardFor(state)
+      : "/complete-profile";
+
+    log.success(AUTH_EVENTS.REDIRECT, { destination });
+    return { success: true, data: { redirectTo: destination } };
+  } catch (error) {
+    // Authentication succeeded, but the application could not establish
+    // consistent state (Neon down, or Supabase Admin could not mirror the
+    // claims). Fail closed: clear the session so we never carry a session
+    // with unverified/stale claims, and return a controlled, classified error.
+    const classified = error instanceof AuthError ? error : classifyUnknownError(error);
+    log.failure(classified, { userId: data.user.id });
+
     try {
       const { error: signOutError } = await supabase.auth.signOut();
       if (signOutError) {
-        console.error("Failed to clear auth session after metadata sync failure", {
-          userId: data.user.id,
-          message: signOutError.message,
-        });
+        log.failure(classifyUnknownError(signOutError), { step: "sign-out" });
       }
     } catch (signOutError) {
-      console.error("Failed to clear auth session after metadata sync failure", {
-        userId: data.user.id,
-        error: signOutError,
-      });
+      log.failure(classifyUnknownError(signOutError), { step: "sign-out" });
     }
-    return {
-      success: false,
-      error: "We couldn't load your MaliHub account. Please try signing in again.",
-    };
+
+    return { success: false, error: userFacingMessage(classified) };
   }
-
-  // This must use the same cookie-backed client that signed the user in. The
-  // Admin client changed app_metadata server-side, but only refreshSession()
-  // re-mints the JWT and writes its rotated cookies into this action response.
-  await refreshUserSessionBestEffort(supabase, data.user.id, "sign-in");
-
-  // Neon, not the pre-refresh Supabase user payload, decides whether the user
-  // completed onboarding.
-  const destination = state.onboarded
-    ? safeInternalRedirect(redirectTo) ?? dashboardFor(state)
-    : "/complete-profile";
-
-  return { success: true, data: { redirectTo: destination } };
 }
 
 /** Kicks off Google OAuth — the browser is redirected to Google, then back
@@ -223,7 +210,7 @@ export async function signInWithGoogleAction(next: string = "/complete-profile")
 }
 
 export async function forgotPasswordAction(
-  input: ForgotPasswordInput
+  input: ForgotPasswordInput,
 ): Promise<ApiResult<{ email: string }>> {
   const parsed = forgotPasswordSchema.safeParse(input);
   if (!parsed.success) {
@@ -234,10 +221,16 @@ export async function forgotPasswordAction(
   const origin = await getOrigin();
 
   // Supabase returns success even for unknown emails (prevents account
-  // enumeration) — we surface the same message either way.
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+  // enumeration) — we surface the same message either way, but we DO log a
+  // real transport/auth failure server-side so an outage is diagnosable.
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${origin}/api/auth/callback?next=/reset-password`,
   });
+  if (error) {
+    const { classified } = authFailure(error, "password-reset");
+    const log = createAuthLog("forgot-password");
+    log.failure(classified, { email: parsed.data.email });
+  }
 
   return { success: true, data: { email: parsed.data.email } };
 }
@@ -245,7 +238,7 @@ export async function forgotPasswordAction(
 /** Called from /reset-password once the recovery session (established by
  * the emailed link, via /api/auth/callback) is active in the browser. */
 export async function resetPasswordAction(
-  input: ResetPasswordInput
+  input: ResetPasswordInput,
 ): Promise<ApiResult<{ redirectTo: string }>> {
   const parsed = resetPasswordSchema.safeParse(input);
   if (!parsed.success) {
@@ -266,19 +259,39 @@ export async function resetPasswordAction(
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
-    return { success: false, error: mapSupabaseError(error.message) };
+    const { classified, message } = authFailure(error, "password-reset");
+    const log = createAuthLog("reset-password");
+    log.failure(classified, { userId: user.id });
+    return { success: false, error: message };
   }
 
   return { success: true, data: { redirectTo: "/login" } };
 }
 
+/**
+ * /complete-profile submit. The flow is:
+ *
+ *   authenticated user
+ *     → validate input
+ *     → completeUserProfile (Neon transaction commits FIRST, then best-effort
+ *       metadata sync)
+ *     → refresh the user session exactly once
+ *     → route from the CANONICAL committed state
+ *
+ * No JWT/session update happens before the Neon transaction commits, and the
+ * destination is computed from Neon truth (not `wantsToSell` alone), so an
+ * existing Seller who re-runs onboarding still lands on the seller dashboard.
+ */
 export async function completeProfileAction(
-  input: CompleteProfileInput
+  input: CompleteProfileInput,
 ): Promise<ApiResult<{ redirectTo: string }>> {
   const parsed = completeProfileSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors };
   }
+
+  const log = createAuthLog("profile-completion");
+  log.start();
 
   const supabase = await createClient();
   const {
@@ -286,70 +299,62 @@ export async function completeProfileAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
+    const classified = new AuthError("AUTHENTICATION_FAILED", "No active session.", {
+      boundary: "supabase-auth",
+      detail: { reason: "no-session", step: "profile-completion" },
+    });
+    log.failure(classified);
     return { success: false, error: "Your session has expired. Please sign in again." };
   }
+  log.success(AUTH_EVENTS.SUPABASE_SUCCESS, { userId: user.id });
+
+  const identity = authIdentityFromSupabaseUser(user);
 
   try {
-    const { wantsToSell } = await completeUserProfile(
-      authIdentityFromSupabaseUser(user),
-      parsed.data
-    );
+    const { state } = await completeUserProfile(identity, parsed.data, log);
 
-    // The profile write committed and app_metadata was synced on the server,
-    // but Supabase does not re-mint the JWT already sitting in the browser's
-    // auth cookie — it keeps carrying the pre-onboarding claims. Middleware
-    // reads its onboarding check from that session, so navigating to the
-    // dashboard now would bounce the user straight back to /complete-profile
-    // (redirect loop). Refreshing the session exchanges the refresh token for
-    // a JWT with the new `onboarded: true` claim, and this action's response
-    // carries the rotated cookies back to the browser.
-    //
-    // Best-effort by design: the Neon transaction above is the source of
-    // truth, so a failed refresh must NOT turn completed onboarding into a
-    // failed action — only log it. The shared helper still makes exactly one
-    // refresh call on this same per-request client.
-    await refreshUserSessionBestEffort(supabase, user.id, "profile completion");
+    // The Neon transaction committed and (best-effort) app_metadata was
+    // synced on the server. Refresh the user-facing session exactly once so
+    // the browser's cookie carries the new `onboarded: true` claim before we
+    // redirect to the dashboard.
+    const sessionRefreshed = await refreshUserSession(supabase, user.id, log);
 
-    return {
-      success: true,
-      data: { redirectTo: wantsToSell ? "/dashboard/seller" : "/dashboard/buyer" },
-    };
+    // Route from canonical Neon state (Seller row decides the seller
+    // dashboard), never from the request payload.
+    const destination = dashboardFor(state);
+    log.success(AUTH_EVENTS.REDIRECT, { destination, sessionRefreshed });
+
+    return { success: true, data: { redirectTo: destination } };
   } catch (error) {
     if (error instanceof AuthServiceError) {
+      // User-accountable (phone already claimed, no email on file).
+      const classified = new AuthError("ACCOUNT_PROVISIONING_FAILED", error.message, {
+        boundary: "neon",
+        detail: { note: error.message },
+        userMessage: error.message,
+      });
+      log.failure(classified, { userId: user.id });
       return { success: false, error: error.message };
     }
 
-    // Log the real failure with enough context to identify it in production
-    // (Prisma errors carry a `code` — P2025 "record to update not found" is
-    // the one that used to mean "the application rows were never created").
-    console.error("completeProfileAction failed", {
-      userId: user.id,
-      code: errorCodeOf(error),
-      name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    // A database-level write failure. Classify (P2002 is the phone/email
+    // uniqueness race the service pre-check makes rare) and return a safe
+    // message; the real cause is logged.
+    const classified =
+      error instanceof AuthError
+        ? error
+        : classifyPrismaError(error, "ACCOUNT_PROVISIONING_FAILED");
+    log.failure(classified, { userId: user.id });
 
-    if (errorCodeOf(error) === "P2002") {
+    if (classified.detail.prismaCode === "P2002") {
       return {
         success: false,
         error: "That phone number or email is already linked to another MaliHub account.",
       };
     }
 
-    return { success: false, error: "Something went wrong saving your profile. Please try again." };
+    return { success: false, error: userFacingMessage(classified) };
   }
-}
-
-/**
- * Reads Prisma's error `code` without importing the generated runtime client
- * (this module is also bundled for the browser-side action boundary).
- */
-function errorCodeOf(error: unknown): string | undefined {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const { code } = error as { code?: unknown };
-    return typeof code === "string" ? code : undefined;
-  }
-  return undefined;
 }
 
 export async function resendVerificationAction(email: string): Promise<ApiResult<null>> {
@@ -363,25 +368,19 @@ export async function resendVerificationAction(email: string): Promise<ApiResult
   });
 
   if (error) {
-    return { success: false, error: mapSupabaseError(error.message) };
+    const { message } = authFailure(error, "sign-up");
+    return { success: false, error: message };
   }
   return { success: true, data: null };
 }
 
 export async function signOutAction() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Even if the server-side invalidation fails, the cookie is cleared and
+    // the user is redirected — sign-out must not throw a 500.
+  }
   redirect("/");
-}
-
-/** Supabase's raw error messages are technically accurate but not the tone
- * we want in front of a user — this maps the common ones to friendlier copy. */
-function mapSupabaseError(message: string): string {
-  const known: Record<string, string> = {
-    "Invalid login credentials": "That email or password doesn't look right.",
-    "Email not confirmed": "Please verify your email before signing in — check your inbox.",
-    "User already registered": "An account with that email already exists. Try signing in instead.",
-    "Password should be at least 6 characters": "Choose a longer password (at least 8 characters).",
-  };
-  return known[message] ?? message;
 }

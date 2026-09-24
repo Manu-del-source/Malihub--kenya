@@ -176,10 +176,13 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   never through signup). Buying is never role-gated — anyone can buy
   regardless of role. Choosing "Seller" or "Both" at /complete-profile sets
   `role = SELLER` **and** creates a starter `Seller` row (business name
-  defaults to their full name, editable later); "Both" doesn't block
-  buying, it's purely a UI/copy distinction on top of the same `SELLER`
-  role + Seller row. Seller-dashboard access is gated on **having a
-  Seller row**, not on the role string.
+  defaults to their full name, editable later) — *when the resulting role
+  is actually `SELLER`*: the rule goes through `decideProfileRole`, so
+  `ADMIN`/`SUPER_ADMIN` (and an existing `SELLER`'s role) are never altered
+  by the form, and no access grant is self-serviceable through onboarding.
+  "Both" doesn't block buying, it's purely a UI/copy distinction on top of
+  the same `SELLER` role + Seller row. Seller-dashboard access is gated on
+  **having a Seller row**, not on the role string.
 - **Two-tier role check**: `app_metadata.role` / `app_metadata.has_seller_profile`
   / `app_metadata.onboarded` are mirrored into the JWT (via the Supabase
   Admin API in `completeUserProfile`) so `middleware.ts` can gate
@@ -207,6 +210,43 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   Postgres (Neon/RDS, §6c) it cannot run at all, and provisioning is done
   by application code instead (`src/services/account-provisioning.ts`).
   Row creation therefore never depends on the trigger — see §5.
+
+## 5b. Auth audit & restructure (2026-09) — read this before touching auth
+
+The 2026-09 audit restructured the entire authentication/account surface
+after the production "We couldn't load your MaliHub account…" incident and
+the `/complete-profile` redirect loop. **`AUTH_AUDIT.md` (repo root) is the
+authoritative record**: the 8-scenario flow map (with DB-failure behavior),
+the exact error branch that produced the production message and its four
+now-distinct replacements, the error taxonomy, the security review, the
+environment audit (names only), the Prisma/schema audit, the logging model,
+and the 158-test behavior suite that pins every guarantee.
+
+The invariants it establishes (all test-pinned):
+
+- **Supabase = identity/session; Neon = application truth; `app_metadata` =
+  cache.** Server flows route from canonical Neon state only; the cache is
+  repaired (read-merge-validate, minimal keys) on every authenticated
+  touchpoint.
+- **One boundary each:** `ensureApplicationAccount` (provisioning, one
+  transaction), `getApplicationAccountState` (lookup; DB error ≠
+  `onboarded: false`), `syncApplicationClaims` (the only `app_metadata`
+  writer; fails closed on read failure), `refreshUserSession` (cookie
+  client only, exactly once per flow, non-fatal when it fails).
+- **`settleAuthenticatedAccount`** is the single post-auth pipeline shared
+  by password sign-in and the OAuth/verification callback — no third
+  provisioning path. Profile completion commits its Neon transaction
+  **before** any JWT/session update (the loop breaker).
+- **Redirects** are only honored through `safeInternalRedirect`
+  (`src/lib/redirect-safety.ts`); the old callback open redirect is gone.
+- **`src/middleware.ts` is deliberately unchanged** (comments only): it is
+  lightweight by design (no per-request Neon) and reads live Supabase
+  claims, so repairing the cache also repairs the edge.
+- **Errors:** one failure = one classification
+  (`src/services/auth-errors.ts`); distinct safe user copy per class;
+  machine diagnostics (boundary, Prisma code / HTTP status) in the
+  structured, redacted log (`src/services/auth-logging.ts`) with a
+  correlation id per operation.
 
 ## 6. Database design
 

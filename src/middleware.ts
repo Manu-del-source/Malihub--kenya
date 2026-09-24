@@ -26,9 +26,14 @@ export async function middleware(request: NextRequest) {
 
   // Signed-in but hasn't finished onboarding yet → send them to finish it,
   // no matter where they were headed (dashboard OR back to login/register).
-  // app_metadata is the edge-friendly cache; sign-in/profile completion
-  // repair it from authoritative Neon state and refresh the JWT before a
-  // dashboard redirect. Do not query Neon on every middleware invocation.
+  //
+  // `user` here comes from `updateSession()` → `supabase.auth.getUser()`,
+  // which round-trips to Supabase and returns the user's CURRENT app_metadata
+  // (not just what the cookie's JWT carries). So this check reads the LIVE
+  // Supabase claim cache; sign-in, the OAuth callback and /complete-profile
+  // keep that cache consistent with authoritative Neon state (and refresh the
+  // user's JWT), and /complete-profile is the loop-breaker that self-heals
+  // stale claims. Never query Neon from middleware.
   // Takes priority over the auth-route bounce below.
   if (user && user.app_metadata?.onboarded !== true) {
     const isExempt = ONBOARDING_EXEMPT.some((route) => pathname.startsWith(route));
@@ -54,8 +59,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Seller dashboard requires an actual Seller row (mirrored as
-  // has_seller_profile in the JWT by completeUserProfile/becomeSellerAction)
-  // — admins can also view it for support purposes.
+  // has_seller_profile in the Supabase app_metadata cache by the auth
+  // pipeline — see AUTH_AUDIT.md) — admins can also view it for support
+  // purposes.
   if (pathname.startsWith(SELLER_PREFIX)) {
     const role = user?.app_metadata?.role;
     const hasSellerProfile = user?.app_metadata?.has_seller_profile === true;

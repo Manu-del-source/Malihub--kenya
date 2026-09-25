@@ -1,7 +1,7 @@
 # MaliHub Kenya
 
-A premium Kenyan marketplace — Next.js 15, Supabase Auth, Prisma on
-independent PostgreSQL, and a FastAPI backend for payments.
+A premium Kenyan marketplace — Next.js 15, Neon Managed Better Auth, Prisma
+on independent PostgreSQL, and a FastAPI backend for payments.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design and
 build-phase checklist.
@@ -9,22 +9,28 @@ build-phase checklist.
 **Two services, one database.** The Next.js app (`src/`) serves the storefront
 and dashboards. The FastAPI backend (`backend/`, added in Phase 8) owns
 payments, provider webhooks and health reporting. They deploy independently and
-share PostgreSQL and Redis. Supabase is **authentication** — it is not the
-application database, and no new file storage is built on it (the one Phase 4
-exception is profile avatars; marketplace images are Cloudinary). See §2 of
-ARCHITECTURE.md.
+share PostgreSQL and Redis. **Neon Managed Better Auth is authentication** —
+credentials, sessions, email verification, password reset and Google OAuth all
+live there, and no password is ever stored in this repository's database.
+Supabase remains a dependency, but only for **Storage** (profile avatars) and
+**Realtime** (chat); it is not the application database, and no new file storage
+is built on it (marketplace images are Cloudinary). See §2 and §5 of
+ARCHITECTURE.md, and **`docs/auth/`** for the authoritative auth design.
 
 ## Getting started — Next.js app
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase/Cloudinary keys
+cp .env.example .env.local   # fill in Neon Auth/Supabase/Cloudinary keys
 npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 ```
 
-> **About the `manual_*.sql` files.** This repository has no committed Prisma
-> migration history, so a database's shape comes from `prisma migrate dev` /
-> `prisma db push` against `prisma/schema.prisma`. The manual files cover what
+> **About the `manual_*.sql` files.** This repository has almost no committed
+> Prisma migration history — the single exception is
+> `prisma/migrations/20260925000000_add_auth_user_id_mapping`, the additive
+> nullable column mapping a Neon Auth identity to `users.id`. Otherwise a
+> database's shape comes from `prisma migrate dev` / `prisma db push` against
+> `prisma/schema.prisma`. The manual files cover what
 > Prisma cannot express — triggers, Row Level Security, Supabase Storage
 > buckets, Realtime publication membership, and the `tsvector` search column —
 > so **a fresh database needs almost all of them too**. The one exception is
@@ -42,8 +48,9 @@ run these files **in order**:
    database itself is hosted on Supabase Postgres** (it needs `auth.users`
    in the same database). With an independent application database — Neon,
    RDS, … — skip it: those rows are provisioned by application code
-   (`src/services/account-provisioning.ts`) on sign-up, sign-in, the auth
-   callback, and the /complete-profile submit.
+   (`src/services/account-provisioning.ts`) on sign-up, sign-in, and on any
+   later request or action by a signed-in identity that is not yet mapped to a
+   `users` row.
 2. `prisma/migrations/manual_rls_policies.sql` — Row Level Security for
    user-owned tables.
 3. `prisma/migrations/manual_storage_avatars.sql` — creates the `avatars`
@@ -76,11 +83,13 @@ run these files **in order**:
    table; on a fresh database the table comes from Prisma instead, and this
    file still applies.
 
-Also in the Supabase dashboard: **Authentication → Providers → Google**,
-enable it and add your OAuth client ID/secret, plus
-`{your-app-url}/api/auth/callback` as an authorized redirect URI. "Confirm
-email" under Authentication → Settings should stay on (it's the default) —
-that's what makes /verify-email meaningful.
+Google sign-in is configured in the **Neon Console**, not Supabase: enable
+email/password and Google for the branch, then in Google Cloud Console add
+`{NEON_AUTH_BASE_URL}/callback/google` as the authorized redirect URI. The auth
+service completes the OAuth handshake itself and returns the browser to the
+`callbackURL` MaliHub supplied — MaliHub's own `/api/auth/callback` is retired
+and answers **410 Gone**. `docs/auth/MIGRATION.md` §5–§6 is the full console
+checklist (env vars, trusted domains, email verification).
 
 In your **Cloudinary** dashboard: Settings → Upload → Upload presets →
 add an **unsigned** preset, and put its name in
@@ -153,12 +162,16 @@ src/
   services/       Domain services (auth, chat, listing, notification, email,
                   search, audit) — the choke points other code calls through
   emails/         React Email templates, sent via services/email-service.ts
-  lib/            Supabase clients, Prisma client, constants, redis.ts,
-                  rate-limit.ts, csrf.ts, validations/
+  lib/            auth/ (the provider abstraction — the ONLY place
+                  @neondatabase/auth is imported), supabase/ (Storage and
+                  Realtime clients, plus the retained rollback target),
+                  Prisma client, constants, redis.ts, rate-limit.ts, csrf.ts,
+                  validations/
   utils/          Pure helpers (formatKes, slugify, timeAgo, toKenyanMsisdn, …)
   types/          Domain types + Supabase generated types
   providers/      React context providers (theme, react-query)
-  middleware.ts   Session refresh + route protection
+  middleware.ts   Authentication gate ONLY (fail-closed, no database access);
+                  authorization lives in the server-side guards in lib/auth/
 prisma/
   schema.prisma   Full database schema — the single source of truth for DDL
   migrations/     Manual SQL for changes that must not be applied
@@ -266,8 +279,11 @@ theme-init hardening.
 **Phase 8 (production architecture) complete** — the independent FastAPI
 backend in `backend/`, the provider-agnostic `Payment` model and its
 data-preserving migration, the typed `PaymentProvider` interface with a PayHero
-stub and provider registry, storage and email abstractions, Supabase token
-verification on the auth-only boundary, structured logging with redaction, a
+stub and provider registry, storage and email abstractions, token verification
+on the auth-only boundary (Supabase-issued when Phase 8 landed — **the backend
+still expects Supabase JWTs and must be re-pointed at Neon Auth before this
+migration goes live**; see `docs/auth/MIGRATION.md` §7), structured logging
+with redaction, a
 single error envelope, health/readiness endpoints, and production startup
 validation. The Next.js app was **not** rewritten — Phase 7's security files and
 every working feature are untouched, and the only removals are the Daraja route

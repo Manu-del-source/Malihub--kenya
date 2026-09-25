@@ -407,6 +407,7 @@ second attempt resumable. `MIGRATION.md` §9.
 | Provider outage reported as bad credentials | Distinct `auth_unavailable` code; covered by tests at the action, guard and integration layers. |
 | Database outage read as "not onboarded" | `signInAction` fails closed and clears the session; a dedicated test asserts the outage is *never* reported as an incomplete profile. |
 | `@neondatabase/auth` is `0.5.0-beta` | Isolated to one module, with integration tests pinning the wire contract — an SDK behaviour change fails the suite rather than production. |
+| **Nothing runs the suite automatically** | This repository has no `.github/workflows`, so all 209 tests execute only when someone remembers to run them locally. Nothing prevents a regression from reaching `main` — including a re-introduced claim cache, which is precisely what the absence-tripwire tests in §10 exist to catch. Adding CI (`npm test`, `type-check`, `lint`, `build`) is a deliberate scope exclusion here and is recommended as the immediate follow-up. |
 
 ### Explicitly out of scope
 

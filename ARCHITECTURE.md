@@ -53,10 +53,18 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
              └───────────────────────────────────────┘   │  only — never a    │
                                                          │  primary store     │
              ┌───────────────────────┐                   └────────────────────┘
-             │  Supabase Auth        │
+             │  Neon Auth (Managed   │
+             │  Better Auth)         │
              │  identity ONLY:       │
              │  credentials, sessions│
              │  OAuth, JWT issuance  │
+             └───────────────────────┘
+
+             ┌───────────────────────┐
+             │  Supabase — Storage   │
+             │  (avatars) + Realtime │
+             │  (chat) ONLY: not     │
+             │  auth, not the app DB │
              └───────────────────────┘
 
              ┌───────────────────┐   ┌────────────────────────┐
@@ -66,9 +74,11 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
              └───────────────────┘   └────────────────────────┘
 ```
 
-**The Supabase boundary is authentication.** Supabase issues and verifies user
-sessions, and there is no second auth system and no second password store
-anywhere in this repository. Concretely:
+**The Supabase boundary is no longer authentication.** Neon Managed Better Auth
+issues and verifies user sessions (§5, and `docs/auth/ARCHITECTURE.md`);
+Supabase is retained for Storage and Realtime only. There is still no second
+auth system and no second password store anywhere in this repository.
+Concretely:
 
 - **Supabase is not the application database.** Application data lives in an
   independent PostgreSQL instance, reached through Prisma from Next.js and
@@ -84,7 +94,10 @@ anywhere in this repository. Concretely:
   `manual_storage_avatars.sql`). It is working functionality and was left
   alone; the rule is that nothing *new* is built on it, and a future phase may
   consolidate avatars onto Cloudinary rather than grow the exception.
-- **Supabase tokens are consumed, never issued, by the backend** (§5).
+- **Neon Auth tokens are consumed, never issued, by the backend** (§5) — and
+  because the JWT `sub` is the *provider's* id, the backend must resolve
+  `users.auth_user_id → users.id` before it queries anything. The backend has
+  not been updated yet; see `docs/auth/MIGRATION.md` §7.
 
 **Two processes, one schema.** Next.js and FastAPI deploy independently and
 talk to the same Postgres and the same Redis. Prisma owns every DDL change;
@@ -687,7 +700,8 @@ tipping into visual noise.
 - [x] **Phase 3 — Landing page** (hero with parallax/mesh gradient, intelligent
       search bar, categories, featured listings, bento features, animated
       stats, seller CTA, testimonials, FAQ, newsletter, footer)
-- [x] **Phase 4 — Authentication** (Supabase Auth: email/password + Google,
+- [x] **Phase 4 — Authentication** (built on Supabase Auth, since migrated to
+      Neon Managed Better Auth — see `docs/auth/`: email/password + Google,
       email verification, forgot/reset password, complete-profile onboarding,
       role-based route protection, RLS policies, avatar storage)
 - [x] **Phase 5 — Marketplace core** (16-category taxonomy, full-text

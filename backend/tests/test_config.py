@@ -12,7 +12,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from app.core.config import DEFAULT_DEV_CORS_ORIGINS, ConfigurationError
+from app.core.config import (
+    ASYMMETRIC_JWT_ALGORITHMS,
+    DEFAULT_DEV_CORS_ORIGINS,
+    ConfigurationError,
+)
 from tests.conftest import build_settings
 
 # ─── Parsing ─────────────────────────────────────────────────────────────────
@@ -115,6 +119,69 @@ def test_jwt_issuer_and_jwks_url_derive_from_supabase_url() -> None:
     assert settings.supabase_jwks_url == "https://xyz.supabase.co/auth/v1/.well-known/jwks.json"
 
 
+def test_neon_jwks_url_keeps_the_path_and_the_issuer_drops_it() -> None:
+    """The two derivations differ by exactly the part that is easy to transpose.
+
+    JWKS is served under the full base URL (`…/neondb/auth/.well-known/…`); the
+    `iss` claim is the service *origin* (`…neon.tech`, no path). Getting either
+    wrong rejects every valid token, so both are asserted rather than described.
+    """
+    settings = build_settings(
+        neon_auth_base_url="https://ep-test.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/"
+    )
+    assert settings.neon_auth_jwks_url == (
+        "https://ep-test.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json"
+    )
+    assert settings.neon_auth_jwt_issuer == (
+        "https://ep-test.neonauth.c-2.us-east-1.aws.neon.tech"
+    )
+
+
+def test_neon_settings_derive_nothing_without_a_base_url() -> None:
+    settings = build_settings()
+    assert settings.neon_auth_jwks_url is None
+    assert settings.neon_auth_jwt_issuer is None
+    assert settings.neon_jwt_verification_mode == "unconfigured"
+    assert settings.active_auth_mode == "unconfigured"
+
+
+def test_an_explicit_neon_jwks_url_or_issuer_is_not_overwritten() -> None:
+    """Derivation is a convenience, never an override of what was set."""
+    settings = build_settings(
+        neon_auth_base_url="https://ep-test.neonauth.example/neondb/auth",
+        neon_auth_jwks_url="https://keys.example/jwks.json",
+        neon_auth_jwt_issuer="https://issuer.example",
+    )
+    assert settings.neon_auth_jwks_url == "https://keys.example/jwks.json"
+    assert settings.neon_auth_jwt_issuer == "https://issuer.example"
+
+
+def test_neon_algorithms_default_to_asymmetric_only() -> None:
+    """No HMAC default: there is no shared secret to verify against."""
+    algorithms = {algorithm.upper() for algorithm in build_settings().neon_auth_jwt_algorithms}
+    assert algorithms <= ASYMMETRIC_JWT_ALGORITHMS
+    assert algorithms == {"RS256", "ES256"}
+
+
+def test_neon_refuses_an_hmac_algorithm_at_configuration_time() -> None:
+    """Not ignored at request time — refused at boot, naming the variable."""
+    with pytest.raises(ConfigurationError, match="NEON_AUTH_JWT_ALGORITHMS"):
+        build_settings(
+            neon_auth_base_url="https://ep-test.neonauth.example/neondb/auth",
+            neon_auth_jwt_algorithms="RS256,HS256",
+        )
+
+
+def test_the_legacy_provider_may_still_use_hmac() -> None:
+    """The rollback path keeps its own semantics, including HS256."""
+    settings = build_settings(
+        auth_provider="supabase-legacy",
+        supabase_jwt_secret="not-a-real-secret-0123456789abcdef0123456789",
+        supabase_jwt_algorithms="HS256",
+    )
+    assert settings.active_auth_mode == "supabase-hs256"
+
+
 def test_verification_mode_follows_configuration() -> None:
     assert build_settings().jwt_verification_mode == "unconfigured"
     assert build_settings(supabase_jwt_secret="s3cret").jwt_verification_mode == "hs256"
@@ -162,6 +229,10 @@ PRODUCTION_BASE = {
     "database_url": "postgresql://u:p@h:5432/db",
     "redis_url": "redis://h:6379/0",
     "backend_public_url": "https://api.malihub.co.ke",
+    # Neon Auth is the identity provider, so this is what the production boot
+    # gate now requires. The Supabase secret stays set on purpose: it must not
+    # rescue a Neon deployment, and `active_auth_mode` tests below assert that.
+    "neon_auth_base_url": "https://ep-x.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth",
     "supabase_jwt_secret": "not-a-real-secret-0123456789abcdef0123456789",
 }
 
@@ -173,7 +244,7 @@ def test_valid_production_configuration_passes_with_no_fatal_errors() -> None:
     joined = " ".join(warnings)
     # The critical services are configured, so none of them warn. Resend and
     # Cloudinary are absent from PRODUCTION_BASE and do — degraded, not fatal.
-    for critical in ("DATABASE_URL", "REDIS_URL", "SUPABASE_JWT_SECRET"):
+    for critical in ("DATABASE_URL", "REDIS_URL", "NEON_AUTH_BASE_URL", "SUPABASE_JWT_SECRET"):
         assert critical not in joined
     assert "RESEND_API_KEY" in joined
 
@@ -186,7 +257,11 @@ def test_valid_production_configuration_passes_with_no_fatal_errors() -> None:
         ({"database_echo": True}, "DATABASE_ECHO must be false"),
         ({"cors_origins": ""}, "must be set explicitly in production"),
         ({"database_url": ""}, "DATABASE_URL is required in production"),
-        ({"supabase_jwt_secret": ""}, "token verification is not configured"),
+        ({"neon_auth_base_url": ""}, "Neon Auth token verification is not configured"),
+        (
+            {"auth_provider": "supabase-legacy", "supabase_jwt_secret": "", "neon_auth_base_url": ""},
+            "Supabase token verification is not configured",
+        ),
         ({"backend_public_url": "http://localhost:8000"}, "BACKEND_PUBLIC_URL must be"),
     ],
 )

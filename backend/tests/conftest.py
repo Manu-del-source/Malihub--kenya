@@ -27,6 +27,7 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Settings, reset_settings
 from app.core.db import reset_database
+from app.core.identity import reset_identity_resolver
 from app.core.redis import reset_redis_gateway
 from app.core.security import reset_token_verifier
 from app.providers.payments.registry import reset_payment_registry
@@ -55,6 +56,12 @@ BASE_ENV: dict[str, str] = {
     # Explicitly absent by default:
     "DATABASE_URL": "",
     "REDIS_URL": "",
+    # Explicitly absent by default. `AUTH_PROVIDER` defaults to "neon", so a
+    # test that wants the retained legacy verifier must say so — which is the
+    # point: the migrated default must not need opting into.
+    "AUTH_PROVIDER": "",
+    "NEON_AUTH_BASE_URL": "",
+    "NEON_AUTH_JWKS_URL": "",
     "SUPABASE_URL": "",
     "SUPABASE_JWT_SECRET": "",
     "RESEND_API_KEY": "",
@@ -69,6 +76,7 @@ BASE_ENV: dict[str, str] = {
 def reset_singletons() -> None:
     """Drop every cached process-wide object and the settings cache."""
     reset_database()
+    reset_identity_resolver()
     reset_redis_gateway()
     reset_payment_registry()
     reset_payment_service()

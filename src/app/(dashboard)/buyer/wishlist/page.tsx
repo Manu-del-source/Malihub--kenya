@@ -1,12 +1,21 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Heart } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { Container } from "@/components/ui/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Your favorites" };
 
@@ -22,11 +31,7 @@ const FAVORITE_INCLUDE = {
 type FavoriteWithProduct = Prisma.WishlistGetPayload<{ include: typeof FAVORITE_INCLUDE }>;
 
 export default async function FavoritesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { user } = await requireUser();
 
   const favorites = await prisma.wishlist.findMany({
     where: { userId: user.id },

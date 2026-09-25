@@ -1,123 +1,108 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 import {
-  isNeonAuthPocEnabled,
-  isNeonAuthPocPath,
-  isNeonAuthProtectedPath,
-  isNeonAuthProxyPath,
-} from "@/lib/neon-auth/config";
-
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
-const ONBOARDING_EXEMPT = ["/complete-profile", "/forgot-password", "/reset-password", "/verify-email", "/api"];
-const SELLER_PREFIX = "/dashboard/seller";
-const BUYER_PREFIX = "/dashboard/buyer";
-const ADMIN_PREFIX = "/dashboard/admin";
+  isAuthReturnRequest,
+  isProtectedPath,
+  LOGIN_PATH,
+  pathWithoutVerifierParam,
+} from "@/lib/auth/config";
+import { createNeonAuthMiddleware } from "@/lib/auth/neon";
+import { loginUrlWithRedirect } from "@/lib/auth/redirects";
 
 /**
- * Neon Managed Better Auth proof of concept (docs/neon-auth-poc).
+ * MaliHub edge middleware.
  *
- * Handles only `/neon-auth-test/*` and returns before the Supabase session
- * refresh below, so a POC request never touches Supabase (and a Supabase
- * request never touches Neon Auth). The SDK (`@/lib/neon-auth/middleware`) is
- * imported lazily so the production path carries none of its code.
+ * ─── One authentication path ───────────────────────────────────────────────
+ * Neon Auth (Managed Better Auth) is the only thing that authenticates a
+ * request here. The previous provider's `updateSession()` is no longer called
+ * from this file, and the isolated proof-of-concept branch that used to
+ * short-circuit ahead of it is gone. There is no second path and no feature
+ * flag selecting between two paths.
+ *
+ * ─── What middleware does, and what it deliberately does NOT do ────────────
+ * It answers exactly one question: **is there a valid Neon Auth session?**
+ *
+ * It does not decide what that session may access. Role, onboarding state and
+ * seller access are MaliHub application state living in Postgres, and they are
+ * enforced server-side by the guards in `src/lib/auth/session.ts`
+ * (`requireAdministrator()`, `requireSellerAccess()`, `requireOnboardedUser()`).
+ *
+ * Three reasons, all of which the previous implementation ran into:
+ *  1. Neon Auth exposes no `app_metadata` equivalent and accepts no custom
+ *     Better Auth plugins, so there is no claim to read even if we wanted one.
+ *  2. Reading application tables here would put a database round trip on every
+ *     request, including the landing page and every product page.
+ *  3. Claim caches go stale. The redirect-loop bugs this repository already
+ *     fixed twice were caused by middleware trusting a JWT claim that lagged
+ *     behind the database. Authoritative state read at the point of use has no
+ *     such lag.
+ *
+ * Public routes are never handed to the auth service at all, so an anonymous
+ * visitor browsing the marketplace costs MaliHub no session validation and no
+ * database query.
  */
-async function handleNeonAuthPocRequest(request: NextRequest): Promise<NextResponse> {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // 1. The SDK's own proxy route (sign-up/sign-in/sign-out/get-session).
-  //    It must stay reachable while signed out — Neon Auth's middleware is
-  //    never applied to it.
-  if (isNeonAuthProxyPath(pathname)) {
+  /**
+   * A request returning from Google OAuth or from an emailed verification /
+   * reset link. The auth service sends the browser back to `callbackURL` with a
+   * one-time `neon_auth_session_verifier` parameter, and the SDK's middleware
+   * exchanges it for real session cookies on OUR origin — that exchange is the
+   * only way the browser ends up holding a MaliHub-scoped session after a
+   * redirect-based flow, so it must be allowed to run even on a path that is
+   * not itself protected (e.g. `/complete-profile`).
+   */
+  const isAuthReturn = isAuthReturnRequest(request.nextUrl);
+  const isProtected = isProtectedPath(pathname);
+
+  if (!isProtected && !isAuthReturn) {
     return NextResponse.next();
   }
 
-  // 2. Public POC pages (the landing/sign-in pages must render while signed out
-  //    so the POC can display its unauthenticated state).
-  if (!isNeonAuthProtectedPath(pathname)) {
-    return NextResponse.next();
-  }
+  // The visitor's real destination, with the one-time verifier stripped so it
+  // can never be persisted into a `redirectTo`, a log line, or a bookmark.
+  const target = pathWithoutVerifierParam(request.nextUrl);
+  const loginUrl = loginUrlWithRedirect(LOGIN_PATH, target);
 
-  // 3. The one protected POC route. Inert unless the POC is configured (and,
-  //    in production, explicitly enabled) — otherwise the page itself reports
-  //    that it is not configured.
-  if (!isNeonAuthPocEnabled()) {
-    return NextResponse.next();
-  }
+  const neonAuthMiddleware = createNeonAuthMiddleware(loginUrl);
 
-  const { getNeonAuthPocMiddleware } = await import("@/lib/neon-auth/middleware");
-  const neonAuthMiddleware = getNeonAuthPocMiddleware();
+  /**
+   * FAIL CLOSED. If Neon Auth is not configured there is no way to establish
+   * anybody's identity, so a protected route must not be served. Sending the
+   * visitor to the sign-in page (rather than throwing) keeps the failure
+   * legible: `/login` renders and the auth actions report the misconfiguration,
+   * instead of every dashboard URL returning an opaque edge-runtime 500.
+   *
+   * An auth-return request is allowed through when unconfigured — there is
+   * nothing to exchange and the landing page will simply show a signed-out
+   * state, which is more useful than a redirect loop.
+   */
   if (!neonAuthMiddleware) {
-    return NextResponse.next();
+    console.error(
+      "[auth] Neon Auth is not configured; refusing protected route. " +
+        "Set NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET.",
+      { protected: isProtected }
+    );
+    if (!isProtected) return NextResponse.next();
+    return NextResponse.redirect(new URL(loginUrl, request.url));
   }
 
-  return neonAuthMiddleware(request);
-}
-
-export async function middleware(request: NextRequest) {
-  // POC routes short-circuit BEFORE updateSession() so Neon Auth can be
-  // evaluated without Supabase credentials and without touching the
-  // production session/refresh path.
-  if (isNeonAuthPocPath(request.nextUrl.pathname)) {
-    return handleNeonAuthPocRequest(request);
+  try {
+    // The SDK validates the signed `session_data` cookie locally with no
+    // network call, performs the OAuth verifier exchange when needed, and
+    // redirects to `loginUrl` when there is no session. It also fails closed on
+    // its own: an unreachable auth service produces a redirect, never a pass.
+    return (await neonAuthMiddleware(request)) as NextResponse;
+  } catch (error) {
+    // Unexpected SDK failure. Same rule as above: a protected route is never
+    // served just because authentication could not be evaluated.
+    console.error("[auth] session validation failed; failing closed", {
+      protected: isProtected,
+      error: error instanceof Error ? error.name : typeof error,
+    });
+    if (!isProtected) return NextResponse.next();
+    return NextResponse.redirect(new URL(loginUrl, request.url));
   }
-
-  const { response, user } = await updateSession(request);
-  const { pathname } = request.nextUrl;
-
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
-  const isProtectedRoute =
-    pathname.startsWith(SELLER_PREFIX) ||
-    pathname.startsWith(BUYER_PREFIX) ||
-    pathname.startsWith(ADMIN_PREFIX);
-
-  // Signed-out user hitting a protected route → send to login with a redirect-back target.
-  if (isProtectedRoute && !user) {
-    const redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Signed-in but hasn't finished onboarding yet → send them to finish it,
-  // no matter where they were headed (dashboard OR back to login/register).
-  // app_metadata is the edge-friendly cache; sign-in/profile completion
-  // repair it from authoritative Neon state and refresh the JWT before a
-  // dashboard redirect. Do not query Neon on every middleware invocation.
-  // Takes priority over the auth-route bounce below.
-  if (user && user.app_metadata?.onboarded !== true) {
-    const isExempt = ONBOARDING_EXEMPT.some((route) => pathname.startsWith(route));
-    if (!isExempt) {
-      return NextResponse.redirect(new URL("/complete-profile", request.url));
-    }
-  }
-
-  // Signed-in (and onboarded) user hitting an auth route → send to their dashboard instead.
-  if (isAuthRoute && user && user.app_metadata?.onboarded === true) {
-    return NextResponse.redirect(new URL("/dashboard/buyer", request.url));
-  }
-
-  // Role gating for admin routes happens here at the edge; seller/buyer role
-  // gating for finer-grained actions still happens in Server Actions/RLS,
-  // since `user.app_metadata` here comes from a JWT claim that's cheap to
-  // check but should never be the only line of defense.
-  if (pathname.startsWith(ADMIN_PREFIX)) {
-    const role = user?.app_metadata?.role;
-    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-  }
-
-  // Seller dashboard requires an actual Seller row (mirrored as
-  // has_seller_profile in the JWT by completeUserProfile/becomeSellerAction)
-  // — admins can also view it for support purposes.
-  if (pathname.startsWith(SELLER_PREFIX)) {
-    const role = user?.app_metadata?.role;
-    const hasSellerProfile = user?.app_metadata?.has_seller_profile === true;
-    if (!hasSellerProfile && role !== "ADMIN" && role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL("/dashboard/buyer", request.url));
-    }
-  }
-
-  return response;
 }
 
 export const config = {

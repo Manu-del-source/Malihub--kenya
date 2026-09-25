@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   sendMessageSchema,
@@ -27,10 +27,7 @@ import {
 import type { ApiResult, Message } from "@/types";
 
 async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) throw new ChatServiceError("Sign in required.");
   return user.id;
 }
@@ -138,10 +135,7 @@ export async function unblockUserAction(otherUserId: string): Promise<ApiResult<
 }
 
 export async function isBlockedByMeAction(otherUserId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) return false;
 
   const block = await prisma.blockedUser.findUnique({

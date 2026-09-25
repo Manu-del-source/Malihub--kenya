@@ -1,9 +1,23 @@
-"""Supabase token verification — the API's authentication boundary.
+"""The API's authentication boundary: bearer handling + the legacy verifier.
 
 The cases here are the ones that decide whether this backend is safe to expose.
 Every "rejects" test is more important than every "accepts" test: an
 authentication layer that works for valid tokens and quietly passes invalid ones
 is worse than one that doesn't exist, because it looks like it's working.
+
+Two things live here, and the split is deliberate:
+
+* **Provider-agnostic** bearer-token extraction, `require_role` definition-time
+  validation, and immutability of `AuthContext`. These do not change with the
+  identity provider.
+* **The retained Supabase verifier**, exercised through
+  `auth_provider="supabase-legacy"`. Supabase is no longer MaliHub's identity
+  provider — Neon Managed Better Auth is — but the legacy path is the documented
+  rollback (`docs/auth/MIGRATION.md` §9), so its behaviour is pinned here rather
+  than allowed to rot. A rollback target nobody tests is not a rollback target.
+
+The Neon Auth path — JWKS verification, and resolution of the provider's `sub`
+into `users.id` with the role read from Postgres — is in `test_neon_auth.py`.
 """
 
 from __future__ import annotations
@@ -78,8 +92,18 @@ def make_token(
 
 @pytest.fixture
 def auth_app(make_app: Any) -> Any:
-    """An app with authenticated routes, configured for HS256 verification."""
-    app = make_app(supabase_url=SUPABASE_URL, supabase_jwt_secret=SECRET)
+    """An app with authenticated routes, on the legacy HS256 Supabase path.
+
+    `auth_provider` must be named explicitly: the migrated default is `neon`,
+    and a Supabase secret alone no longer selects the Supabase verifier. That
+    is intentional — see `test_neon_auth.py` for the assertion that a
+    Neon-selected backend refuses these very tokens.
+    """
+    app = make_app(
+        auth_provider="supabase-legacy",
+        supabase_url=SUPABASE_URL,
+        supabase_jwt_secret=SECRET,
+    )
 
     @app.get("/test/me")
     async def me(user: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
@@ -368,7 +392,7 @@ def test_extract_bearer_token_is_case_insensitive_on_the_scheme() -> None:
 
 def test_auth_context_is_immutable() -> None:
     """An identity object a handler can mutate mid-request is an authz bug."""
-    context = AuthContext(subject="u1", role="BUYER")
+    context = AuthContext(auth_user_id="provider-1", subject="u1", role="BUYER")
     with pytest.raises(AttributeError):
         context.role = "SUPER_ADMIN"  # type: ignore[misc]
 
@@ -381,7 +405,11 @@ def _settings_for(unconfigured: bool = False) -> Any:
 
     if unconfigured:
         return build_settings()
-    return build_settings(supabase_url=SUPABASE_URL, supabase_jwt_secret=SECRET)
+    return build_settings(
+        auth_provider="supabase-legacy",
+        supabase_url=SUPABASE_URL,
+        supabase_jwt_secret=SECRET,
+    )
 
 
 def _verify(verifier: SupabaseJwtVerifier, token: str) -> AuthContext:

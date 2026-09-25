@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing";
 import {
@@ -17,10 +17,7 @@ import {
 import type { ApiResult } from "@/types";
 
 async function requireSeller() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) throw new ListingServiceError("You need to sign in first.");
 
   const seller = await prisma.seller.findUnique({ where: { userId: user.id }, select: { id: true } });

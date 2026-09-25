@@ -1,28 +1,69 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { MailCheck } from "lucide-react";
 import { AuthCard } from "@/components/auth/auth-card";
-import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
+import { VerifyEmailPanel } from "@/components/auth/verify-email-panel";
+import { getAuthContext } from "@/lib/auth";
+
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Verify your email",
 };
 
+/**
+ * Post-registration verification screen.
+ *
+ * Reached from the register form as `/verify-email?email=…`. The address is also
+ * recoverable from the session, because sign-up establishes one — which matters
+ * for anybody who lands here from a bookmark or a refresh, with no query string.
+ */
 export default async function VerifyEmailPage({
   searchParams,
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {
-  const { email } = await searchParams;
+  const params = await searchParams;
+  const { identity } = await getAuthContext();
+
+  // Prefer the session's own address over the query string: the parameter is
+  // attacker-influenced, and sending a code to an address typed into a URL would
+  // let one person trigger mail to another.
+  const email = identity?.email ?? params.email?.trim().toLowerCase() ?? null;
+
+  if (!email) {
+    return (
+      <AuthCard
+        title="Verify your email"
+        subtitle="We couldn't tell which address needs verifying."
+        footer={
+          <>
+            Already registered?{" "}
+            <Link href="/login" className="text-primary-400 hover:underline">
+              Sign in
+            </Link>
+          </>
+        }
+      >
+        <p className="py-2 text-center text-sm text-muted-foreground">
+          Please sign in, or register again, and we&rsquo;ll send a fresh
+          verification message.
+        </p>
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard
       title="Check your inbox"
-      subtitle={
-        email
-          ? `We sent a verification link to ${email}.`
-          : "We sent a verification link to your email address."
-      }
+      subtitle={`We sent a verification message to ${email}.`}
       footer={
         <>
           Wrong email?{" "}
@@ -32,16 +73,7 @@ export default async function VerifyEmailPage({
         </>
       }
     >
-      <div className="flex flex-col items-center gap-4 py-2">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-cyan">
-          <MailCheck className="h-6 w-6" aria-hidden />
-        </div>
-        <p className="text-center text-sm text-muted-foreground">
-          Click the link in the email to verify your account, then you&rsquo;ll be taken
-          straight to setting up your profile.
-        </p>
-        {email && <ResendVerificationButton email={email} />}
-      </div>
+      <VerifyEmailPanel email={email} />
     </AuthCard>
   );
 }

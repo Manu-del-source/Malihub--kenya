@@ -25,17 +25,20 @@ cp .env.example .env.local   # fill in Neon Auth/Supabase/Cloudinary keys
 npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 ```
 
-> **About the `manual_*.sql` files.** This repository has almost no committed
-> Prisma migration history — the single exception is
-> `prisma/migrations/20260925000000_add_auth_user_id_mapping`, the additive
-> nullable column mapping a Neon Auth identity to `users.id`. Otherwise a
-> database's shape comes from `prisma migrate dev` / `prisma db push` against
-> `prisma/schema.prisma`. The manual files cover what
-> Prisma cannot express — triggers, Row Level Security, Supabase Storage
-> buckets, Realtime publication membership, and the `tsvector` search column —
-> so **a fresh database needs almost all of them too**. The one exception is
-> the Phase 8 file, which exists purely to upgrade an *existing* database
-> without destroying data.
+> **About migrations and the `manual_*.sql` files.** This repository *does* have
+> a committed Prisma migration history, in two steps:
+> `20260922184914_init_phase9` is the full baseline (every table and enum), and
+> `20260925000000_add_auth_user_id_mapping` adds the nullable column mapping a
+> Neon Auth identity to `users.id`. `npx prisma migrate deploy` applies them in
+> order, so a fresh database is created from scratch and an existing one is
+> upgraded without data loss — the auth migration is additive and nullable, and
+> touches no existing row.
+>
+> The `manual_*.sql` files cover what Prisma cannot express — triggers, Row
+> Level Security, Supabase Storage buckets, Realtime publication membership, and
+> the `tsvector` search column — so **a fresh database needs almost all of them
+> too**. The one exception is the Phase 8 file, which exists purely to upgrade an
+> *existing* database without destroying data.
 >
 > The file names say which phase introduced them, not the order to run them.
 > The list below **is** the order to run them.

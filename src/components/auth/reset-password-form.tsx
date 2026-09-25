@@ -11,7 +11,12 @@ import { FormField } from "@/components/auth/form-field";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button } from "@/components/ui/button";
 
-export function ResetPasswordForm() {
+/**
+ * @param token the one-time reset token from `/reset-password?token=…`.
+ *   The auth service consumes it directly, so it is threaded through to the
+ *   action rather than being implied by a recovery session.
+ */
+export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
 
   const {
@@ -21,7 +26,7 @@ export function ResetPasswordForm() {
   } = useForm<ResetPasswordInput>({ resolver: zodResolver(resetPasswordSchema) });
 
   async function onSubmit(input: ResetPasswordInput) {
-    const result = await resetPasswordAction(input);
+    const result = await resetPasswordAction(input, token);
     if (!result.success) {
       toast.error(result.error);
       return;

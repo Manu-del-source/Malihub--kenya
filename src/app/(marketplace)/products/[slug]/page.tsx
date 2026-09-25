@@ -12,9 +12,19 @@ import { ReportListingDialog } from "@/components/marketplace/report-listing-dia
 import { SimilarListings } from "@/components/marketplace/similar-listings";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { getListingBySlug, getSimilarListings } from "@/services/search-service";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKes, timeAgo } from "@/utils";
+
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
 
 const CONDITION_LABEL: Record<string, string> = {
   NEW: "Brand New",
@@ -55,10 +65,7 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
 
   const [isFavorited, sellerContact, similar, sellerProfile] = await Promise.all([
     user

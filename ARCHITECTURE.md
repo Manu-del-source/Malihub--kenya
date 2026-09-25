@@ -124,52 +124,55 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 
 ## 5. Auth architecture
 
-- Supabase Auth owns credentials, email verification, password reset, and
-  Google OAuth. Prisma's `User`/`Profile` tables mirror `auth.users` by
-  sharing the same UUID primary key. **Application code provisions those
-  mirror rows** (`src/services/account-provisioning.ts`, an idempotent
-  upsert called on sign-up, sign-in, the OAuth/email-confirm callback, and
-  authoritatively inside the /complete-profile transaction) — Supabase
-  authenticating a user does not, by itself, create rows in an independent
-  Postgres (§6c). A `manual_auth_trigger.sql` trigger still exists for
-  deployments whose *application* database is Supabase Postgres; it is
-  additive, not required, and cannot fire on Neon/RDS.
-- **Role** (`BUYER | SELLER | ADMIN | SUPER_ADMIN`) is stored in Prisma
-  *and* mirrored into the Supabase JWT via `app_metadata` (set through a
-  Supabase Edge Function / admin API call on role change), so middleware can
-  read the role straight off the JWT at the edge without a DB round trip.
-  Anything security-sensitive still re-checks the role server-side — the JWT
-  claim is a fast path for UX redirects, not the authorization boundary.
-- **Authorization boundary** = Postgres Row Level Security policies (keyed
-  off `auth.uid()`) + explicit ownership checks in Server Actions. Prisma
-  itself doesn't enforce RLS (it connects as a privileged role for app
-  queries), so every mutation Server Action re-verifies `ownerId === session
-  user id` before writing — RLS is the backstop for anything that reaches
-  Postgres another way (Supabase client calls, direct API access).
-- Middleware (`src/middleware.ts`) refreshes the session cookie every request
-  and redirects: signed-out users away from `/dashboard/*`, signed-in users
-  away from auth pages, non-admins away from `/dashboard/admin/*`.
-- **The FastAPI backend consumes Supabase tokens; it never issues them.**
-  A `TokenVerifier` abstraction (`backend/app/core/security.py`) accepts the
-  `Authorization: Bearer <supabase jwt>` header and validates it either by
-  shared secret (HS256, `SUPABASE_JWT_SECRET`) or by JWKS
-  (`SUPABASE_JWKS_URL` + an asymmetric algorithm). There is deliberately no
-  second sign-in path, no local password store, and no session table: if
-  Supabase did not issue the token, the backend rejects it.
-  - A `service_role` JWT presented as a user token is **refused with 403**.
-    That key is a server-side admin credential and must never arrive from a
-    browser; accepting it would turn any leaked anon-side token into full
-    admin access.
-  - The role is read from `app_metadata.role`, matching §5 — the JWT claim is
-    the fast path, and anything security-sensitive re-checks it.
-  - Tokens are accepted **only** from the `Authorization` header, never from a
-    cookie or a query string: a token in a URL lands in access logs, browser
-    history and `Referer` headers.
-  - If neither verification mode is configured the backend fails **closed** —
-    every authenticated route returns 503 rather than treating requests as
-    anonymous. In production this is a startup error, not a runtime one.
+> **Provider: Neon Managed Better Auth.** Supabase Auth is no longer the
+> identity provider; Supabase remains a dependency for Storage (avatars) and
+> Realtime (chat) only. The full design is in **`docs/auth/ARCHITECTURE.md`**
+> and the cutover/rollback plan in **`docs/auth/MIGRATION.md`**. This section is
+> the summary; those documents are authoritative for auth.
 
-## 5a. Auth implementation notes (Phase 4)
+- **Neon Auth owns credentials**, email verification, password reset, and
+  Google OAuth. Passwords never exist in MaliHub's database.
+- **Two ids, mapped deliberately.** The provider's user id is *not* the
+  application's. `users.id` stays a MaliHub-generated UUID (every foreign key in
+  the schema targets it), and the provider id is stored in the separate UNIQUE
+  column `users.auth_user_id`. Tying the primary key to an external system would
+  make the next provider change a destructive migration; this way it is a
+  backfill.
+- **Application code provisions the rows** (`src/services/account-provisioning.ts`,
+  idempotent, called on sign-up, sign-in and authoritatively inside the
+  /complete-profile transaction). The auth service authenticating a person does
+  not, by itself, create rows in MaliHub's Postgres (§6c).
+- **No `app_metadata`, and no claim cache of any kind.** The previous design
+  mirrored `role` / `onboarded` / `has_seller_profile` into the provider's JWT so
+  middleware could read them at the edge. Neon Auth exposes no equivalent (it
+  accepts no custom Better Auth plugins and no arbitrary claims) — and that turns
+  out to be an improvement, because a claim cache is a second copy of the truth
+  that can lag. A stale `onboarded` claim caused a dashboard ↔ /complete-profile
+  redirect loop that this repository had to fix twice.
+- **Authorization boundary = MaliHub's own Postgres rows**, read at the point of
+  use by the guards in `src/lib/auth/session.ts` (`requireUser`,
+  `requireOnboardedUser`, `requireSellerAccess`, `requireAdministrator`). Role is
+  never read from a token. RLS remains the backstop for anything that reaches
+  Postgres another way.
+- **Middleware answers exactly one question: is there a valid session?**
+  `src/middleware.ts` makes no database call and holds no authorization opinion.
+  It fails *closed* — an unconfigured or unreachable auth service redirects
+  protected routes to `/login` rather than serving them. Public routes are never
+  handed to the auth service at all, so an anonymous visitor browsing the
+  marketplace costs no session validation.
+- **The abstraction layer is `src/lib/auth/`.** `src/lib/auth/neon.ts` is the
+  *only* module in the application that imports `@neondatabase/auth`. Pages,
+  layouts, Server Actions and Route Handlers import the barrel (`@/lib/auth`) and
+  never mention the provider — which is what makes a rollback a two-file change
+  rather than a sweep across forty call sites.
+- **The FastAPI backend still consumes provider tokens; it never issues them.**
+  Its `TokenVerifier` (`backend/app/core/security.py`) is unchanged in shape and
+  must be re-pointed at Neon Auth's JWKS (`{NEON_AUTH_BASE_URL}/jwt`) — see
+  `docs/auth/MIGRATION.md` §7. Its role check can no longer read
+  `app_metadata.role`, because no such claim exists; the backend must treat the
+  token as authentication only and ask MaliHub for authorization.
+
+## 5a. Auth implementation notes
 
 - **Buyer/Seller/Both is not a fourth enum value.** `User.role` stays
   `BUYER` or `SELLER` (`ADMIN`/`SUPER_ADMIN` are staff-only, set manually,
@@ -179,34 +182,38 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   defaults to their full name, editable later); "Both" doesn't block
   buying, it's purely a UI/copy distinction on top of the same `SELLER`
   role + Seller row. Seller-dashboard access is gated on **having a
-  Seller row**, not on the role string.
-- **Two-tier role check**: `app_metadata.role` / `app_metadata.has_seller_profile`
-  / `app_metadata.onboarded` are mirrored into the JWT (via the Supabase
-  Admin API in `completeUserProfile`) so `middleware.ts` can gate
-  `/dashboard/*` at the edge with zero DB round trips. This is a fast path,
-  not the authorization boundary — Server Actions re-verify ownership
-  against Postgres directly, and RLS (§11, `manual_rls_policies.sql`) is
-  the backstop for anything that reaches Postgres another way.
-- **Onboarding is enforced in middleware**, not just the complete-profile
-  page: any authenticated user with `app_metadata.onboarded !== true` is
-  redirected to `/complete-profile` from anywhere except that page itself,
-  `/forgot-password`, `/reset-password`, `/verify-email`, and `/api/*`.
-- **One callback route for three flows**: `/api/auth/callback` handles
-  Google OAuth, email verification links, and password recovery links —
-  all three are Supabase's `?code=` exchange flow, differentiated only by
-  the `?next=` param each flow sets when it kicks off.
-- **Avatar photos use Supabase Storage**, not Cloudinary — they're
-  tightly coupled to the auth/profile flow that's already talking to
-  Supabase, and Cloudinary's signed-upload flow is unnecessary complexity
-  for a single small image. Product images (Phase 5) still use Cloudinary
-  per the original stack.
-- **Manual SQL migrations required**: `manual_rls_policies.sql` and
-  `manual_storage_avatars.sql` must be run against Supabase Postgres — see
-  README for the exact steps. `manual_auth_trigger.sql` is only meaningful
-  when the *application* database is Supabase Postgres; on an independent
-  Postgres (Neon/RDS, §6c) it cannot run at all, and provisioning is done
-  by application code instead (`src/services/account-provisioning.ts`).
-  Row creation therefore never depends on the trigger — see §5.
+  Seller row**, not on the role string — enforced by `requireSellerAccess()`.
+- **Onboarding is enforced server-side, not in middleware.** Any authenticated
+  user whose `profiles.onboarded` is not true is sent to `/complete-profile` by
+  `requireOnboardedUser()`. Middleware deliberately does not check this: it would
+  need a database round trip on every request, and reading it from a token is
+  exactly the stale-claim failure mode described in §5.
+- **Password reset is token-based, not session-based.** The emailed link lands on
+  `/reset-password?token=…` and `resetPasswordAction` consumes the token
+  directly. There is no "recovery session", so the page and action must work
+  while signed out. Links expire after 15 minutes.
+- **Email verification has two paths.** Verification LINKS are primary but
+  require a custom email provider configured in the Neon Console; verification
+  CODES work with the shared provider available immediately.
+  `resendVerificationAction` asks for a link and falls back to a code when the
+  service reports links are not enabled, and `/verify-email` adapts to whichever
+  was actually sent.
+- **Google OAuth does not round-trip through MaliHub.** The auth service owns the
+  handshake at `{NEON_AUTH_BASE_URL}/callback/google` and returns the browser to
+  the `callbackURL` MaliHub supplied. `/api/auth/callback` is retired (410 Gone).
+- **Session-reading routes must declare `export const dynamic =
+  "force-dynamic"`.** Reading a Neon Auth session does not necessarily touch a
+  cookie (an unconfigured environment short-circuits first), so without the
+  declaration a build run without the auth variables would prerender protected
+  pages as static redirects to `/login`.
+- **Avatar photos still use Supabase Storage**, not Cloudinary — Storage is not
+  auth, and nothing about the migration changes it. Product images (Phase 5)
+  still use Cloudinary per the original stack.
+- **Manual SQL migrations**: `manual_rls_policies.sql` and
+  `manual_storage_avatars.sql` still apply to Supabase Postgres. The auth
+  migration itself adds one Prisma migration
+  (`20260925000000_add_auth_user_id_mapping`), which is additive and nullable —
+  it locks nothing and breaks no existing row.
 
 ## 6. Database design
 

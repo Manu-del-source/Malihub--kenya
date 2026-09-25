@@ -58,6 +58,30 @@ export const resetPasswordSchema = z
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+/**
+ * Numeric email-verification code.
+ *
+ * MaliHub's primary verification path is the emailed LINK, which matches the
+ * flow users already had. Verification links require a custom email provider to
+ * be configured on the Neon branch, though — with the shared provider only
+ * CODES are available — so /verify-email also offers this fallback and
+ * `resendVerificationAction` tells the form which of the two the service
+ * actually accepted.
+ *
+ * The range is deliberately permissive (6–8 digits): the code length is a
+ * setting of the auth service, not of MaliHub, and rejecting a valid code
+ * because we guessed its width would lock somebody out of their own account.
+ */
+export const verifyEmailCodeSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6,8}$/, "Enter the 6-digit code from your email"),
+});
+
+export type VerifyEmailCodeInput = z.infer<typeof verifyEmailCodeSchema>;
+
 export const accountIntentSchema = z.enum(["BUYER", "SELLER", "BOTH"]);
 
 export const completeProfileSchema = z.object({

@@ -37,3 +37,6 @@ __pycache__/
 htmlcov/
 backend/dist/
 *.egg-info/
+
+# Local Prisma engine placeholders (offline sandboxes only) — never committed.
+.prisma-engines/

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listingSchema } from "@/lib/validations/listing";
 import { updateListing, deleteListing, ListingServiceError } from "@/services/listing-service";
@@ -20,10 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
@@ -51,10 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }

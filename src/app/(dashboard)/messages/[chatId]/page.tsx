@@ -1,9 +1,19 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getChatMessages, isUserBlocked } from "@/services/chat-service";
 import { ChatThread } from "@/components/messaging/chat-thread";
+
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Conversation" };
 
@@ -14,11 +24,7 @@ export default async function ChatThreadPage({
 }) {
   const { chatId } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { user } = await requireUser();
 
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },

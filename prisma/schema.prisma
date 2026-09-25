@@ -3,15 +3,21 @@
 // Independent PostgreSQL via Prisma
 //
 // Design notes:
-// - `User` mirrors Supabase's `auth.users` (id is the Supabase auth UUID).
-//   Supabase owns credentials/OTP/OAuth and NOTHING ELSE — it is the identity
-//   provider, not the application database. Prisma owns application data and
-//   relations. Application code provisions those mirror rows idempotently
-//   (src/services/account-provisioning.ts) on sign-up, sign-in, the auth
-//   callback, and inside the /complete-profile transaction. The optional
-//   trigger in prisma/migrations/manual_auth_trigger.sql only exists where
-//   `auth.users` lives in the same database (Supabase-hosted app DB) and is
-//   not required on an independent Postgres (ARCHITECTURE.md §6c).
+// - `User` is MaliHub's own application identity. `users.id` is a UUID that
+//   MaliHub generates; the authentication provider's identity id is mapped onto
+//   it explicitly through the unique `users.auth_user_id` column, so swapping
+//   identity providers never rewrites a primary key or any of the ~20 foreign
+//   keys that reference it. Neon Auth (Managed Better Auth) is the active
+//   identity provider — see docs/auth/ARCHITECTURE.md. Application code
+//   provisions these rows idempotently (src/services/account-provisioning.ts)
+//   on sign-up, sign-in, the OAuth return, and inside the /complete-profile
+//   transaction. The optional trigger in
+//   prisma/migrations/manual_auth_trigger.sql only exists where a Supabase
+//   `auth.users` table lives in the same database (Supabase-hosted app DB) and
+//   is not required on an independent Postgres (ARCHITECTURE.md §6c).
+// - Neon Auth owns its own tables in the separate `neon_auth` Postgres schema.
+//   Prisma's datasource below declares no `schemas = [...]`, so it manages
+//   `public` ONLY and can never model, migrate, or write to `neon_auth`.
 // - Money is stored in integer cents (KES) to avoid float rounding issues.
 // - Full-text search uses a generated tsvector column + GIN index, added via
 //   raw SQL migration (Prisma doesn't model tsvector natively) — see
@@ -289,7 +295,26 @@ enum TicketPriority {
 
 /// Mirrors Supabase auth.users — id is the Supabase auth UUID (not a Prisma default).
 model User {
+  /// MaliHub's own application identity. A UUID that MaliHub generates and
+  /// owns — it is NOT the authentication provider's id, and it is stable across
+  /// identity providers. Every foreign key in this schema points at it, so it
+  /// is deliberately never rewritten when the auth provider changes.
   id            String    @id @db.Uuid
+  /// The authentication provider's identity id (Neon Auth / Managed Better
+  /// Auth `neon_auth.user.id`), mapped explicitly onto the application user.
+  ///
+  /// Typed as TEXT on purpose, NOT `@db.Uuid`: Neon's own documentation shows
+  /// `neon_auth.user.id` as `uuid default_random()`, while Better Auth's
+  /// default id generator produces 32-character strings, and the POC that
+  /// evaluated this never reached the live service to settle the question
+  /// (docs/neon-auth-poc/REPORT.md §F asserted the 32-char form against its own
+  /// mock upstream). TEXT accepts both, so this mapping is correct either way
+  /// and no future id-format change forces a destructive column migration.
+  ///
+  /// Nullable + unique: legacy rows provisioned by Supabase Auth predate this
+  /// column and keep NULL until the documented backfill links them
+  /// (docs/auth/MIGRATION.md). Postgres allows many NULLs in a unique index.
+  authUserId    String?   @unique @map("auth_user_id")
   email         String    @unique
   phone         String?   @unique
   role          UserRole  @default(BUYER)

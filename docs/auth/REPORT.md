@@ -28,9 +28,16 @@ middleware  →  "is there a valid session?"        no DB query, fails closed
 guards      →  "what may this account do?"        authoritative Prisma read
 ```
 
-**Result:** 209 tests passing (from 71), type-check and lint clean, build
-succeeds, edge bundle down from 107 kB to 75 kB. One module in the entire
-application imports the SDK.
+**Result:** 209 frontend tests passing (from 71) and 481 backend tests (from
+393), type-check and lint clean on both services, build succeeds, edge bundle
+down from 107 kB to 75 kB. One module in the entire application imports the SDK.
+
+The same split had to be applied to the **FastAPI backend**, which verified
+Supabase JWTs and read `app_metadata.role` from them. It is migrated in this
+change (§8): it verifies Neon Auth tokens against the service's JWKS, resolves
+the provider's `sub` to `users.id` through `users.auth_user_id`, and reads role,
+onboarding and seller status from Postgres. Deploy order still matters — see
+`MIGRATION.md` §7.
 
 ---
 
@@ -41,14 +48,14 @@ application imports the SDK.
 | Do not delete the Supabase project, packages, or infrastructure | ✅ packages installed and importable; Storage + Realtime still in active use |
 | Do not migrate or delete existing users | ✅ zero rows touched; strategy documented only (`MIGRATION.md` §4) |
 | Do not modify production env vars | ✅ only `.env.example` changed |
-| Do not deploy, push, or merge | ✅ one local commit on the session branch |
+| Do not deploy or merge | ✅ nothing merged; `main` untouched. Pushed to the session branch and PR #11 opened on request — Vercel builds a *preview* automatically, which is not a production deploy |
 | No destructive DB migration | ✅ one additive, nullable column |
-| Do not upgrade Next.js or unrelated deps | ✅ `package.json` untouched |
+| Do not upgrade Next.js or unrelated deps | ✅ `package.json`/`package-lock.json` untouched. `backend/pyproject.toml` gained one dependency: `cryptography` moved from the optional `jwks` extra into core, because JWKS is now the only way to verify a token and there is no shared secret. No version upgrades anywhere |
 | Do not reproduce the `app_metadata` architecture | ✅ no claim cache exists; tests assert its *absence* |
 | Do not leave the POC short-circuit in middleware | ✅ POC deleted; middleware has a single path and no feature flag |
 | `users.id` stays `String @id @db.Uuid` | ✅ unchanged; provider id lives in a separate column |
 | Abstraction layer so app code doesn't couple to the SDK | ✅ `src/lib/auth/`; exactly one SDK importer |
-| Stop depending on `app_metadata.role/onboarded/has_seller_profile` | ✅ verified: zero reads outside the retained legacy file |
+| Stop depending on `app_metadata.role/onboarded/has_seller_profile` | ✅ verified: zero reads outside the retained legacy file, in either service |
 
 Three ambiguities were resolved by asking rather than assuming: POC routes
 **deleted** (reusable pieces promoted), email verification implemented as
@@ -264,6 +271,54 @@ Decisions worth recording:
   there would make first-time onboarding impossible: the repair path would require the
   thing it repairs.
 
+### The same rule in the FastAPI backend
+
+`backend/` is a separate service that verifies the tokens MaliHub's users
+present. It was reading Supabase JWTs and taking `role`, `onboarded` and
+`has_seller_profile` from `app_metadata` — the same claim cache, on the other
+side of the network. Left alone it would have rejected every token the migrated
+app issues, so it is migrated here too, to the same rule.
+
+| | Next.js | FastAPI |
+|---|---|---|
+| Authentication | Neon Auth session cookie, verified in middleware | Neon Auth JWT, verified against JWKS |
+| Authorization | Prisma read in `src/lib/auth/session.ts` | Postgres read in `backend/app/core/identity.py` |
+| Claim cache | none | none |
+| Rollback path | `src/lib/supabase/auth-legacy.ts` | `AUTH_PROVIDER=supabase-legacy` |
+
+Three details are worth stating because each is a way to be silently wrong:
+
+- **`sub` is not `users.id`.** The JWT subject is `neon_auth.user.id`. The
+  backend resolves it through `users.auth_user_id` and exposes the result as
+  `AuthContext.subject`, keeping the provider id separately as
+  `AuthContext.auth_user_id`. A backend that conflated them would verify every
+  token successfully and then query the wrong id — finding nothing, or someone
+  else's rows. Nothing raises, which is what makes it dangerous.
+- **The token's `role` claim is ignored.** Neon Auth does carry a `role` claim,
+  and its value is `"authenticated"` — a Postgres/RLS role. Reading it as an
+  application role would make every signed-in user identical. A test asserts
+  that a token claiming `"role": "SUPER_ADMIN"` produces a non-staff context.
+- **"Not found" and "cannot answer" are different.** No mapping row → `403`;
+  database or JWKS unreachable → `503`. Reporting an outage as "you have no
+  account" is the backend-shaped version of the redirect loop, and both cases
+  are pinned by tests.
+
+Two things this makes possible, and one it costs. Because authorization is now
+a database read, **bans and deactivations take effect on the next request**
+instead of at token expiry — the stateless Supabase verifier could not do this
+at all, and its own docstring said so. And because JWKS verification uses
+public keys, the backend holds **no credential that could mint a token**. The
+cost is one indexed lookup per authenticated request, which is the price of an
+answer that cannot go stale.
+
+`SupabaseJwtVerifier` and every `SUPABASE_*` setting are retained unmodified
+behind `AUTH_PROVIDER=supabase-legacy`, so rollback stays a configuration
+change. Exactly one provider is ever active and there is **no cross-provider
+fallback**: a backend that accepted both would honour a stale Supabase token for
+as long as it remained unexpired after the cutover, which is the whole window a
+leaked credential needs. A configured `SUPABASE_JWT_SECRET` does not rescue a
+Neon-selected deployment — it reports `unconfigured` and fails closed.
+
 ---
 
 ## 9. Supabase: what stays, what is retired
@@ -320,7 +375,9 @@ Shared fixtures: `src/services/__tests__/fake-account-store.ts` (mirrors `P2025`
 
 | Check | Result |
 |---|---|
-| `npm test` | **209 passed / 0 failed**, 47 suites |
+| `npm test` (Next.js) | **209 passed / 0 failed**, 47 suites |
+| `pytest` (FastAPI backend) | **481 passed / 0 failed** (from 393) |
+| `ruff check backend/` | clean |
 | `npm run type-check` | clean |
 | `npm run lint` | clean — 0 errors, 0 warnings |
 | `npx prisma validate` | schema valid |
@@ -329,6 +386,9 @@ Shared fixtures: `src/services/__tests__/fake-account-store.ts` (mirrors `P2025`
 | `supabase.auth.*` in request path | none |
 | `app_metadata` / `user_metadata` reads | none outside the retained legacy file |
 | middleware imports | edge-safe modules only — no barrel, no Prisma |
+| backend: SDK import sites | zero — it verifies JWTs with PyJWT against JWKS and never calls the auth API |
+| backend: `app_metadata` reads | zero; role/onboarded/seller all come from Postgres |
+| backend: mirror fidelity | `tests/test_models.py` parses `schema.prisma` and compares column names, nullability, enum values and constraint names |
 
 Three real defects were found by writing the tests rather than by review, and fixed:
 `getAuthContext()` was provisioning on *every* request (two writes on the hottest
@@ -392,7 +452,7 @@ second attempt resumable. `MIGRATION.md` §9.
 
 | Item | Consequence if skipped |
 |---|---|
-| **FastAPI backend re-pointed** (`MIGRATION.md` §7) | Its `TokenVerifier` rejects every Neon token → all authenticated API calls fail. Also: JWT `sub` is the *provider* id, not `users.id`, and `app_metadata.role` no longer exists — the backend must resolve the mapping and treat tokens as authentication only. |
+| **Backend deployed before/with the app** (`MIGRATION.md` §7) | The code change is **done** (§8) — the backend verifies Neon JWTs and resolves `sub` → `users.id`. What remains is *ordering*: an app issuing Neon tokens to a still-deployed Supabase-expecting backend fails every authenticated API call. `AUTH_PROVIDER=neon`, `NEON_AUTH_BASE_URL` and `DATABASE_URL` must be set in `backend/.env`; the last is now required for authorization, not just for payments. |
 | Google redirect URI = `{NEON_AUTH_BASE_URL}/callback/google` | Google sign-in fails outright. It is **not** a MaliHub route. |
 | Trusted domains include preview origins | Google sign-in fails *only* on previews — easy to miss, easy to mistake for a code bug. |
 | Custom email provider (if links are wanted) | Only verification codes fire. `/verify-email` adapts, so this degrades rather than breaks. |
@@ -407,10 +467,14 @@ second attempt resumable. `MIGRATION.md` §9.
 | Provider outage reported as bad credentials | Distinct `auth_unavailable` code; covered by tests at the action, guard and integration layers. |
 | Database outage read as "not onboarded" | `signInAction` fails closed and clears the session; a dedicated test asserts the outage is *never* reported as an incomplete profile. |
 | `@neondatabase/auth` is `0.5.0-beta` | Isolated to one module, with integration tests pinning the wire contract — an SDK behaviour change fails the suite rather than production. |
-| **Nothing runs the suite automatically** | This repository has no `.github/workflows`, so all 209 tests execute only when someone remembers to run them locally. Nothing prevents a regression from reaching `main` — including a re-introduced claim cache, which is precisely what the absence-tripwire tests in §10 exist to catch. Adding CI (`npm test`, `type-check`, `lint`, `build`) is a deliberate scope exclusion here and is recommended as the immediate follow-up. |
+| **Nothing ran the suite automatically** | The repository had no `.github/workflows`, so all tests executed only when someone remembered to run them locally — nothing prevented a re-introduced claim cache from reaching `main`. **Addressed:** `.github/workflows/ci.yml` now runs both suites, type-check, lint, `prisma validate` and a build on every push and pull request. |
 
 ### Explicitly out of scope
 
 No custom Better Auth plugins (the service does not accept them — which is *why* there
-is no claim cache, not an obstacle to one). No user migration. No backend changes. No
-deployment. No dependency upgrades.
+is no claim cache, not an obstacle to one). No user migration. No deployment. No
+dependency *upgrades* — the one dependency added, `cryptography` in the backend,
+is required to verify a JWKS-signed token at all.
+
+The FastAPI backend was originally scoped out and has since been migrated (§8),
+because leaving it would have meant the app issued tokens its own API rejected.

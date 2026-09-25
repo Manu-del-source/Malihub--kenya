@@ -96,8 +96,8 @@ Concretely:
   consolidate avatars onto Cloudinary rather than grow the exception.
 - **Neon Auth tokens are consumed, never issued, by the backend** (§5) — and
   because the JWT `sub` is the *provider's* id, the backend must resolve
-  `users.auth_user_id → users.id` before it queries anything. The backend has
-  not been updated yet; see `docs/auth/MIGRATION.md` §7.
+  `users.auth_user_id → users.id` before it queries anything. It does this in
+  `backend/app/core/identity.py`; see `docs/auth/MIGRATION.md` §7.
 
 **Two processes, one schema.** Next.js and FastAPI deploy independently and
 talk to the same Postgres and the same Redis. Prisma owns every DDL change;
@@ -178,12 +178,23 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   layouts, Server Actions and Route Handlers import the barrel (`@/lib/auth`) and
   never mention the provider — which is what makes a rollback a two-file change
   rather than a sweep across forty call sites.
-- **The FastAPI backend still consumes provider tokens; it never issues them.**
-  Its `TokenVerifier` (`backend/app/core/security.py`) is unchanged in shape and
-  must be re-pointed at Neon Auth's JWKS (`{NEON_AUTH_BASE_URL}/jwt`) — see
-  `docs/auth/MIGRATION.md` §7. Its role check can no longer read
-  `app_metadata.role`, because no such claim exists; the backend must treat the
-  token as authentication only and ask MaliHub for authorization.
+- **The FastAPI backend consumes provider tokens; it never issues them.** Its
+  `TokenVerifier` (`backend/app/core/security.py`) verifies Neon Auth JWTs
+  against the JWKS published at
+  `{NEON_AUTH_BASE_URL}/.well-known/jwks.json`, with `iss` expected to be the
+  service *origin* — the base URL with its path dropped. The two derivations
+  differ by exactly the part that is easy to transpose, so both are derived from
+  `NEON_AUTH_BASE_URL` in `backend/app/core/config.py` rather than configured by
+  hand, and `backend/tests/test_neon_auth.py` pins the difference.
+- **The backend makes the same authentication/authorization split.** The JWT `sub`
+  is the provider's id, so `backend/app/core/identity.py` resolves
+  `users.auth_user_id → users.id` and reads role, onboarding and seller status
+  from Postgres. There is no `app_metadata` claim to read, and the token's own
+  `role` claim (`"authenticated"`) is ignored for authorization — a test asserts
+  that a token claiming `"role": "SUPER_ADMIN"` does not produce a staff context.
+  `SupabaseJwtVerifier` is retained behind `AUTH_PROVIDER=supabase-legacy`, with
+  no cross-provider fallback: a backend that accepted both would honour a stale
+  Supabase token after the cutover. See `docs/auth/MIGRATION.md` §7.
 
 ## 5a. Auth implementation notes
 

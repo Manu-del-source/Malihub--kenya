@@ -152,6 +152,7 @@ def test_unhandled_error_includes_detail_only_outside_production(make_app: Any) 
             cors_origins="https://malihub.co.ke",
             enable_docs=False,
             backend_public_url="https://api.malihub.co.ke",
+            neon_auth_base_url="https://ep-x.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth",
             supabase_jwt_secret="not-a-real-secret-0123456789abcdef0123456789",
             database_url="postgresql://u:p@127.0.0.1:1/malihub",
             redis_url="redis://127.0.0.1:1/0",

@@ -280,10 +280,10 @@ theme-init hardening.
 backend in `backend/`, the provider-agnostic `Payment` model and its
 data-preserving migration, the typed `PaymentProvider` interface with a PayHero
 stub and provider registry, storage and email abstractions, token verification
-on the auth-only boundary (Supabase-issued when Phase 8 landed — **the backend
-still expects Supabase JWTs and must be re-pointed at Neon Auth before this
-migration goes live**; see `docs/auth/MIGRATION.md` §7), structured logging
-with redaction, a
+on the auth-only boundary (Supabase-issued when Phase 8 landed, **since
+re-pointed at Neon Auth's JWKS**, with the provider's `sub` resolved to
+`users.id` and the application role read from Postgres — see
+`docs/auth/MIGRATION.md` §7), structured logging with redaction, a
 single error envelope, health/readiness endpoints, and production startup
 validation. The Next.js app was **not** rewritten — Phase 7's security files and
 every working feature are untouched, and the only removals are the Daraja route

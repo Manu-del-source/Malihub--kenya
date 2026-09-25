@@ -277,32 +277,81 @@ never reach Google.
 
 ## 7. The FastAPI backend
 
-`backend/` is a separate service with its own environment and deploy. **It was not
-modified**, and it will reject every token until it is.
+`backend/` is a separate service with its own environment and deploy. **It has
+been migrated in this change** — it now verifies Neon Auth JWTs and reads
+authorization from Postgres. It must still be *deployed* before or alongside the
+Next.js app, because a backend expecting Supabase tokens and an app issuing Neon
+tokens cannot talk to each other.
 
-Its `TokenVerifier` (`backend/app/core/security.py`) validates a
-`Authorization: Bearer <jwt>` header by shared secret (`SUPABASE_JWT_SECRET`,
-HS256) or JWKS (`SUPABASE_JWKS_URL`). What must change:
+> **Correction to an earlier revision of this section.** It said to point JWKS at
+> `{NEON_AUTH_BASE_URL}/jwt`. That endpoint does not exist. The JWKS document is
+> served at `{NEON_AUTH_BASE_URL}/.well-known/jwks.json`, and `iss` is the
+> service **origin** — the base URL with its path dropped. Verified against
+> Neon's own backend-verification guide and a decoded production token, not
+> inferred. Both values are now derived from `NEON_AUTH_BASE_URL` in
+> `backend/app/core/config.py` so they cannot be transposed by hand, and
+> `tests/test_neon_auth.py` pins the difference as a test.
 
-1. **Point JWKS at Neon Auth:** `{NEON_AUTH_BASE_URL}/jwt`. The SDK exposes this
-   endpoint (`API_ENDPOINTS.jwks`). Prefer JWKS over a shared secret — there is no
-   `NEON_AUTH_JWT_SECRET` to configure, and asymmetric verification means the
-   backend holds no credential that can mint tokens.
-2. **`sub` is the provider's user id**, which is **not** `users.id`. The backend
-   currently uses the subject as the application user id. It must resolve
-   `users.auth_user_id → users.id` (or be handed the application id by the Next.js
-   app). **This is the most likely source of a subtle post-migration bug**: tokens
-   verify successfully and then every query returns nothing, or worse, another
-   user's data.
-3. **`app_metadata.role` no longer exists.** Nothing can read a role from the token.
-   The backend must treat the token as *authentication only* and ask MaliHub for
-   *authorization* — the same split the Next.js app now uses.
-4. Keep the existing hardening: tokens only from the `Authorization` header, never
-   a cookie or query string; refuse a service-role token presented as a user token;
-   fail closed (503) when no verification mode is configured.
+### What changed
 
-`SUPABASE_JWT_SECRET` is retained in `.env.example` until this is done. Remove it
-afterwards.
+| Concern | Before | After |
+|---|---|---|
+| Signing keys | `SUPABASE_JWT_SECRET` (HS256) or `SUPABASE_JWKS_URL` | JWKS only, at `{NEON_AUTH_BASE_URL}/.well-known/jwks.json`. There is no shared secret to configure, so the backend holds no credential that could mint a token. |
+| Expected `iss` | `{SUPABASE_URL}/auth/v1` | Origin of `NEON_AUTH_BASE_URL` (path dropped) |
+| Algorithms | `HS256` by default | `RS256,ES256`, pinned from configuration. An HMAC entry is **refused at startup** — accepting one from a JWKS provider is the algorithm-confusion attack. |
+| `sub` | Treated as `users.id` | The **provider's** id. Resolved through `users.auth_user_id` to reach `users.id` (`app/core/identity.py`). |
+| Application role | `app_metadata.role` claim | `users.role`, read from Postgres per request |
+| Onboarding / seller | `app_metadata` claims | `profiles.onboarded`; existence of a `sellers` row |
+| Bans | Unenforceable (stateless) | `users.is_banned` / `is_active`, effective on the next request |
+| `cryptography` | Optional `jwks` extra | Core dependency |
+
+### Why the split is not optional
+
+The second and third rows are the same rule seen twice: **the token
+authenticates, the database authorizes.** Neon Auth issues no `app_metadata`, so
+there is no claim to read a role from even in principle — and the `role` claim it
+does carry is the string `"authenticated"`, a Postgres/RLS role that would make
+every signed-in user identical if read as an application role.
+`AuthContext.role` is populated from `users.role`, and a test asserts that a
+token claiming `"role": "SUPER_ADMIN"` still produces a non-staff context.
+
+Resolving identity costs one indexed lookup per authenticated request
+(`users.auth_user_id` is unique). That is the price of an answer that cannot go
+stale, and it is the same trade the Next.js guards make. If it ever needs
+caching, cache it in Redis for seconds and invalidate on write — never in a
+token, which outlives the permission it describes.
+
+### Two failure modes deliberately separated
+
+* **No mapping row** → `403`. The caller is authenticated and simply has no
+  MaliHub account yet. Answering `401` would tell a client to discard a valid
+  token and re-authenticate, which loops.
+* **Database unreachable, or JWKS unreachable** → `503`. "Cannot answer" must
+  never be reported as "you have no account": on the frontend, a cache that
+  could lag the database produced the /dashboard ↔ /complete-profile loop this
+  migration removes. Both cases fail closed, and both are tested.
+
+### Rollback
+
+`SupabaseJwtVerifier` and every `SUPABASE_*` setting are retained unmodified and
+selected by `AUTH_PROVIDER=supabase-legacy`. Exactly one provider is ever
+active: there is **no cross-provider fallback**, because a backend that accepted
+both would honour a stale Supabase token for as long as it remained unexpired
+after the cutover. A configured `SUPABASE_JWT_SECRET` does not rescue a
+Neon-selected deployment — it reports `unconfigured` and fails closed instead.
+
+### Deployment checklist
+
+```
+AUTH_PROVIDER=neon
+NEON_AUTH_BASE_URL=<same branch base URL the Next.js app uses>
+DATABASE_URL=<the same application database>   # now required for AUTHORIZATION
+```
+
+`DATABASE_URL` stops being optional once auth is involved: role, onboarding and
+seller status come from Postgres, and a backend that cannot reach it answers 503
+rather than guessing. Deploy the backend first, verify
+`GET /api/v1/health` and one authenticated call, then release the frontend.
 
 ---
 

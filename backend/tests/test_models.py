@@ -19,30 +19,51 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import UniqueConstraint, inspect
+from sqlalchemy import String, UniqueConstraint, inspect
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.schema import CreateTable
 
-from app.models import Base, Order, Payment
+from app.models import Base, Order, Payment, Profile, Seller, User
 from app.models.payment import (
     OrderStatusEnum,
     PaymentMethodEnum,
     PaymentProviderEnum,
     PaymentStatusEnum,
 )
+from app.models.user import UserRoleEnum
 
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "prisma" / "schema.prisma"
 BACKEND_APP = Path(__file__).resolve().parents[1] / "app"
 
 #: Models deliberately mirrored. Everything else in the schema is left alone
 #: until a backend service needs it — see `app/models/base.py`.
-MIRRORED = {"orders": Order, "payments": Payment}
+#:
+#: The identity tables joined when Neon Auth replaced Supabase: the backend must
+#: cross from the provider's id (JWT `sub`) to `users.id`, and read the
+#: authoritative role/onboarding/seller state that used to ride in the token's
+#: `app_metadata` claim. `profiles` and `sellers` are mapped for one column and
+#: for existence respectively — no more than the authorization rule needs.
+MIRRORED = {
+    "orders": Order,
+    "payments": Payment,
+    "profiles": Profile,
+    "sellers": Seller,
+    "users": User,
+}
 
 #: Table name → the Prisma *model* name. Deriving one from the other
 #: (`"payments".rstrip("s")`) is the kind of cleverness that breaks on the
-#: first irregular name.
-PRISMA_MODEL = {"orders": "Order", "payments": "Payment"}
+#: first irregular name — `users`→`User` happens to work, `profiles`→`Profile`
+#: does not survive a name like `addresses`.
+PRISMA_MODEL = {
+    "orders": "Order",
+    "payments": "Payment",
+    "profiles": "Profile",
+    "sellers": "Seller",
+    "users": "User",
+}
 
 
 # ─── A small Prisma parser ───────────────────────────────────────────────────
@@ -142,6 +163,7 @@ def _columns(model: type) -> dict[str, Any]:
         (PaymentMethodEnum, "PaymentMethod"),
         (PaymentStatusEnum, "PaymentStatus"),
         (OrderStatusEnum, "OrderStatus"),
+        (UserRoleEnum, "UserRole"),
     ],
 )
 def test_enum_values_match_prisma_exactly(sqlalchemy_enum: PG_ENUM, prisma_name: str) -> None:
@@ -487,15 +509,101 @@ def test_nothing_in_the_backend_emits_ddl() -> None:
 
 
 def test_the_mirrored_surface_is_deliberately_small() -> None:
-    """Only the payment domain is mirrored, per `app/models/base.py`.
+    """Only the payment and identity domains are mirrored, per `models/base.py`.
 
     Mirroring all 25 Prisma models up front creates 25 things to keep in sync
     for code that does not exist yet. If this test fails because a model was
     added, that is fine — update `MIRRORED` and make sure the column-name and
-    nullability tests above cover it.
+    nullability tests above cover it. That is what happened for the identity
+    tables: the backend needed to resolve a provider id to `users.id`, so
+    `users`/`profiles`/`sellers` were added and are covered above.
     """
     assert set(Base.metadata.tables) == set(MIRRORED)
     assert len(_blocks("model")) > len(MIRRORED)  # the schema is much bigger
+
+
+# ─── The identity mirror ─────────────────────────────────────────────────────
+#
+# These tests pin the properties that make the provider→application id mapping
+# safe. Each guards an assumption that would otherwise fail silently: a UUID
+# column that rejects a valid provider id, a primary key that claims a default
+# the schema does not have, or a constraint name that makes `prisma migrate
+# diff` report drift against a database Prisma also manages.
+
+
+def test_users_id_has_no_server_default_because_malihub_generates_it() -> None:
+    """`users.id` is `String @id @db.Uuid` with no `@default`.
+
+    Unlike `payments.id` and `profiles.id`, which Prisma does generate
+    server-side. Declaring `gen_random_uuid()` here would claim a default the
+    schema does not have — and is why `User` is deliberately absent from the
+    server-side-PK parametrization above.
+    """
+    pk = User.__table__.primary_key
+    assert [column.name for column in pk.columns] == ["id"]
+    assert next(iter(pk.columns)).server_default is None
+    assert "@default" not in _prisma_fields("User")["id"]["attrs"]
+
+
+def test_auth_user_id_is_text_not_uuid() -> None:
+    """TEXT accepts both candidate provider id formats; UUID accepts one.
+
+    Neon's docs show `neon_auth.user.id` as `uuid default_random()`, while
+    Better Auth's own default generator produces 32-character strings. Which one
+    MaliHub sees was never settled against the live service, so mapping this as
+    UUID would be a guess that surfaces as a total authentication outage rather
+    than as an error anyone could trace.
+    """
+    column = _columns(User)["auth_user_id"]
+    assert isinstance(column.type, String)
+    assert not isinstance(column.type, UUID)
+    assert column.nullable is True  # legacy rows keep NULL until backfilled
+    assert _prisma_fields("User")["auth_user_id"]["optional"] is True
+
+
+def test_identity_unique_constraints_carry_prisma_generated_names() -> None:
+    """`<table>_<column>_key`, or `prisma migrate diff` reports drift."""
+    users = {
+        constraint.name: [column.name for column in constraint.columns]
+        for constraint in User.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    }
+    assert users == {
+        "users_auth_user_id_key": ["auth_user_id"],
+        "users_email_key": ["email"],
+        "users_phone_key": ["phone"],
+    }
+    for column in ("auth_user_id", "email", "phone"):
+        assert "@unique" in _prisma_fields("User")[column]["attrs"]
+
+    assert {
+        constraint.name
+        for constraint in Profile.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    } == {"profiles_user_id_key"}
+    assert {
+        constraint.name
+        for constraint in Seller.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    } == {"sellers_user_id_key"}
+
+
+def test_uniqueness_is_declared_exactly_once_for_auth_user_id() -> None:
+    """An inline `unique=True` plus a named constraint describes it twice."""
+    assert _columns(User)["auth_user_id"].unique is not True
+    named = [
+        constraint.name
+        for constraint in User.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+        and [column.name for column in constraint.columns] == ["auth_user_id"]
+    ]
+    assert named == ["users_auth_user_id_key"]
+
+
+def test_the_identity_mirror_reads_the_role_as_the_prisma_enum_type() -> None:
+    """`role` must resolve to the quoted `"UserRole"` type, not a VARCHAR."""
+    ddl = str(CreateTable(User.__table__).compile(dialect=postgresql.dialect()))
+    assert '"UserRole"' in ddl
 
 
 def test_compiled_ddl_uses_postgres_enum_types_not_varchar() -> None:

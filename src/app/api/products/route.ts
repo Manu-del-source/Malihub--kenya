@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listingSchema, searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }

@@ -30,6 +30,36 @@ StorageProviderName = Literal["cloudinary", "none"]
 EmailProviderName = Literal["resend", "none"]
 PaymentProviderChoice = Literal["PAYHERO", "MANUAL"]
 
+#: Whose tokens this backend accepts. `"neon"` is the migrated default.
+#: `"supabase-legacy"` exists only so a rollback is a configuration change
+#: rather than a code change — see docs/auth/MIGRATION.md §9.
+AuthProviderName = Literal["neon", "supabase-legacy"]
+
+#: Algorithms that verify against a published JWKS. A JWKS-only provider must
+#: never be configured with one of these *absent* and an HMAC algorithm present:
+#: there is no shared secret to check against, and accepting `HS256` from a
+#: service that publishes public keys is the algorithm-confusion attack (re-sign
+#: with the public key as an HMAC secret).
+ASYMMETRIC_JWT_ALGORITHMS = frozenset(
+    {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512"}
+)
+
+def _url_origin(url: str) -> str | None:
+    """`https://host:port/path` → `https://host:port`. None if it will not parse.
+
+    Neon Auth's `iss` claim is the service origin with the path dropped, while
+    its JWKS lives under the full base URL. Deriving one from the other is the
+    only way to keep those two straight without a comment everyone skips.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 #: Default local frontend origins. Development only — production must set
 #: `CORS_ORIGINS` explicitly, and `Settings.validate_for_environment` refuses
 #: to boot otherwise. There is no `["*"]` fallback anywhere in this codebase.
@@ -136,11 +166,53 @@ class Settings(BaseSettings):
     #: development and to build links inside transactional email.
     frontend_url: str = "http://localhost:3000"
 
-    # ─── Supabase (AUTHENTICATION ONLY) ─────────────────────────────────────
-    #: Supabase is MaliHub's identity provider and nothing else. This backend
-    #: verifies tokens Supabase issued; it never stores a password, never runs
-    #: its own signup/login, and never uses the service-role key. See
-    #: core/security.py and ARCHITECTURE.md §5b.
+    # ─── Authentication provider selection ──────────────────────────────────
+    #: Exactly one provider is ever active. A backend that verified both would
+    #: honour a stale Supabase token for as long as it stayed unexpired after
+    #: the cutover — which is the whole window a leaked credential needs.
+    auth_provider: AuthProviderName = "neon"
+
+    # ─── Neon Managed Better Auth (PRIMARY IDENTITY PROVIDER) ───────────────
+    #: Neon Auth is MaliHub's identity provider. This backend verifies the JWTs
+    #: it signs; it never stores a password, never runs signup/login, and never
+    #: mints a token. See core/security.py and docs/auth/ARCHITECTURE.md.
+    #:
+    #: Same value the Next.js app uses (`NEON_AUTH_BASE_URL`), e.g.
+    #: `https://ep-x.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth`. Note
+    #: the path component: the base URL is not the origin, and the two are used
+    #: for different things below.
+    neon_auth_base_url: str | None = None
+    #: Where the signing keys are published. Derived as
+    #: `{neon_auth_base_url}/.well-known/jwks.json` — the full base URL *with*
+    #: its path, which is what the auth service serves the JWKS at.
+    neon_auth_jwks_url: str | None = None
+    #: Expected `iss`. Derived as the **origin** of `neon_auth_base_url`
+    #: (scheme + host, path dropped): issued tokens carry
+    #: `https://ep-x.neonauth.<region>.aws.neon.tech`, without `/neondb/auth`.
+    #: Deriving it from the base URL is what makes that difference impossible to
+    #: get wrong by hand.
+    neon_auth_jwt_issuer: str | None = None
+    #: Expected `aud`. Deliberately **not** derived and **not** enforced by
+    #: default: observed tokens carry `aud` equal to the issuer origin, but it is
+    #: not guaranteed present, and PyJWT rejects a token with no `aud` when an
+    #: expected audience is configured. A false 401 on every request is a worse
+    #: failure than the defence-in-depth this adds — signature, `iss`, `exp` and
+    #: `sub` are all still verified. Set it explicitly if your tokens carry it.
+    neon_auth_jwt_audience: str | None = None
+    #: Pinned from configuration, never read from the token's own header. Both
+    #: asymmetric families are allowed by default so a change in the service's
+    #: signing key type does not take the API down; no HMAC algorithm may be
+    #: added — see the validator below.
+    neon_auth_jwt_algorithms: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["RS256", "ES256"]
+    )
+
+    # ─── Supabase (RETIRED as identity provider; kept for rollback) ─────────
+    #: Supabase is no longer MaliHub's identity provider — Neon Auth is. These
+    #: settings are retained, unread unless `auth_provider="supabase-legacy"`,
+    #: so that rolling back (docs/auth/MIGRATION.md §9) is a configuration
+    #: change rather than a revert of this service. Supabase itself is still a
+    #: live dependency of the Next.js app for Storage and Realtime.
     supabase_url: str | None = None
     supabase_anon_key: SecretStr | None = None
     #: The project's JWT signing secret (Dashboard → Settings → API). Used for
@@ -220,7 +292,12 @@ class Settings(BaseSettings):
     # ─── Derived helpers ────────────────────────────────────────────────────
 
     @field_validator(
-        "cors_origins", "cors_allow_methods", "cors_allow_headers", "supabase_jwt_algorithms", mode="before"
+        "cors_origins",
+        "cors_allow_methods",
+        "cors_allow_headers",
+        "supabase_jwt_algorithms",
+        "neon_auth_jwt_algorithms",
+        mode="before",
     )
     @classmethod
     def _split_comma_separated(cls, value: object) -> object:
@@ -303,6 +380,40 @@ class Settings(BaseSettings):
             # `supabase_jwt_algorithms` to name an asymmetric algorithm, so
             # deriving the URL cannot silently switch the verification mode.
             self.supabase_jwks_url = f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+
+        if self.neon_auth_base_url:
+            base = self.neon_auth_base_url.rstrip("/")
+            origin = _url_origin(base)
+            # JWKS is served under the base URL *including* its path.
+            if not self.neon_auth_jwks_url:
+                self.neon_auth_jwks_url = f"{base}/.well-known/jwks.json"
+            # `iss` is the origin, path dropped — a different string from the
+            # base URL, and the single easiest thing to misconfigure by hand.
+            if not self.neon_auth_jwt_issuer and origin:
+                self.neon_auth_jwt_issuer = origin
+        return self
+
+    @model_validator(mode="after")
+    def _reject_hmac_for_the_jwks_provider(self) -> Settings:
+        """Refuse to configure Neon Auth with a shared-secret algorithm.
+
+        Checked at configuration time rather than at verification time, so the
+        mistake surfaces at boot with a readable message instead of as a stream
+        of 401s — or, in the worst case, as a verifier that accepts a token
+        forged with a public key used as an HMAC secret.
+        """
+        if self.auth_provider != "neon":
+            return self
+        algorithms = {algorithm.upper() for algorithm in self.neon_auth_jwt_algorithms}
+        hmac = sorted(algorithms - ASYMMETRIC_JWT_ALGORITHMS)
+        if hmac:
+            raise ConfigurationError(
+                f"NEON_AUTH_JWT_ALGORITHMS may only name asymmetric algorithms; got {hmac}. "
+                "Neon Managed Better Auth publishes signing keys as JWKS and there is no "
+                "shared secret to verify against. Accepting HS256 from a JWKS provider is "
+                "the algorithm-confusion attack, so it is refused at startup rather than "
+                "ignored at request time."
+            )
         return self
 
     # ─── Convenience ────────────────────────────────────────────────────────
@@ -317,13 +428,66 @@ class Settings(BaseSettings):
 
     @property
     def jwt_verification_mode(self) -> Literal["hs256", "jwks", "unconfigured"]:
-        """Which Supabase token verification path is usable, if any."""
+        """Which *Supabase* verification path is usable, if any.
+
+        Retained for the legacy provider. `active_auth_mode` is what the rest of
+        the service should consult: it accounts for `auth_provider`, and so
+        reports `"unconfigured"` when Supabase is fully configured but is not
+        the selected provider.
+        """
         algorithms = {algorithm.upper() for algorithm in self.supabase_jwt_algorithms}
-        if algorithms & {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512"}:
+        if algorithms & ASYMMETRIC_JWT_ALGORITHMS:
             return "jwks" if self.supabase_jwks_url else "unconfigured"
         if self.supabase_jwt_secret:
             return "hs256"
         return "unconfigured"
+
+    @property
+    def neon_jwt_verification_mode(self) -> Literal["jwks", "unconfigured"]:
+        """Whether Neon Auth tokens can be verified. JWKS is the only path —
+        the service publishes public keys and has no shared secret."""
+        algorithms = {algorithm.upper() for algorithm in self.neon_auth_jwt_algorithms}
+        if algorithms & ASYMMETRIC_JWT_ALGORITHMS:
+            return "jwks" if self.neon_auth_jwks_url else "unconfigured"
+        return "unconfigured"
+
+    @property
+    def active_auth_mode(self) -> Literal["neon-jwks", "supabase-hs256", "supabase-jwks", "unconfigured"]:
+        """The verification path the *selected* provider can actually use.
+
+        This is the property that decides whether the API can authenticate
+        anyone. It never falls back across providers: a configured Supabase
+        secret does not rescue a deployment that selected Neon, because
+        accepting the wrong provider's tokens is not a degraded mode, it is a
+        different (and stale) trust root.
+        """
+        if self.auth_provider == "neon":
+            return "neon-jwks" if self.neon_jwt_verification_mode == "jwks" else "unconfigured"
+        legacy = self.jwt_verification_mode
+        if legacy == "hs256":
+            return "supabase-hs256"
+        if legacy == "jwks":
+            return "supabase-jwks"
+        return "unconfigured"
+
+    def describe_missing_auth_configuration(self) -> str:
+        """Why token verification is unusable, phrased for the selected provider.
+
+        One message naming the right variables. A generic "token verification is
+        not configured" sends whoever is deploying down the Supabase path when
+        the provider is Neon, and the two need different values entirely.
+        """
+        if self.auth_provider == "neon":
+            return (
+                "Neon Auth token verification is not configured. Set NEON_AUTH_BASE_URL "
+                "(the same value the Next.js app uses) so the JWKS URL and expected "
+                "issuer can be derived, or set NEON_AUTH_JWKS_URL explicitly."
+            )
+        return (
+            "Supabase token verification is not configured. Set SUPABASE_JWT_SECRET "
+            "(HS256) or SUPABASE_JWKS_URL plus an asymmetric SUPABASE_JWT_ALGORITHMS "
+            "entry — or set AUTH_PROVIDER=neon, which is the migrated default."
+        )
 
     def redis_key(self, *parts: str) -> str:
         """Build a namespaced Redis key: `malihub:api:ratelimit:v1:<bucket>`."""
@@ -367,12 +531,8 @@ class Settings(BaseSettings):
                 )
             if self.database_echo:
                 raise ConfigurationError("DATABASE_ECHO must be false in production (it logs row data).")
-            if self.jwt_verification_mode == "unconfigured":
-                raise ConfigurationError(
-                    "Supabase token verification is not configured. Set "
-                    "SUPABASE_JWT_SECRET (HS256) or SUPABASE_JWKS_URL plus an "
-                    "asymmetric SUPABASE_JWT_ALGORITHMS entry."
-                )
+            if self.active_auth_mode == "unconfigured":
+                raise ConfigurationError(self.describe_missing_auth_configuration())
             if not self.database_url:
                 raise ConfigurationError("DATABASE_URL is required in production.")
             if self.backend_public_url.startswith("http://localhost"):
@@ -388,10 +548,17 @@ class Settings(BaseSettings):
                 "REDIS_URL is not set — rate limiting and caching are disabled "
                 f"(fail_open={self.rate_limit_fail_open}). Required in production."
             )
-        if self.jwt_verification_mode == "unconfigured":
+        if self.active_auth_mode == "unconfigured":
+            warnings.append(self.describe_missing_auth_configuration())
+        if (
+            self.auth_provider == "neon"
+            and self.neon_auth_base_url
+            and not self.neon_auth_base_url.startswith("https://")
+        ):
             warnings.append(
-                "Supabase token verification is unconfigured — every authenticated "
-                "route will return 503 until SUPABASE_JWT_SECRET or JWKS is set."
+                "NEON_AUTH_BASE_URL is not an https:// URL. The auth service publishes "
+                "JWKS over TLS and tokens are bearer credentials; a plaintext base URL "
+                "means a plaintext key fetch."
             )
         if self.payhero_enabled and not (self.payhero_api_username and self.payhero_api_password):
             raise ConfigurationError(

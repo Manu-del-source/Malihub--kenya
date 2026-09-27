@@ -9,9 +9,19 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListingStatusBadge } from "@/components/dashboard/seller/listing-status-badge";
 import { ListingRowActions } from "@/components/dashboard/seller/listing-row-actions";
-import { createClient } from "@/lib/supabase/server";
+import { requireSellerAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKes, timeAgo } from "@/utils";
+
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "My listings" };
 
@@ -22,11 +32,12 @@ const LISTING_ROW_INCLUDE = {
 type ListingRow = Prisma.ProductGetPayload<{ include: typeof LISTING_ROW_INCLUDE }>;
 
 export default async function SellerListingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Seller access is decided by the `sellers` row, not by `role === "SELLER"`:
+  // every role can still buy, and a SELLER-role account whose row was never
+  // created must not be shown an empty seller dashboard. Administrators are
+  // allowed through for support, so the row lookup below still guards the
+  // seller-specific query.
+  const { user } = await requireSellerAccess();
 
   const seller = await prisma.seller.findUnique({ where: { userId: user.id }, select: { id: true } });
   if (!seller) redirect("/dashboard/buyer");

@@ -1,112 +1,122 @@
 import "server-only";
+
 import { prisma } from "@/lib/prisma";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { shouldLinkUnmappedAccountsByEmail } from "@/lib/auth/config";
+import { authIdentityFromProviderSession } from "@/lib/auth/identity";
+import type { AuthIdentity } from "@/lib/auth/types";
 import type { CompleteProfileInput } from "@/lib/validations/auth";
 import {
   AuthServiceError,
-  authIdentityFromSupabaseUser,
   ensureUserProvisioned,
   getAuthoritativeOnboardingState,
   saveCompletedProfile,
-  type AuthIdentity,
   type AuthoritativeOnboardingState,
-  type SupabaseIdentityUser,
+  type CompletedProfileRole,
 } from "@/services/account-provisioning";
 
-// Re-exported so callers keep importing user-facing auth errors / the identity
-// mapper from the auth service (the canonical home of auth plumbing).
-export { AuthServiceError, authIdentityFromSupabaseUser };
-export type { AuthIdentity, AuthoritativeOnboardingState };
+/**
+ * Orchestration of the two writes that connect an authenticated Neon Auth
+ * identity to MaliHub's application data.
+ *
+ * This module is the seam between "Neon Auth says you are X" and "MaliHub now
+ * has rows for X". It owns no provider calls — those live in `src/lib/auth/neon.ts`
+ * — and no authorization decisions; those live in `src/lib/auth/session.ts`.
+ *
+ * The Supabase-era version of this file also mirrored application state into the
+ * provider's `app_metadata` and re-minted the browser JWT. That is gone: Neon
+ * Auth has no claim store to mirror into, and authorization now reads the
+ * database at the point of use. The retired implementation is preserved in
+ * `src/lib/supabase/auth-legacy.ts`.
+ */
+
+export { AuthServiceError };
+export { authIdentityFromProviderSession };
+export type { AuthoritativeOnboardingState, CompletedProfileRole };
 
 /**
- * Repairs the JWT/session cache from Neon, the source of truth for
- * application onboarding and roles. The service-role client is used only for
- * the privileged metadata write; callers must refresh the user's session on
- * their own per-request client after this succeeds.
+ * Reads MaliHub's authoritative onboarding/role state for an application user.
  *
- * Missing application rows are mirrored conservatively as an incomplete
- * BUYER account. Database and Supabase Admin API failures propagate so callers
- * can fail closed instead of treating authentication as proof of onboarding.
+ * This is the successor to the old `syncSupabaseAppMetadata()`: the READ is
+ * unchanged and still the single source of truth, but the provider-side WRITE
+ * that mirrored it into a JWT claim is gone. Nothing caches this value, so
+ * there is no stale-claim window and no session to re-mint after a change.
+ *
+ * Database failures propagate. A caller must never interpret "could not read"
+ * as "not onboarded" — that is how an outage turns into everybody being
+ * redirected to /complete-profile.
  */
-export async function syncSupabaseAppMetadata(
+export async function readOnboardingState(
   userId: string
 ): Promise<AuthoritativeOnboardingState> {
-  const state = await getAuthoritativeOnboardingState(prisma, userId);
-  const supabase = createServiceRoleClient();
-  const { error } = await supabase.auth.admin.updateUserById(userId, {
-    app_metadata: {
-      role: state.role,
-      has_seller_profile: state.hasSellerProfile,
-      onboarded: state.onboarded,
-    },
-  });
+  return getAuthoritativeOnboardingState(prisma, userId);
+}
 
-  if (error) {
-    throw error;
+/**
+ * Best-effort provisioning for the points where a Neon Auth session is first
+ * established: sign-up, sign-in, and the OAuth return.
+ *
+ * Authenticating a user does not by itself create their application rows — Neon
+ * Auth writes only to its own `neon_auth` schema, which MaliHub must not touch.
+ * Provisioning here means the rows exist before the user reaches any page that
+ * reads them; /complete-profile provisions authoritatively inside its own
+ * transaction regardless, so a failure here is recoverable.
+ *
+ * Failures are logged and returned, never thrown: sign-in follows this with an
+ * authoritative read that fails closed on its own, and the caller decides
+ * whether a provisioning problem is fatal for the operation it is performing.
+ *
+ * No credential, token, or cookie value is logged — only the provider's user id,
+ * which is an opaque reference and not a secret.
+ */
+export async function provisionUserRows(
+  session: AuthIdentity,
+  context: "sign-up" | "sign-in" | "oauth return"
+): Promise<{ userId: string | null; error: Error | null }> {
+  try {
+    const userId = await ensureUserProvisioned(
+      prisma,
+      authIdentityFromProviderSession(session),
+      { linkUnmappedByEmail: shouldLinkUnmappedAccountsByEmail() }
+    );
+    return { userId, error: null };
+  } catch (error) {
+    console.error(`Failed to provision application rows on ${context}`, {
+      authUserId: session.authUserId,
+      // `AuthServiceError` carries user-facing copy and is not a defect;
+      // anything else is logged with its class so production errors are
+      // distinguishable from expected conflicts.
+      kind: error instanceof AuthServiceError ? "expected" : error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return { userId: null, error: error as Error };
   }
-
-  return state;
 }
 
 /**
  * Runs everything that needs to happen once a user submits /complete-profile:
- *  1. Provision their `users`/`profiles` rows if they don't exist yet, then
- *     claim their phone number and finish the profile (onboarded = true).
- *  2. If they opted into selling, create a starter Seller row.
- *  3. Re-read the committed Neon state and mirror it into Supabase
- *     app_metadata, so middleware can read it at the edge without a DB round
- *     trip on every request (see ARCHITECTURE.md §5).
+ *  1. resolve (provisioning if needed) their `users`/`profiles` rows inside the
+ *     same transaction as the updates — this is what makes a first-ever save
+ *     work and what removed the old `P2025` "record to update not found"
+ *     failure on a freshly initialized database,
+ *  2. claim their phone number and set the role,
+ *  3. mark the profile onboarded,
+ *  4. create a starter Seller row when they opted into selling.
  *
- * Step 1 happens inside the same transaction as the updates, so the
- * "record to update not found" (`P2025`) failure a freshly initialized
- * database used to produce is impossible: the row is created in the same
- * transaction that updates it. The JWT sync happens after commit since it's a
- * separate system (Supabase Auth) that can't participate in the Postgres
- * transaction.
+ * There is deliberately no post-commit provider synchronization step. The
+ * previous implementation had one (`syncSupabaseAppMetadata` + a session
+ * refresh) because middleware read onboarding from a JWT claim that lagged the
+ * database; nothing reads a claim now, so the transaction committing IS the
+ * state change taking effect. That also removes the redirect loop the refresh
+ * existed to prevent.
+ *
+ * @returns the application user id, the resulting role, and whether a Seller row
+ *          was requested — the caller uses `wantsToSell` to pick the dashboard.
  */
-export async function completeUserProfile(identity: AuthIdentity, input: CompleteProfileInput) {
-  const { role, wantsToSell } = await saveCompletedProfile(prisma, identity, input);
-
-  // Keep metadata synchronization best-effort here because the authoritative
-  // Neon transaction has already committed and cannot be rolled back if the
-  // separate Supabase Admin API is temporarily unavailable. The action still
-  // refreshes the user-facing session exactly once after this attempt.
-  try {
-    await syncSupabaseAppMetadata(identity.id);
-  } catch (error) {
-    console.error("Failed to sync onboarding state into Supabase app_metadata", {
-      userId: identity.id,
-      error,
-    });
-  }
-
-  return { role, wantsToSell };
-}
-
-/**
- * Best-effort provisioning for the points where a Supabase session is
- * established (sign-up, sign-in, OAuth / email-confirmation callback).
- *
- * Supabase authenticating a user does not, by itself, create their
- * application rows — Supabase's database trigger can't fire on an independent
- * Postgres (see src/services/account-provisioning.ts). Provisioning here means
- * rows exist before the user reaches any page that reads them; /complete-profile
- * provisions authoritatively inside its transaction regardless.
- *
- * Failures are logged, never thrown from this best-effort provisioner. Sign-in
- * follows it with a separate authoritative lookup (and fails closed if Neon is
- * unavailable); the onboarding write retries the same idempotent upsert.
- */
-export async function provisionUserRows(
-  user: SupabaseIdentityUser,
-  context: "sign-up" | "sign-in" | "auth callback"
-): Promise<void> {
-  try {
-    await ensureUserProvisioned(prisma, authIdentityFromSupabaseUser(user));
-  } catch (error) {
-    console.error(`Failed to provision application rows on ${context}`, {
-      userId: user.id,
-      error,
-    });
-  }
+export async function completeUserProfile(
+  session: AuthIdentity,
+  input: CompleteProfileInput
+): Promise<{ userId: string; role: CompletedProfileRole; wantsToSell: boolean }> {
+  return saveCompletedProfile(prisma, authIdentityFromProviderSession(session), input, {
+    linkUnmappedByEmail: shouldLinkUnmappedAccountsByEmail(),
+  });
 }

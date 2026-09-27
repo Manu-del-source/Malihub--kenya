@@ -1,22 +1,36 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { createClient } from "@/lib/supabase/server";
+import { isAdministratorRole, requireUser } from "@/lib/auth";
 import { signOutAction } from "@/app/(auth)/actions";
 
+/**
+ * Rendered per request — never prerendered.
+ *
+ * This route reads the current session, and a session is per-request state. The
+ * declaration is explicit rather than incidental on purpose: the previous
+ * implementation got it for free because constructing a Supabase client called
+ * `cookies()`, which Next.js treats as an opt into dynamic rendering. Reading a
+ * Neon Auth session does not always do that — when the auth environment is not
+ * configured the read short-circuits before touching a cookie — so a build run
+ * without those variables would happily prerender this page as a static redirect
+ * to /login and ship it that way, signing every visitor out.
+ *
+ * This is also what the Neon Auth Next.js documentation requires of any Server
+ * Component that reads a session. See docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Role and seller access are read from MaliHub's own rows on every request.
+  // They used to come from the provider's `app_metadata` JWT claims, which could
+  // lag the database until a session refresh re-minted the token. There is no
+  // claim to go stale now, so a role change takes effect on the next request.
+  const { user } = await requireUser();
 
-  if (!user) redirect("/login");
-
-  const role = (user.app_metadata?.role as string) ?? "BUYER";
-  const hasSellerProfile = user.app_metadata?.has_seller_profile === true;
-  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+  const hasSellerProfile = user.hasSellerProfile;
+  const isAdmin = isAdministratorRole(user.role);
 
   return (
     <div className="min-h-svh">

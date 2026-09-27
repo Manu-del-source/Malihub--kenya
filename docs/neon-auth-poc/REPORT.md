@@ -1,5 +1,29 @@
 # Neon Managed Better Auth — proof-of-concept report
 
+> ## ⚠️ SUPERSEDED — historical document
+>
+> This report describes a proof of concept that **has been deleted**. The routes
+> under `/neon-auth-test`, `src/lib/neon-auth/`, and the POC's own tests no
+> longer exist in the repository; the file paths quoted below will not resolve.
+>
+> Neon Managed Better Auth is now MaliHub's **primary authentication provider**.
+> The current design lives in:
+>
+> - **`docs/auth/ARCHITECTURE.md`** — how authentication and authorization work now
+> - **`docs/auth/MIGRATION.md`** — what changed, how to cut over, how to roll back
+>
+> Kept for the record only: it is the evidence that justified the migration.
+>
+> **One finding in this report is known to be wrong.** The observation that
+> Better Auth issues "32-character non-UUID" user ids was derived from the POC's
+> own mock upstream, never from the live service, and must not be relied on.
+> MaliHub does not depend on the provider's id format either way: it is stored
+> opaquely in `users.auth_user_id` (`TEXT`), and `users.id` remains a
+> MaliHub-generated UUID.
+
+---
+
+
 **Question this report answers:** can Neon Managed Better Auth act as MaliHub
 Kenya's identity provider instead of Supabase Auth?
 

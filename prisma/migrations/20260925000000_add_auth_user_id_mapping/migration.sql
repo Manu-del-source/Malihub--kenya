@@ -1,0 +1,41 @@
+-- MaliHub Kenya — auth identity mapping
+--
+-- Adds the explicit mapping column between the authentication provider's
+-- identity (Neon Auth / Managed Better Auth) and MaliHub's own application
+-- identity (`users.id`).
+--
+-- This migration is strictly ADDITIVE and NON-DESTRUCTIVE:
+--   * `users.id` is untouched — it stays the UUID primary key that every other
+--     table in this schema references. No foreign key is rewritten.
+--   * `auth_user_id` is nullable, so every existing row (provisioned by the
+--     previous identity provider) keeps working unchanged with NULL. Postgres
+--     permits any number of NULLs in a unique index, so the UNIQUE constraint
+--     does not conflict with legacy rows.
+--   * No data is backfilled, rewritten, or deleted here. Linking existing
+--     accounts to a Neon Auth identity is a separate, documented, operator-run
+--     step — see docs/auth/MIGRATION.md.
+--   * The `neon_auth` schema (owned and managed by Neon Auth) is not referenced,
+--     altered, or created by this migration.
+--
+-- Column type is TEXT, not UUID: see the `authUserId` doc comment in
+-- prisma/schema.prisma for why the mapping must be id-format agnostic.
+--
+-- ─── Provenance ─────────────────────────────────────────────────────────────
+-- Hand-authored to match `prisma migrate diff` output for this exact schema
+-- delta. The sandbox that produced it has no network route to
+-- binaries.prisma.sh, so the Prisma schema engine could not be downloaded to
+-- generate the file. VERIFY before deploying to any real database:
+--
+--   npx prisma migrate diff \
+--     --from-migrations prisma/migrations \
+--     --to-schema-datamodel prisma/schema.prisma \
+--     --shadow-database-url "$SHADOW_DATABASE_URL" \
+--     --script
+--
+-- The expected output is exactly the two statements below.
+
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "auth_user_id" TEXT;
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_auth_user_id_key" ON "users"("auth_user_id");

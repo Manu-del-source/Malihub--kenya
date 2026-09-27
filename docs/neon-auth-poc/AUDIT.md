@@ -1,5 +1,19 @@
 # MaliHub Kenya — existing auth architecture audit
 
+> ## ⚠️ SUPERSEDED — historical document
+>
+> This audit describes the Supabase Auth implementation as it stood **before**
+> the migration. Supabase Auth is no longer MaliHub's identity provider: the
+> `src/lib/supabase/*` call paths quoted below are inactive,
+> `src/app/api/auth/callback` now answers 410 Gone, and the `app_metadata`
+> claim cache this audit documents has been removed rather than reimplemented.
+>
+> The current design lives in **`docs/auth/ARCHITECTURE.md`**, and the
+> cutover/rollback plan in **`docs/auth/MIGRATION.md`**. Kept for the record:
+> this is the analysis that established why `users.id` cannot hold a
+> provider-issued id, and therefore why an explicit `auth_user_id` mapping
+> column was required.
+
 Written **before** any POC code was added, by reading the repository only. No
 files were modified during the audit (the only pre-existing gaps found are noted
 at the end).

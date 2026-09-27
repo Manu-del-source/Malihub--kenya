@@ -1,21 +1,26 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Bell } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { EmptyState } from "@/components/shared/empty-state";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
 
+/**
+ * Rendered per request — never prerendered: this route reads the session.
+ *
+ * Required because reading a Neon Auth session does not necessarily touch a
+ * cookie (an unconfigured environment short-circuits first), so Next.js would
+ * otherwise prerender this page as a static redirect to /login. The full
+ * reasoning is in the layout banners and docs/auth/ARCHITECTURE.md §6.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Notifications" };
 
 export default async function NotificationsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { user } = await requireUser();
 
   const notifications = await prisma.notification.findMany({
     where: { userId: user.id },

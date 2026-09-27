@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { recordListingView, toggleFavorite, createReport, ListingServiceError } from "@/services/listing-service";
 import type { ApiResult, ReportReason } from "@/types";
 
@@ -9,20 +9,14 @@ import type { ApiResult, ReportReason } from "@/types";
  * components/marketplace/view-tracker.tsx. Anonymous views are allowed
  * (viewerId is nullable), so this never requires auth. */
 export async function recordListingViewAction(productId: string): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
   await recordListingView(productId, user?.id ?? null);
 }
 
 export async function toggleFavoriteAction(
   productId: string
 ): Promise<ApiResult<{ favorited: boolean }>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
 
   if (!user) {
     return { success: false, error: "Sign in to save favorites." };
@@ -46,10 +40,7 @@ export async function reportListingAction(
   reason: ReportReason,
   details?: string
 ): Promise<ApiResult<null>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = (await getCurrentUser())?.user;
 
   if (!user) {
     return { success: false, error: "Sign in to report a listing." };

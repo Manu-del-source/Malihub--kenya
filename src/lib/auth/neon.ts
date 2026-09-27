@@ -26,9 +26,68 @@
  */
 
 import { createNeonAuth, type NeonAuth } from "@neondatabase/auth/next/server";
-import { getNeonAuthConfig } from "./config";
+import {
+  getNeonAuthConfig,
+  resolveNeonAuthBaseUrl,
+  resolveNeonAuthCookieSecret,
+} from "./config";
 import { toAuthFailure, type ProviderError } from "./errors";
 import type { AuthFailure, AuthIdentity } from "./types";
+
+// ─── TEMPORARY diagnostics (2026-09-27 signup incident) ────────────────────
+// Purpose: tell apart, from production logs alone, whether a provider call
+// failed because (a) Vercel Production isn't seeing the Neon Auth env vars,
+// (b) the SDK is configured and the auth service returned an error, or
+// (c) the SDK call itself threw. Remove once the Production env vars are
+// confirmed fixed — see docs/auth/MIGRATION.md.
+//
+// Never logs: the cookie secret, passwords, session cookies, auth tokens, or
+// provider error messages (which may echo request data). Only presence/shape
+// info and non-sensitive error metadata.
+
+function logAuthNotConfigured(operationName: string): void {
+  const rawBaseUrl =
+    process.env.NEON_AUTH_BASE_URL?.trim() ?? process.env.NEON_AUTH_URL?.trim();
+  const baseUrlHost = (() => {
+    if (!rawBaseUrl) return null;
+    try {
+      return new URL(rawBaseUrl).host;
+    } catch {
+      return null;
+    }
+  })();
+
+  console.error("[auth] Neon Auth configuration unavailable", {
+    operation: operationName,
+    hasBaseUrlEnv: Boolean(process.env.NEON_AUTH_BASE_URL?.trim()),
+    hasAuthUrlAlias: Boolean(process.env.NEON_AUTH_URL?.trim()),
+    resolvedBaseUrl: Boolean(resolveNeonAuthBaseUrl()),
+    baseUrlHost,
+    hasCookieSecretEnv: Boolean(process.env.NEON_AUTH_COOKIE_SECRET?.trim()),
+    cookieSecretLength: process.env.NEON_AUTH_COOKIE_SECRET?.trim().length ?? 0,
+    resolvedCookieSecret: Boolean(resolveNeonAuthCookieSecret()),
+    nodeEnv: process.env.NODE_ENV,
+  });
+}
+
+function logProviderError(operationName: string, error: ProviderError): void {
+  // Deliberately omits `error.message` — the SDK's message can echo request
+  // data and must not be assumed safe to log.
+  console.error("[auth] Neon Auth provider returned an error", {
+    operation: operationName,
+    code: error.code,
+    status: error.status,
+    statusText: error.statusText,
+  });
+}
+
+function logProviderException(operationName: string, error: unknown): void {
+  console.error("[auth] Neon Auth provider call threw", {
+    operation: operationName,
+    name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
 
 // ─── Instance ──────────────────────────────────────────────────────────────
 
@@ -219,16 +278,21 @@ type SdkResult<T> = { data?: T | null; error?: ProviderError | null };
  * password" and a token failure to "expired link".
  */
 async function call<TIn, TOut>(
-  operation: (auth: NeonAuth) => Promise<SdkResult<TIn>>,
+  run: (auth: NeonAuth) => Promise<SdkResult<TIn>>,
   map: (data: TIn) => TOut | null,
-  fallbackCode: AuthFailure["code"] = "unknown"
+  fallbackCode: AuthFailure["code"] = "unknown",
+  operationName = "unknown"
 ): Promise<ProviderResult<TOut>> {
   const auth = getNeonAuth();
-  if (!auth) return { data: null, failure: toAuthFailure(null, "auth_not_configured") };
+  if (!auth) {
+    logAuthNotConfigured(operationName);
+    return { data: null, failure: toAuthFailure(null, "auth_not_configured") };
+  }
 
   try {
-    const result = await operation(auth);
+    const result = await run(auth);
     if (result.error) {
+      logProviderError(operationName, result.error);
       return { data: null, failure: toAuthFailure(result.error, fallbackCode) };
     }
     if (result.data === null || result.data === undefined) {
@@ -243,6 +307,7 @@ async function call<TIn, TOut>(
     // Non-transport failures are re-thrown by the SDK rather than returned.
     // Reported as "could not reach the auth service" so callers fail closed
     // instead of telling someone their password was wrong.
+    logProviderException(operationName, error);
     return {
       data: null,
       failure: toAuthFailure(
@@ -288,7 +353,8 @@ export function providerSignUp(input: {
         name: input.name,
       }) as Promise<SdkResult<ProviderUserPayload>>,
     toIdentityOrNothing,
-    "email_taken"
+    "email_taken",
+    "signUp.email"
   );
 }
 
@@ -304,7 +370,8 @@ export function providerSignIn(input: {
         password: input.password,
       }) as Promise<SdkResult<ProviderUserPayload>>,
     toIdentityOrNothing,
-    "invalid_credentials"
+    "invalid_credentials",
+    "signIn.email"
   );
 }
 
@@ -337,7 +404,8 @@ export function providerSignInWithGoogle(input: {
         disableRedirect: true,
       }) as Promise<SdkResult<{ url?: string | null }>>,
     (data) => (typeof data.url === "string" && data.url ? { url: data.url } : null),
-    "unknown"
+    "unknown",
+    "signIn.social"
   );
 }
 
@@ -346,7 +414,8 @@ export function providerSignOut(): Promise<ProviderResult<true>> {
   return call(
     (auth) => auth.signOut() as Promise<SdkResult<unknown>>,
     () => OK,
-    "unknown"
+    "unknown",
+    "signOut"
   );
 }
 
@@ -372,7 +441,8 @@ export function providerRequestPasswordReset(input: {
         redirectTo: input.redirectTo,
       }) as Promise<SdkResult<unknown>>,
     () => OK,
-    "unknown"
+    "unknown",
+    "requestPasswordReset"
   );
 }
 
@@ -395,7 +465,8 @@ export function providerResetPassword(input: {
         token: input.token,
       }) as Promise<SdkResult<unknown>>,
     () => OK,
-    "invalid_token"
+    "invalid_token",
+    "resetPassword"
   );
 }
 
@@ -420,7 +491,8 @@ export function providerSendVerificationEmail(input: {
         ...(input.callbackURL ? { callbackURL: input.callbackURL } : {}),
       }) as Promise<SdkResult<unknown>>,
     () => OK,
-    "unknown"
+    "unknown",
+    "sendVerificationEmail"
   );
 }
 
@@ -435,7 +507,8 @@ export function providerSendVerificationCode(input: {
         type: "email-verification",
       }) as Promise<SdkResult<unknown>>,
     () => OK,
-    "unknown"
+    "unknown",
+    "sendVerificationCode"
   );
 }
 
@@ -457,6 +530,7 @@ export function providerVerifyEmailWithCode(input: {
         otp: input.otp,
       }) as Promise<SdkResult<unknown>>,
     () => OK,
-    "invalid_token"
+    "invalid_token",
+    "verifyEmailWithCode"
   );
 }

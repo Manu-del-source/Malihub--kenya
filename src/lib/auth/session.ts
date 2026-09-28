@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { LOGIN_PATH } from "@/lib/auth/config";
+import { BUYER_DASHBOARD_PATH, LOGIN_PATH } from "@/lib/auth/config";
 import { authFailure, isAuthUnavailable } from "@/lib/auth/errors";
 import { readAccessForSession } from "@/lib/auth/identity";
 import { readAuthSession } from "@/lib/auth/neon";
@@ -311,7 +311,7 @@ export async function requireRole(
   const current = await requireOnboardedUser();
 
   if (!roles.includes(current.user.role)) {
-    redirect("/dashboard/buyer");
+    redirect(BUYER_DASHBOARD_PATH);
   }
 
   return current;
@@ -345,7 +345,7 @@ export async function requireSellerAccess(): Promise<
   const current = await requireOnboardedUser();
 
   if (!current.user.hasSellerProfile && !isAdministratorRole(current.user.role)) {
-    redirect("/dashboard/buyer");
+    redirect(BUYER_DASHBOARD_PATH);
   }
 
   return current;

@@ -1,5 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import {
   authFailure,
   isAuthUnavailable,
@@ -8,13 +10,16 @@ import {
 } from "@/lib/auth/errors";
 import { loginUrlWithRedirect, safeInternalRedirect } from "@/lib/auth/redirects";
 import {
+  BUYER_DASHBOARD_PATH,
   isAuthRoutePath,
   isProtectedPath,
   pathWithoutVerifierParam,
+  PROTECTED_PREFIXES,
   resolveNeonAuthBaseUrl,
   resolveNeonAuthCookieSecret,
   shouldLinkUnmappedAccountsByEmail,
   getNeonAuthConfig,
+  SELLER_DASHBOARD_PATH,
 } from "@/lib/auth/config";
 import { toAuthIdentity } from "@/lib/auth/neon";
 
@@ -25,6 +30,47 @@ import { toAuthIdentity } from "@/lib/auth/neon";
  * are the pieces that run in the edge runtime on every request, and a mistake in
  * one of them is either an open redirect or a route that fails open.
  */
+
+describe("route constants — canonical dashboard URLs match the filesystem", () => {
+  // Regression for the production 404 after sign-in: redirect targets said
+  // /dashboard/… but `(dashboard)` is a route GROUP whose parentheses never
+  // appear in a URL, so those pages did not exist. These tests fail loudly if
+  // the constants and the App Router tree ever drift apart again.
+  // `npm test` always runs from the project root.
+  const projectRoot = process.cwd();
+
+  function dashboardPageExists(publicPath: string): boolean {
+    const withoutLeadingSlash = publicPath.replace(/^\//, "");
+    return existsSync(
+      path.join(projectRoot, "src", "app", "(dashboard)", withoutLeadingSlash, "page.tsx")
+    );
+  }
+
+  it("BUYER_DASHBOARD_PATH is /buyer and that page really exists", () => {
+    assert.equal(BUYER_DASHBOARD_PATH, "/buyer");
+    assert.ok(dashboardPageExists(BUYER_DASHBOARD_PATH), "src/app/(dashboard)/buyer/page.tsx must exist");
+  });
+
+  it("SELLER_DASHBOARD_PATH is /seller and that page really exists", () => {
+    assert.equal(SELLER_DASHBOARD_PATH, "/seller");
+    assert.ok(dashboardPageExists(SELLER_DASHBOARD_PATH), "src/app/(dashboard)/seller/page.tsx must exist");
+  });
+
+  it("every protected prefix maps to a real route under (dashboard) or is a state page", () => {
+    // /messages and /notifications are protected prefixes whose pages live in
+    // the same group; every prefix here must correspond to a real directory.
+    for (const prefix of PROTECTED_PREFIXES) {
+      const dir = path.join(projectRoot, "src", "app", "(dashboard)", prefix.replace(/^\//, ""));
+      assert.ok(existsSync(dir), `${prefix} must exist under src/app/(dashboard)`);
+    }
+  });
+
+  it("never reintroduces a /dashboard URL prefix", () => {
+    for (const prefix of PROTECTED_PREFIXES) {
+      assert.ok(!prefix.startsWith("/dashboard"), `${prefix} is not a real URL`);
+    }
+  });
+});
 
 describe("toAuthFailure — provider errors become MaliHub's contract", () => {
   it("maps a wrong-password response onto invalid_credentials", () => {
@@ -173,10 +219,10 @@ describe("verification-email capability detection", () => {
 
 describe("safeInternalRedirect — open-redirect filtering", () => {
   it("accepts an ordinary internal path", () => {
-    assert.equal(safeInternalRedirect("/dashboard/buyer"), "/dashboard/buyer");
+    assert.equal(safeInternalRedirect("/buyer"), "/buyer");
     assert.equal(
-      safeInternalRedirect("/dashboard/buyer/wishlist?sort=recent#top"),
-      "/dashboard/buyer/wishlist?sort=recent#top"
+      safeInternalRedirect("/buyer/wishlist?sort=recent#top"),
+      "/buyer/wishlist?sort=recent#top"
     );
   });
 
@@ -208,7 +254,7 @@ describe("safeInternalRedirect — open-redirect filtering", () => {
   });
 
   it("normalizes a path that tries to climb out of the origin", () => {
-    const result = safeInternalRedirect("/dashboard/../../evil");
+    const result = safeInternalRedirect("/buyer/../../evil");
     assert.ok(result === null || result.startsWith("/"), `unexpected: ${result}`);
     assert.ok(!(result ?? "").includes(".."), "dot segments must not survive");
   });
@@ -217,8 +263,8 @@ describe("safeInternalRedirect — open-redirect filtering", () => {
 describe("loginUrlWithRedirect", () => {
   it("attaches a safe destination", () => {
     assert.equal(
-      loginUrlWithRedirect("/login", "/dashboard/buyer"),
-      "/login?redirectTo=%2Fdashboard%2Fbuyer"
+      loginUrlWithRedirect("/login", "/buyer"),
+      "/login?redirectTo=%2Fbuyer"
     );
   });
 
@@ -235,10 +281,15 @@ describe("loginUrlWithRedirect", () => {
 
 describe("route ownership", () => {
   it("protects the dashboard, messages and notifications prefixes", () => {
+    // `(dashboard)` is a route group: /buyer and /seller are the REAL public
+    // URLs of the buyer/seller dashboard screens, and there is no /dashboard
+    // URL segment anywhere in the App Router.
     for (const path of [
-      "/dashboard",
-      "/dashboard/buyer",
-      "/dashboard/seller/listings/123/edit",
+      "/buyer",
+      "/buyer/wishlist",
+      "/seller",
+      "/seller/listings/123/edit",
+      "/admin",
       "/messages",
       "/messages/abc",
       "/notifications",
@@ -248,7 +299,10 @@ describe("route ownership", () => {
   });
 
   it("does not protect a lookalike prefix", () => {
-    assert.equal(isProtectedPath("/dashboarding"), false);
+    assert.equal(isProtectedPath("/buyers"), false);
+    // /sellers/… is the PUBLIC seller storefront, not the protected /seller.
+    assert.equal(isProtectedPath("/sellers/organic-farm-ke"), false);
+    assert.equal(isProtectedPath("/seller-portal"), false);
     assert.equal(isProtectedPath("/messages-archive"), false);
     assert.equal(isProtectedPath("/notificationsettings"), false);
   });
@@ -280,7 +334,7 @@ describe("route ownership", () => {
     ]) {
       assert.equal(isAuthRoutePath(path), true, `${path} should be an auth route`);
     }
-    assert.equal(isAuthRoutePath("/dashboard/buyer"), false);
+    assert.equal(isAuthRoutePath("/buyer"), false);
   });
 
   it("strips only the one-time verifier parameter", () => {
@@ -290,8 +344,8 @@ describe("route ownership", () => {
 
     assert.equal(pathWithoutVerifierParam(url), "/complete-profile?chat=42");
     assert.equal(
-      pathWithoutVerifierParam(new URL("https://malihub.test/dashboard?neon_auth_session_verifier=s")),
-      "/dashboard"
+      pathWithoutVerifierParam(new URL("https://malihub.test/buyer?neon_auth_session_verifier=s")),
+      "/buyer"
     );
   });
 });

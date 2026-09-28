@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
+import { BUYER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { AuthDivider } from "@/components/auth/auth-divider";
 import { LoginForm } from "@/components/auth/login-form";
 
@@ -25,7 +26,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <GoogleSignInButton next="/dashboard/buyer" />
+      <GoogleSignInButton next={BUYER_DASHBOARD_PATH} />
       <AuthDivider />
       <Suspense fallback={null}>
         <LoginForm />

@@ -75,7 +75,7 @@ export function AccountMenu({ user }: { user: HeaderUser }) {
             </div>
             <div className="my-1 h-px bg-border" />
             <Link
-              href="/dashboard/buyer"
+              href="/buyer"
               role="menuitem"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/90 hover:bg-muted"
@@ -94,7 +94,7 @@ export function AccountMenu({ user }: { user: HeaderUser }) {
             </Link>
             {user.hasSellerProfile && (
               <Link
-                href="/dashboard/seller"
+                href="/seller"
                 role="menuitem"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/90 hover:bg-muted"

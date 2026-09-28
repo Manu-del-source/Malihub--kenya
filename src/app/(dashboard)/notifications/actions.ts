@@ -10,7 +10,7 @@ export async function markNotificationReadAction(notificationId: string): Promis
   if (!user) return { success: false, error: "Sign in required." };
 
   await markNotificationRead(user.id, notificationId);
-  revalidatePath("/dashboard/notifications");
+  revalidatePath("/notifications");
   return { success: true, data: null };
 }
 
@@ -19,6 +19,6 @@ export async function markAllNotificationsReadAction(): Promise<ApiResult<null>>
   if (!user) return { success: false, error: "Sign in required." };
 
   await markAllNotificationsRead(user.id);
-  revalidatePath("/dashboard/notifications");
+  revalidatePath("/notifications");
   return { success: true, data: null };
 }

@@ -105,18 +105,18 @@ function assertRedirect(
 beforeEach(resetFakes);
 
 describe("signInAction — routing from authoritative application state", () => {
-  it("sends an onboarded buyer to /dashboard/buyer", async () => {
+  it("sends an onboarded buyer to /buyer", async () => {
     seedAppAccount({ onboarded: true, role: "BUYER" });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN), "/buyer");
   });
 
-  it("sends an onboarded seller to /dashboard/seller", async () => {
+  it("sends an onboarded seller to /seller", async () => {
     seedAppAccount({ onboarded: true, role: "SELLER", hasSellerProfile: true });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/seller");
+    assertRedirect(await signInAction(LOGIN), "/seller");
   });
 
   it("bases seller routing on the Seller row, not on the role string", async () => {
@@ -125,7 +125,7 @@ describe("signInAction — routing from authoritative application state", () => 
     seedAppAccount({ onboarded: true, role: "SELLER", hasSellerProfile: false });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN), "/buyer");
   });
 
   it("sends an incomplete profile to /complete-profile", async () => {
@@ -176,14 +176,14 @@ describe("signInAction — no claim cache to keep in sync", () => {
     seedAppAccount({ onboarded: true, role: "SELLER", hasSellerProfile: true });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/seller");
+    assertRedirect(await signInAction(LOGIN), "/seller");
   });
 
   it("reflects a role change on the next sign-in with no cache to invalidate", async () => {
     const userId = seedAppAccount({ onboarded: true, role: "BUYER" });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN), "/buyer");
 
     // An administrator promotes the account; nothing re-mints a token.
     store.tables.users.get(userId)!.role = "ADMIN";
@@ -195,7 +195,7 @@ describe("signInAction — no claim cache to keep in sync", () => {
     });
 
     provider.events.length = 0;
-    assertRedirect(await signInAction(LOGIN), "/dashboard/seller");
+    assertRedirect(await signInAction(LOGIN), "/seller");
     assert.deepEqual(provider.events, ["signIn"]);
   });
 });
@@ -331,7 +331,7 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
     seedAppAccount({ onboarded: true, authUserId: AUTH_USER_ID });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN), "/buyer");
   });
 
   it("does NOT claim a legacy unmapped row by default, and explains why", async () => {
@@ -358,7 +358,7 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
 
     const result = await withLinkFlag("true", () => signInAction(LOGIN));
 
-    assertRedirect(result, "/dashboard/buyer");
+    assertRedirect(result, "/buyer");
     assert.equal(store.tables.users.get(APP_USER_ID)!.authUserId, AUTH_USER_ID);
   });
 
@@ -430,8 +430,8 @@ describe("signInAction — redirect targets", () => {
     const { signInAction } = await loadAction();
 
     assertRedirect(
-      await signInAction(LOGIN, "/dashboard/buyer/wishlist?sort=recent"),
-      "/dashboard/buyer/wishlist?sort=recent"
+      await signInAction(LOGIN, "/buyer/wishlist?sort=recent"),
+      "/buyer/wishlist?sort=recent"
     );
   });
 
@@ -439,7 +439,7 @@ describe("signInAction — redirect targets", () => {
     seedAppAccount({ onboarded: true });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN, "//evil.example/steal-session"), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN, "//evil.example/steal-session"), "/buyer");
   });
 
   it("ignores an absolute external redirectTo", async () => {
@@ -448,7 +448,7 @@ describe("signInAction — redirect targets", () => {
 
     assertRedirect(
       await signInAction(LOGIN, "https://evil.example/steal-session"),
-      "/dashboard/buyer"
+      "/buyer"
     );
   });
 
@@ -456,14 +456,14 @@ describe("signInAction — redirect targets", () => {
     seedAppAccount({ onboarded: true });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN, "/\\evil.example"), "/dashboard/buyer");
+    assertRedirect(await signInAction(LOGIN, "/\\evil.example"), "/buyer");
   });
 
   it("never honours a redirectTo for an account that has not finished onboarding", async () => {
     seedAppAccount({ onboarded: false });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN, "/dashboard/seller"), "/complete-profile");
+    assertRedirect(await signInAction(LOGIN, "/seller"), "/complete-profile");
   });
 });
 

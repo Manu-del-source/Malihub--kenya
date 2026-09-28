@@ -411,11 +411,11 @@ describe("provider adapter — Google OAuth", () => {
     const { neon } = await loadAdapter();
 
     const { data } = await neon.providerSignInWithGoogle({
-      callbackURL: "https://malihub.test/dashboard/buyer",
+      callbackURL: "https://malihub.test/buyer",
     });
 
     assert.ok(
-      data?.url.includes(encodeURIComponent("https://malihub.test/dashboard/buyer")),
+      data?.url.includes(encodeURIComponent("https://malihub.test/buyer")),
       "the return destination must reach the provider"
     );
   });

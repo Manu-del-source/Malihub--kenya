@@ -49,7 +49,7 @@ export async function createListingAction(
   return toResult(async () => {
     const { userId, sellerId } = await requireSeller();
     const product = await createListing(userId, sellerId, parsed.data);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     revalidatePath("/search");
     return { slug: product.slug };
   });
@@ -67,7 +67,7 @@ export async function updateListingAction(
   return toResult(async () => {
     const { userId } = await requireSeller();
     const product = await updateListing(productId, userId, parsed.data);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     revalidatePath(`/products/${product.slug}`);
     return { slug: product.slug };
   });
@@ -77,7 +77,7 @@ export async function deleteListingAction(productId: string): Promise<ApiResult<
   return toResult(async () => {
     const { userId } = await requireSeller();
     await deleteListing(productId, userId);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     return null;
   });
 }
@@ -86,7 +86,7 @@ export async function archiveListingAction(productId: string): Promise<ApiResult
   return toResult(async () => {
     const { userId } = await requireSeller();
     await archiveListing(productId, userId);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     return null;
   });
 }
@@ -95,7 +95,7 @@ export async function unarchiveListingAction(productId: string): Promise<ApiResu
   return toResult(async () => {
     const { userId } = await requireSeller();
     await unarchiveListing(productId, userId);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     return null;
   });
 }
@@ -104,7 +104,7 @@ export async function markListingSoldAction(productId: string): Promise<ApiResul
   return toResult(async () => {
     const { userId } = await requireSeller();
     await markListingSold(productId, userId);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     return null;
   });
 }
@@ -115,7 +115,7 @@ export async function duplicateListingAction(
   return toResult(async () => {
     const { userId } = await requireSeller();
     const duplicate = await duplicateListing(productId, userId);
-    revalidatePath("/dashboard/seller/listings");
+    revalidatePath("/seller/listings");
     return { id: duplicate.id };
   });
 }

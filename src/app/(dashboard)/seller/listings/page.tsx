@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ListingStatusBadge } from "@/components/dashboard/seller/listing-status-badge";
 import { ListingRowActions } from "@/components/dashboard/seller/listing-row-actions";
 import { requireSellerAccess } from "@/lib/auth";
+import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 import { formatKes, timeAgo } from "@/utils";
 
@@ -40,7 +41,7 @@ export default async function SellerListingsPage() {
   const { user } = await requireSellerAccess();
 
   const seller = await prisma.seller.findUnique({ where: { userId: user.id }, select: { id: true } });
-  if (!seller) redirect("/dashboard/buyer");
+  if (!seller) redirect(BUYER_DASHBOARD_PATH);
 
   const listings = await prisma.product.findMany({
     where: { sellerId: seller.id, status: { not: "REMOVED" } },
@@ -58,7 +59,7 @@ export default async function SellerListingsPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/seller/listings/new">
+          <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
             <Plus className="h-4 w-4" aria-hidden />
             New listing
           </Link>
@@ -71,7 +72,7 @@ export default async function SellerListingsPage() {
           title="No listings yet"
           description="Create your first listing to start selling on MaliHub."
           actionLabel="Create a listing"
-          actionHref="/dashboard/seller/listings/new"
+          actionHref={`${SELLER_DASHBOARD_PATH}/listings/new`}
         />
       ) : (
         <div className="glass overflow-hidden rounded-2xl">

@@ -40,6 +40,7 @@ import {
   readOnboardingState,
   type AuthoritativeOnboardingState,
 } from "@/services/auth-service";
+import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import type { ApiResult } from "@/types";
 
 /**
@@ -75,8 +76,10 @@ async function getOrigin(): Promise<string> {
 
 function dashboardFor(state: AuthoritativeOnboardingState): string {
   // Seller-dashboard access is based on the Seller record, matching
-  // middleware and ARCHITECTURE.md §5a. Every role can still buy.
-  return state.hasSellerProfile ? "/dashboard/seller" : "/dashboard/buyer";
+  // ARCHITECTURE.md §5a. Every role can still buy. The public URLs have no
+  // /dashboard segment — `(dashboard)` is a route group, and route-group
+  // parentheses never appear in a URL.
+  return state.hasSellerProfile ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH;
 }
 
 // ─── Sign up ───────────────────────────────────────────────────────────────
@@ -564,7 +567,7 @@ export async function completeProfileAction(
     // the new value from Postgres. There is no stale-claim window to close.
     return {
       success: true,
-      data: { redirectTo: wantsToSell ? "/dashboard/seller" : "/dashboard/buyer" },
+      data: { redirectTo: wantsToSell ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH },
     };
   } catch (error) {
     if (error instanceof AuthServiceError) {

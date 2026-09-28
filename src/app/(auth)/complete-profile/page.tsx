@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { CompleteProfileForm } from "@/components/auth/complete-profile-form";
 import { getAuthContext } from "@/lib/auth";
+import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -41,7 +42,7 @@ export default async function CompleteProfilePage() {
   if (profile?.onboarded) {
     // A profile row only exists for a mapped application user, but TypeScript
     // cannot infer that from `profile` alone.
-    redirect(user?.hasSellerProfile ? "/dashboard/seller" : "/dashboard/buyer");
+    redirect(user?.hasSellerProfile ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH);
   }
 
   return (

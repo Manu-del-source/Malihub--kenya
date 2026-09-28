@@ -264,7 +264,7 @@ describe("requireSellerAccess", () => {
     seedAccount({ role: "SELLER", hasSellerProfile: false });
     const { requireSellerAccess } = await loadAuth();
 
-    assert.equal(await captureRedirect(() => requireSellerAccess()), "/dashboard/buyer");
+    assert.equal(await captureRedirect(() => requireSellerAccess()), "/buyer");
   });
 
   it("grants access to a BUYER-role account that does have a Seller row", async () => {
@@ -288,7 +288,7 @@ describe("requireSellerAccess", () => {
     const { requireSellerAccess } = await loadAuth();
 
     // They are authenticated and welcome — just not here.
-    assert.equal(await captureRedirect(() => requireSellerAccess()), "/dashboard/buyer");
+    assert.equal(await captureRedirect(() => requireSellerAccess()), "/buyer");
   });
 
   it("requires onboarding first", async () => {
@@ -372,7 +372,7 @@ describe("requireRole", () => {
     const { requireRole } = await loadAuth();
 
     assert.equal((await requireRole(["SELLER", "ADMIN"])).user.role, "SELLER");
-    assert.equal(await captureRedirect(() => requireRole(["ADMIN"])), "/dashboard/buyer");
+    assert.equal(await captureRedirect(() => requireRole(["ADMIN"])), "/buyer");
   });
 });
 

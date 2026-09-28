@@ -142,8 +142,27 @@ export function shouldLinkUnmappedAccountsByEmail(env: Env = process.env): boole
 /** Where unauthenticated visitors are sent. Carries `redirectTo` on the way. */
 export const LOGIN_PATH = "/login";
 
+// ─── Canonical dashboard routes ────────────────────────────────────────────
+
+/**
+ * The real public URLs of the dashboard screens, in one place, so redirects
+ * never drift from the filesystem again. `(dashboard)` is a route GROUP: its
+ * parentheses are layout-only and never appear in the URL (see the App Router
+ * tree under `src/app/(dashboard)`).
+ */
+export const BUYER_DASHBOARD_PATH = "/buyer";
+export const SELLER_DASHBOARD_PATH = "/seller";
+export const ADMIN_DASHBOARD_PATH = "/admin";
+
 /**
  * Routes that require an authenticated Neon Auth session.
+ *
+ * These are the real public URLs. The dashboard screens live under the
+ * `(dashboard)` route group, whose parentheses do NOT appear in URLs, so
+ * `/buyer` is served by `src/app/(dashboard)/buyer/page.tsx` — there is no
+ * `/dashboard` URL segment anywhere in the App Router. A previous revision
+ * listed "/dashboard" here and sent middleware-protected redirects to pages
+ * that do not exist (404 after sign-in).
  *
  * The SDK's own `auth.middleware()` protects *everything* except a hard-coded
  * skip list (`/api/auth`, `/auth/sign-in`, `/auth/sign-up`, …) that matches
@@ -152,7 +171,9 @@ export const LOGIN_PATH = "/login";
  * SDK, and this list is that decision.
  */
 export const PROTECTED_PREFIXES = [
-  "/dashboard",
+  "/buyer",
+  "/seller",
+  "/admin",
   "/messages",
   "/notifications",
 ] as const;

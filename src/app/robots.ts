@@ -8,7 +8,11 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard/", "/api/", "/reset-password"],
+        // The dashboard screens live under the (dashboard) route group, so
+        // their public URLs carry no /dashboard segment — /buyer, /seller,
+        // /admin. The trailing slashes keep the public /sellers/[slug]
+        // storefronts crawlable.
+        disallow: ["/buyer/", "/seller/", "/admin", "/api/", "/reset-password"],
       },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,

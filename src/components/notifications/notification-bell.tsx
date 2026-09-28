@@ -93,7 +93,7 @@ export function NotificationBell({ isSignedIn }: { isSignedIn: boolean }) {
             <div className="flex items-center justify-between px-2 py-1.5">
               <p className="text-sm font-medium text-foreground">Notifications</p>
               <Link
-                href="/dashboard/notifications"
+                href="/notifications"
                 onClick={() => setOpen(false)}
                 className="text-xs text-primary-400 hover:underline"
               >

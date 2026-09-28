@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireSellerAccess } from "@/lib/auth";
+import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 import { getSellerStats } from "@/services/listing-service";
 import type { RecentInquiry } from "@/services/listing-service";
@@ -44,7 +45,7 @@ export default async function SellerDashboardPage() {
     where: { userId: user.id },
     select: { businessName: true, verificationStatus: true },
   });
-  if (!seller) redirect("/dashboard/buyer");
+  if (!seller) redirect(BUYER_DASHBOARD_PATH);
 
   const stats = await getSellerStats(user.id);
 
@@ -58,7 +59,7 @@ export default async function SellerDashboardPage() {
           <h1 className="mt-2 font-display text-3xl font-medium">{seller.businessName}</h1>
         </div>
         <Button asChild>
-          <Link href="/dashboard/seller/listings/new">
+          <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
             <Plus className="h-4 w-4" aria-hidden />
             New listing
           </Link>
@@ -80,7 +81,7 @@ export default async function SellerDashboardPage() {
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-medium">Recent inquiries</h2>
-          <Link href="/dashboard/seller/listings" className="text-sm text-primary-400 hover:underline">
+          <Link href={`${SELLER_DASHBOARD_PATH}/listings`} className="text-sm text-primary-400 hover:underline">
             View all listings
           </Link>
         </div>

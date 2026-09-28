@@ -66,7 +66,7 @@ export function ListingForm({
       return;
     }
     toast.success(status === "ACTIVE" ? "Listing published!" : "Draft saved.");
-    router.push("/dashboard/seller/listings");
+    router.push("/seller/listings");
     router.refresh();
   }
 

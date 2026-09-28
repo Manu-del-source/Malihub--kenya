@@ -75,7 +75,7 @@ describe("completeProfileAction — first-time onboarding", () => {
 
     const result = await completeProfileAction(VALID_INPUT);
 
-    assertRedirect(result, "/dashboard/seller");
+    assertRedirect(result, "/seller");
     assert.equal(store.tables.users.size, 1);
     assert.equal(store.tables.profiles.size, 1);
 
@@ -106,7 +106,7 @@ describe("completeProfileAction — first-time onboarding", () => {
 
     const result = await completeProfileAction({ ...VALID_INPUT, accountIntent: "BUYER" });
 
-    assertRedirect(result, "/dashboard/buyer");
+    assertRedirect(result, "/buyer");
     assert.equal(store.tables.sellers.size, 0);
     const user = [...store.tables.users.values()][0]!;
     assert.equal(user.role, "BUYER");

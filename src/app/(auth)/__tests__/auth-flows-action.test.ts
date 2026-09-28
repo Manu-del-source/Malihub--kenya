@@ -403,7 +403,7 @@ describe("verifyEmailWithCodeAction", () => {
 
     const result = await verifyEmailWithCodeAction({ email: EMAIL, code: "424242" });
 
-    assert.equal(result.success && result.data.redirectTo, "/dashboard/seller");
+    assert.equal(result.success && result.data.redirectTo, "/seller");
   });
 
   it("sends somebody to sign in when verification did not establish a session", async () => {
@@ -457,14 +457,14 @@ describe("signInWithGoogleAction", () => {
   it("passes an absolute callbackURL on our own origin", async () => {
     const { signInWithGoogleAction } = await loadAction();
 
-    await assert.rejects(() => signInWithGoogleAction("/dashboard/buyer"));
+    await assert.rejects(() => signInWithGoogleAction("/buyer"));
 
     const [args] = provider.calls.signInWithGoogle![0]!;
     const { callbackURL } = args as { callbackURL: string };
 
     // Must be absolute and on a domain the branch trusts, or the service refuses
     // to return the browser to us after the handshake.
-    assert.equal(callbackURL, "https://malihub.test/dashboard/buyer");
+    assert.equal(callbackURL, "https://malihub.test/buyer");
   });
 
   it("falls back to /complete-profile for an unsafe `next`", async () => {

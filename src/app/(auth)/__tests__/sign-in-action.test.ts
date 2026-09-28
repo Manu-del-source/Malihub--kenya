@@ -311,6 +311,119 @@ describe("signInAction — fails closed", () => {
   });
 });
 
+describe("signInAction — mapping an authenticated identity to a MaliHub account", () => {
+  const OTHER_AUTH_ID = "2b0e6f34-77c1-4a53-9d1e-5a8c3f0d9e12";
+  const GENERIC = /couldn't load your MaliHub account/i;
+
+  async function withLinkFlag<T>(value: string | undefined, run: () => Promise<T>): Promise<T> {
+    const previous = process.env.MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL;
+    if (value === undefined) delete process.env.MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL;
+    else process.env.MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL = value;
+    try {
+      return await run();
+    } finally {
+      if (previous === undefined) delete process.env.MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL;
+      else process.env.MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL = previous;
+    }
+  }
+
+  it("signs in an account already mapped to this identity", async () => {
+    seedAppAccount({ onboarded: true, authUserId: AUTH_USER_ID });
+    const { signInAction } = await loadAction();
+
+    assertRedirect(await signInAction(LOGIN), "/dashboard/buyer");
+  });
+
+  it("does NOT claim a legacy unmapped row by default, and explains why", async () => {
+    // The production shape once the column exists: a legacy row, NULL mapping,
+    // and a brand-new Neon identity with the same email.
+    seedAppAccount({ onboarded: true, authUserId: null });
+    const { signInAction } = await loadAction();
+
+    const result = await withLinkFlag(undefined, () => signInAction(LOGIN));
+
+    assert.equal(result.success, false);
+    assert.match(
+      result.success ? "" : result.error,
+      /hasn't been moved to the new sign-in system/i,
+      "the migration copy written for this case reaches the person"
+    );
+    assert.equal(store.tables.users.get(APP_USER_ID)!.authUserId, null, "row left unclaimed");
+    assert.ok(provider.events.includes("signOut"), "the session is not kept");
+  });
+
+  it("claims a legacy unmapped row only when the migration flag is on", async () => {
+    seedAppAccount({ onboarded: true, authUserId: null });
+    const { signInAction } = await loadAction();
+
+    const result = await withLinkFlag("true", () => signInAction(LOGIN));
+
+    assertRedirect(result, "/dashboard/buyer");
+    assert.equal(store.tables.users.get(APP_USER_ID)!.authUserId, AUTH_USER_ID);
+  });
+
+  it("never claims or overwrites a row mapped to a different identity — even with the flag on", async () => {
+    seedAppAccount({ onboarded: true, authUserId: OTHER_AUTH_ID });
+    const { signInAction } = await loadAction();
+
+    const result = await withLinkFlag("true", () => signInAction(LOGIN));
+
+    assert.equal(result.success, false);
+    assert.match(result.success ? "" : result.error, GENERIC, "conflict detail is not shown");
+    assert.equal(store.tables.users.get(APP_USER_ID)!.authUserId, OTHER_AUTH_ID, "mapping untouched");
+    assert.equal(store.tables.users.size, 1, "no duplicate account created");
+    assert.ok(provider.events.includes("signOut"));
+  });
+
+  it("provisions a new application account when nothing exists for the identity", async () => {
+    const { signInAction } = await loadAction();
+
+    const result = await signInAction(LOGIN);
+
+    // A brand-new account has not onboarded, so it goes to /complete-profile.
+    assertRedirect(result, "/complete-profile");
+    assert.equal([...store.tables.users.values()][0]?.authUserId, AUTH_USER_ID);
+  });
+
+  it("does not report a schema/database error as a missing account, and logs the real cause", async () => {
+    // Production incident: `users.auth_user_id` did not exist, so every lookup by
+    // authUserId threw. That must not read as "no account" (which would create
+    // one) and must leave a diagnosable server log.
+    seedAppAccount({ onboarded: true });
+    const original = store.user.findUnique;
+    store.user.findUnique = async (args: { where: { id?: string; authUserId?: string } }) => {
+      if (args.where.authUserId) {
+        throw new Error("The column `users.auth_user_id` does not exist in the current database.");
+      }
+      return original(args);
+    };
+    const logged: unknown[][] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => void logged.push(args);
+    const { signInAction } = await loadAction();
+
+    try {
+      const result = await signInAction(LOGIN);
+
+      assert.equal(result.success, false);
+      assert.match(result.success ? "" : result.error, GENERIC);
+      assert.doesNotMatch(result.success ? "" : result.error, /auth_user_id|column/i, "no internals shown");
+      assert.equal(store.tables.users.size, 1, "an outage must not create an account");
+      assert.ok(provider.events.includes("signOut"));
+
+      const provisioningLog = logged.find(
+        (args) => typeof args[0] === "string" && args[0].includes("Failed to provision application rows")
+      );
+      assert.ok(provisioningLog, "the provisioning failure is logged server-side");
+      assert.match(JSON.stringify(provisioningLog), /auth_user_id/, "log keeps the underlying cause");
+      assert.doesNotMatch(JSON.stringify(logged), /Password1/, "the password is never logged");
+    } finally {
+      console.error = originalError;
+      store.user.findUnique = original;
+    }
+  });
+});
+
 describe("signInAction — redirect targets", () => {
   it("honours a safe internal redirectTo", async () => {
     seedAppAccount({ onboarded: true });

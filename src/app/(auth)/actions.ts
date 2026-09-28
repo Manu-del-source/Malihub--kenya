@@ -179,9 +179,20 @@ export async function signInAction(
     // maps to this identity. Without it we cannot read onboarding state, and
     // guessing would be exactly the fail-open the old code avoided.
     await clearSessionBestEffort(identity.authUserId, "missing application user");
+    // A legacy row that has not been moved to the new sign-in system is an
+    // expected, explainable state — `resolveApplicationUserId` already wrote the
+    // copy for it, and swallowing it left people with a message that gave
+    // support nothing to go on. Every other cause (database error, schema
+    // drift, an email held by a different identity) stays generic here; the
+    // underlying error is logged by `provisionUserRows`.
+    const explainable =
+      provisioning.error instanceof AuthServiceError &&
+      provisioning.error.reason === "legacy_unmapped";
     return {
       success: false,
-      error: "We couldn't load your MaliHub account. Please contact support.",
+      error: explainable
+        ? provisioning.error!.message
+        : "We couldn't load your MaliHub account. Please contact support.",
     };
   }
 

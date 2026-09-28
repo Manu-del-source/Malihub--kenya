@@ -11,9 +11,16 @@ import { FormField } from "@/components/auth/form-field";
 import { Input } from "@/components/ui/input";
 import {
   resendVerificationAction,
+  sendVerificationCodeAction,
   verifyEmailWithCodeAction,
 } from "@/app/(auth)/actions";
 import { verifyEmailCodeSchema, type VerifyEmailCodeInput } from "@/lib/validations/auth";
+import {
+  runResendLink,
+  runSendCode,
+  type SendOutcome,
+  type VerificationMode,
+} from "@/components/auth/verify-email-flow";
 
 /**
  * Email verification, with BOTH paths the auth service can offer.
@@ -32,9 +39,7 @@ import { verifyEmailCodeSchema, type VerifyEmailCodeInput } from "@/lib/validati
  * not asked to type a code they were never given.
  */
 
-const COOLDOWN_SECONDS = 45;
-
-type Mode = "link" | "code";
+type Mode = VerificationMode;
 
 export function VerifyEmailPanel({ email }: { email: string }) {
   const router = useRouter();
@@ -57,42 +62,31 @@ export function VerifyEmailPanel({ email }: { email: string }) {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  /**
-   * Asks for a verification message and switches to whichever path the service
-   * actually fulfilled. Shared by the resend button and "enter a code instead",
-   * because both need the same answer: link, or code?
-   */
-  async function requestVerification(preferCode: boolean) {
+  function applyOutcome(outcome: SendOutcome) {
+    if (!outcome.ok) {
+      // Stay on the current screen: nothing was sent, so do not pretend it was.
+      toast.error(outcome.error);
+      return;
+    }
+    setCooldown(outcome.cooldown);
+    setMode(outcome.mode);
+    toast.success(outcome.message);
+  }
+
+  /** "Resend verification email" — a link operation. */
+  async function requestLink() {
     setIsSending(true);
-    const result = await resendVerificationAction(email);
+    const outcome = await runResendLink(resendVerificationAction, email);
     setIsSending(false);
+    applyOutcome(outcome);
+  }
 
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    setCooldown(COOLDOWN_SECONDS);
-
-    if (result.data.method === "code") {
-      // Links are not enabled on this branch, so showing "click the link in your
-      // email" would leave the person waiting for something that was never sent.
-      setMode("code");
-      toast.success("We sent a 6-digit code to your email.");
-      return;
-    }
-
-    if (preferCode) {
-      // They asked for a code and the service sent a link instead. Say so rather
-      // than silently switching the screen to an input box for a code that does
-      // not exist.
-      toast.success("We sent a verification link instead — check your inbox.");
-      setMode("link");
-      return;
-    }
-
-    setMode("link");
-    toast.success("Verification email resent.");
+  /** "Enter a code instead" / "Resend code" — a code operation, never a link. */
+  async function requestCode() {
+    setIsSending(true);
+    const outcome = await runSendCode(sendVerificationCodeAction, email);
+    setIsSending(false);
+    applyOutcome(outcome);
   }
 
   async function onSubmit(input: VerifyEmailCodeInput) {
@@ -146,7 +140,7 @@ export function VerifyEmailPanel({ email }: { email: string }) {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => void requestVerification(false)}
+            onClick={() => void requestCode()}
             disabled={isSending || cooldown > 0}
             className="w-full"
           >
@@ -182,7 +176,7 @@ export function VerifyEmailPanel({ email }: { email: string }) {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => void requestVerification(false)}
+          onClick={() => void requestLink()}
           disabled={isSending || cooldown > 0}
           className="w-full"
         >
@@ -194,8 +188,8 @@ export function VerifyEmailPanel({ email }: { email: string }) {
         </Button>
         <button
           type="button"
-          onClick={() => void requestVerification(true)}
-          disabled={isSending}
+          onClick={() => void requestCode()}
+          disabled={isSending || cooldown > 0}
           className="text-center text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
         >
           Didn&rsquo;t get a link? Enter a code instead

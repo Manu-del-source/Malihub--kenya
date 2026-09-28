@@ -427,6 +427,37 @@ export async function resendVerificationAction(
 }
 
 /**
+ * Sends a numeric verification CODE, and only a code.
+ *
+ * This is the action behind "Didn't get a link? Enter a code instead" and
+ * "Resend code". It deliberately does NOT go through `resendVerificationAction`:
+ * that action asks for a LINK first and only falls back to a code when links are
+ * disabled, so on a branch with links enabled it would send another link and the
+ * person would be switched to a code box for a code that was never issued.
+ *
+ * Failures return the normalized `AuthFailure` message (rate limit, outage,
+ * unknown address) — never the raw provider error — and the caller must stay on
+ * the link screen when this fails.
+ */
+export async function sendVerificationCodeAction(email: string): Promise<ApiResult<true>> {
+  const parsed = forgotPasswordSchema.safeParse({ email });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Enter a valid email address",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { failure } = await providerSendVerificationCode({ email: parsed.data.email });
+  if (failure) {
+    return { success: false, error: failure.message };
+  }
+
+  return { success: true, data: true };
+}
+
+/**
  * Verifies an address with a numeric code — the fallback half of the
  * verification flow, used when the branch has no custom email provider.
  *

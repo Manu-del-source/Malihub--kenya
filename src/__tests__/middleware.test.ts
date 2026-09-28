@@ -116,8 +116,8 @@ describe("middleware — route ownership", () => {
     const fn = await loadMiddleware();
 
     for (const path of [
-      "/dashboard/buyer",
-      "/dashboard/seller/listings",
+      "/buyer",
+      "/seller/listings",
       "/messages",
       "/messages/abc123",
       "/notifications",
@@ -131,9 +131,13 @@ describe("middleware — route ownership", () => {
   it("does not treat a lookalike prefix as protected", async () => {
     const fn = await loadMiddleware();
 
-    // `/dashboarding` shares a string prefix with `/dashboard` but is not the
-    // same route segment; matching it would be a (harmless but wrong) overreach.
-    await fn(requestFor("/dashboarding"));
+    // Lookalikes share a string prefix with a protected route but are not the
+    // same segment; matching them would be a (harmless but wrong) overreach.
+    // `/sellers/…` is the PUBLIC seller storefront and must stay public even
+    // though it shares its first letters with the protected `/seller`.
+    await fn(requestFor("/buyers"));
+    await fn(requestFor("/sellers/organic-farm-ke"));
+    await fn(requestFor("/seller-portal"));
     await fn(requestFor("/messages-archive"));
 
     assert.equal(handlerCalls, 0);
@@ -145,17 +149,17 @@ describe("middleware — authentication decisions", () => {
     behaviour = { kind: "no-session" };
     const fn = await loadMiddleware();
 
-    const response = await fn(requestFor("/dashboard/buyer"));
+    const response = await fn(requestFor("/buyer"));
 
     assert.equal(response.status, 307);
-    assert.match(locationOf(response), /\/login\?redirectTo=%2Fdashboard%2Fbuyer$/);
+    assert.match(locationOf(response), /\/login\?redirectTo=%2Fbuyer$/);
   });
 
   it("passes a protected request through when a session is valid", async () => {
     behaviour = { kind: "pass" };
     const fn = await loadMiddleware();
 
-    const response = await fn(requestFor("/dashboard/seller"));
+    const response = await fn(requestFor("/seller"));
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-middleware-next"), "1");
@@ -169,8 +173,8 @@ describe("middleware — authentication decisions", () => {
     behaviour = { kind: "pass" };
     const fn = await loadMiddleware();
 
-    const seller = await fn(requestFor("/dashboard/seller"));
-    const buyer = await fn(requestFor("/dashboard/buyer"));
+    const seller = await fn(requestFor("/seller"));
+    const buyer = await fn(requestFor("/buyer"));
 
     assert.equal(seller.status, 200);
     assert.equal(buyer.status, 200);
@@ -211,13 +215,13 @@ describe("middleware — OAuth and emailed-link returns", () => {
     behaviour = { kind: "no-session" };
     const fn = await loadMiddleware();
 
-    await fn(requestFor("/dashboard/buyer?neon_auth_session_verifier=one-time-value"));
+    await fn(requestFor("/buyer?neon_auth_session_verifier=one-time-value"));
 
     assert.equal(loginUrlsSeen.length, 1);
     const loginUrl = new URL(loginUrlsSeen[0]!, "https://malihub.test");
     const redirectTo = loginUrl.searchParams.get("redirectTo");
 
-    assert.equal(redirectTo, "/dashboard/buyer");
+    assert.equal(redirectTo, "/buyer");
     assert.ok(
       !redirectTo?.includes("neon_auth_session_verifier"),
       "a one-time credential must never be persisted into a redirect target"
@@ -241,7 +245,7 @@ describe("middleware — fails closed", () => {
     configured = false;
     const fn = await loadMiddleware();
 
-    const response = await fn(requestFor("/dashboard/buyer"));
+    const response = await fn(requestFor("/buyer"));
 
     // A redirect rather than a throw: /login still renders and the auth actions
     // report the misconfiguration, instead of every dashboard URL returning an
@@ -269,10 +273,10 @@ describe("middleware — fails closed", () => {
     behaviour = { kind: "throw" };
     const fn = await loadMiddleware();
 
-    const response = await fn(requestFor("/dashboard/seller"));
+    const response = await fn(requestFor("/seller"));
 
     assert.equal(response.status, 307);
-    assert.match(locationOf(response), /\/login\?redirectTo=%2Fdashboard%2Fseller$/);
+    assert.match(locationOf(response), /\/login\?redirectTo=%2Fseller$/);
   });
 
   it("does not throw out of the edge runtime when the SDK throws on an auth return", async () => {
@@ -295,8 +299,8 @@ describe("middleware — open-redirect protection", () => {
     // forms are the ones that have historically slipped through a naive
     // `startsWith("/")` check.
     for (const crafted of [
-      "/dashboard/buyer%2F%2Fevil.example",
-      "/dashboard/..%2F..%2Fevil.example",
+      "/buyer%2F%2Fevil.example",
+      "/seller/..%2F..%2Fevil.example",
     ]) {
       await fn(requestFor(crafted));
     }
@@ -304,7 +308,9 @@ describe("middleware — open-redirect protection", () => {
     for (const seen of loginUrlsSeen) {
       const redirectTo = new URL(seen, "https://malihub.test").searchParams.get("redirectTo") ?? "";
       assert.ok(
-        !redirectTo.includes("evil.example") || redirectTo.startsWith("/dashboard/"),
+        !redirectTo.includes("evil.example") ||
+          redirectTo.startsWith("/buyer") ||
+          redirectTo.startsWith("/seller"),
         `unexpected redirectTo: ${redirectTo}`
       );
       assert.ok(!redirectTo.startsWith("//"), `protocol-relative redirectTo: ${redirectTo}`);
@@ -315,7 +321,7 @@ describe("middleware — open-redirect protection", () => {
     behaviour = { kind: "no-session" };
     const fn = await loadMiddleware();
 
-    await fn(requestFor("/dashboard/buyer"));
+    await fn(requestFor("/buyer"));
 
     const location = new URL(locationOf(await fn(requestFor("/messages"))));
     assert.equal(location.origin, "https://malihub.test");

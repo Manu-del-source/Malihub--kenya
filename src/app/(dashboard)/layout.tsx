@@ -3,6 +3,11 @@ import { LogOut } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
+import {
+  ADMIN_DASHBOARD_PATH,
+  BUYER_DASHBOARD_PATH,
+  SELLER_DASHBOARD_PATH,
+} from "@/lib/auth/config";
 import { signOutAction } from "@/app/(auth)/actions";
 
 /**
@@ -50,16 +55,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <Link href="/messages" className="transition-colors hover:text-foreground">
               Messages
             </Link>
-            <Link href="/dashboard/buyer" className="transition-colors hover:text-foreground">
+            <Link href={BUYER_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
               Buyer
             </Link>
             {hasSellerProfile && (
-              <Link href="/dashboard/seller" className="transition-colors hover:text-foreground">
+              <Link href={SELLER_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
                 Seller
               </Link>
             )}
             {isAdmin && (
-              <Link href="/dashboard/admin" className="transition-colors hover:text-foreground">
+              <Link href={ADMIN_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
                 Admin
               </Link>
             )}

@@ -113,7 +113,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                 {user ? (
                   <>
                     <Button variant="secondary" size="sm" asChild className="flex-1">
-                      <Link href="/dashboard/buyer" onClick={() => setMobileOpen(false)}>
+                      <Link href="/buyer" onClick={() => setMobileOpen(false)}>
                         Dashboard
                       </Link>
                     </Button>

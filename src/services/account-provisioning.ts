@@ -39,10 +39,20 @@ import type { CompleteProfileInput } from "@/lib/validations/auth";
  * provisioning, idempotently, against whatever `DATABASE_URL` points at.
  */
 
+export type AuthServiceErrorReason = "legacy_unmapped" | "email_in_use";
+
 export class AuthServiceError extends Error {
-  constructor(message: string) {
+  /**
+   * Machine-readable cause for the few conflicts a caller may explain to the
+   * person, so callers never have to match on message text. Absent for plain
+   * user-fixable validation errors.
+   */
+  readonly reason?: AuthServiceErrorReason;
+
+  constructor(message: string, reason?: AuthServiceErrorReason) {
     super(message);
     this.name = "AuthServiceError";
+    this.reason = reason;
   }
 }
 
@@ -288,11 +298,15 @@ export async function resolveApplicationUserId(
       return { ...byEmail, authUserId: identity.authUserId };
     }
 
-    throw new AuthServiceError(
-      byEmail.authUserId === null
-        ? "That email is already linked to a MaliHub account that hasn't been moved to the new sign-in system yet. Please contact support."
-        : "An account with that email already exists. Try signing in instead."
-    );
+    throw byEmail.authUserId === null
+      ? new AuthServiceError(
+          "That email is already linked to a MaliHub account that hasn't been moved to the new sign-in system yet. Please contact support.",
+          "legacy_unmapped"
+        )
+      : new AuthServiceError(
+          "An account with that email already exists. Try signing in instead.",
+          "email_in_use"
+        );
   }
 
   const created = (await db.user.create({

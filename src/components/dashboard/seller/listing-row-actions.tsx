@@ -55,7 +55,7 @@ export function ListingRowActions({ productId, status }: { productId: string; st
           />
           <div className="glass absolute right-0 top-full z-20 mt-1 w-44 rounded-xl p-1.5">
             <Link
-              href={`/dashboard/seller/listings/${productId}/edit`}
+              href={`/seller/listings/${productId}/edit`}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/90 hover:bg-muted"
               onClick={() => setOpen(false)}
             >

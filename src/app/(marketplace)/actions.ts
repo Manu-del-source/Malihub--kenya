@@ -24,7 +24,7 @@ export async function toggleFavoriteAction(
 
   try {
     const result = await toggleFavorite(user.id, productId);
-    revalidatePath("/dashboard/buyer/wishlist");
+    revalidatePath("/buyer/wishlist");
     return { success: true, data: result };
   } catch (error) {
     if (error instanceof ListingServiceError) {

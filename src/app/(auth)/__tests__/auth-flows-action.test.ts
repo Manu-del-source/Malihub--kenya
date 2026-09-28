@@ -228,6 +228,15 @@ describe("resendVerificationAction — link first, code as the fallback", () => 
     );
   });
 
+  it("stays a link operation: never sends a code when links work", async () => {
+    provider.verificationLinksEnabled = true;
+    const { resendVerificationAction } = await loadAction();
+
+    await resendVerificationAction(EMAIL);
+
+    assert.deepEqual(provider.events, ["sendVerificationEmail"]);
+  });
+
   it("falls back to a verification CODE when links are not enabled", async () => {
     // The shared email provider — available immediately, before anybody
     // configures a custom one — supports codes but not links.
@@ -296,6 +305,53 @@ describe("resendVerificationAction — link first, code as the fallback", () => 
   });
 });
 
+describe("sendVerificationCodeAction — the explicit \"enter a code\" path", () => {
+  it("requests a CODE from the provider even when links are enabled", async () => {
+    // The original bug: with links enabled, "Enter a code instead" went through
+    // the link-first action, so a link was sent and no code ever existed.
+    provider.verificationLinksEnabled = true;
+    const { sendVerificationCodeAction } = await loadAction();
+
+    const result = await sendVerificationCodeAction(EMAIL);
+
+    assert.equal(result.success, true, result.success ? "" : result.error);
+    assert.deepEqual(provider.events, ["sendVerificationCode"]);
+    assert.deepEqual(provider.calls.sendVerificationCode, [[{ email: EMAIL }]]);
+    assert.equal(provider.verificationCodes.get(EMAIL), "424242");
+  });
+
+  it("never asks the provider for a verification link", async () => {
+    const { sendVerificationCodeAction } = await loadAction();
+
+    await sendVerificationCodeAction(EMAIL);
+
+    assert.ok(!provider.events.includes("sendVerificationEmail"));
+  });
+
+  it("returns the normalized failure message, not the provider's, when sending fails", async () => {
+    provider.failWith.sendVerificationCode = {
+      code: "rate_limited",
+      message: "Too many requests. Please wait a moment and try again.",
+      status: 429,
+    };
+    const { sendVerificationCodeAction } = await loadAction();
+
+    const result = await sendVerificationCodeAction(EMAIL);
+
+    assert.equal(result.success, false);
+    assert.match(result.success ? "" : result.error, /too many requests/i);
+  });
+
+  it("rejects a malformed address without contacting the provider", async () => {
+    const { sendVerificationCodeAction } = await loadAction();
+
+    const result = await sendVerificationCodeAction("not-an-email");
+
+    assert.equal(result.success, false);
+    assert.deepEqual(provider.events, []);
+  });
+});
+
 describe("verifyEmailWithCodeAction", () => {
   it("verifies a correct code and routes a signed-in person onward", async () => {
     provider.verificationCodes.set(EMAIL, "424242");
@@ -307,6 +363,15 @@ describe("verifyEmailWithCodeAction", () => {
     // Verification auto-signs-in by provider default, and this identity has no
     // application row yet — so onboarding is the next step, not the dashboard.
     assert.equal(result.success && result.data.redirectTo, "/complete-profile");
+  });
+
+  it("hands the supplied email and code to providerVerifyEmailWithCode", async () => {
+    provider.verificationCodes.set(EMAIL, "424242");
+    const { verifyEmailWithCodeAction } = await loadAction();
+
+    await verifyEmailWithCodeAction({ email: EMAIL, code: "424242" });
+
+    assert.deepEqual(provider.calls.verifyEmailWithCode, [[{ email: EMAIL, otp: "424242" }]]);
   });
 
   it("routes a verified, onboarded seller to the seller dashboard", async () => {

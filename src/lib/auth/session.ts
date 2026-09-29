@@ -243,6 +243,38 @@ export async function requireOnboardedActionUser(): Promise<ActionAuth> {
   return result;
 }
 
+/**
+ * {@link requireActionUser} plus an administrator role — the answering guard
+ * every `/admin` Server Action must start with.
+ *
+ * A Server Action is a network-callable endpoint: the framework's origin
+ * check stops cross-site *forms*, but a same-origin attacker (any compromised
+ * or malicious browser session) can invoke it directly with arbitrary
+ * arguments. So every admin mutation re-derives the actor from the session
+ * and re-checks the role against MaliHub's own `users.role` column — never a
+ * client-supplied role, never an id from the request body, and never relying
+ * on the page-level guard that protected the *rendering* of the button.
+ *
+ * Behavior mirrors `requireAdministrator()` (the redirecting guard) in
+ * result form, including that both ADMIN and SUPER_ADMIN qualify — a role
+ * change takes effect on the next call because this reads the same row the
+ * admin UI would write.
+ */
+export async function requireAdministratorAction(): Promise<ActionAuth> {
+  const result = await requireActionUser();
+  if (!result.ok) return result;
+
+  if (!isAdministratorRole(result.user.role)) {
+    return {
+      ok: false,
+      error: "Administrator access is required.",
+      failure: authFailure("unknown", "Administrator access is required."),
+    };
+  }
+
+  return result;
+}
+
 // ─── Redirecting guards (Server Components, layouts, pages) ────────────────
 
 /**

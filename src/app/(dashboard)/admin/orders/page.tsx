@@ -20,7 +20,8 @@ import {
 /**
  * `/admin/orders` — order oversight, deliberately read-only.
  *
- * The order lifecycle (`PENDING → CONFIRMED → PAID → …`) is driven by the
+ * The order lifecycle (`PENDING → PAID → SHIPPED → DELIVERED → COMPLETED`, plus
+ * `PENDING → CANCELLED`) is driven by the
  * checkout and payment boundaries (`src/services/order-service.ts`, the
  * FastAPI payment layer). That architecture does NOT define a safe
  * administrative transition — letting an admin flip statuses by hand would

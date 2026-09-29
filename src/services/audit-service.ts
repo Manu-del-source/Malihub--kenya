@@ -29,7 +29,17 @@ export type AuditAction =
   | "user.role_changed"
   | "admin.category_created"
   | "admin.category_updated"
-  | "admin.category_deleted";
+  | "admin.category_deleted"
+  // ─── Order lifecycle (Phase 9.1) ───────────────────────────────────────────
+  // Every `Order.status` change goes through `order-transition-service.ts`, and
+  // each of these records one. They were added because the transition service
+  // was: without them, "who moved this order, and from what state?" has no
+  // answer for any order that has ever been cancelled, paid, or fulfilled.
+  | "order.paid"
+  | "order.cancelled"
+  | "order.shipped"
+  | "order.delivered"
+  | "order.completed";
 
 export async function logAuditEvent(params: {
   action: AuditAction;

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBuyerOrder } from "@/services/order-service";
+import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 
@@ -126,9 +127,14 @@ export default async function BuyerOrderDetailPage({
                 : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
             </p>
             {order.status === "PENDING" && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                You won&apos;t be charged until payment is set up for this order.
-              </p>
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  You won&apos;t be charged until payment is set up for this order.
+                </p>
+                <div className="mt-4">
+                  <CancelOrderButton orderId={order.id} />
+                </div>
+              </>
             )}
           </div>
 

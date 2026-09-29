@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
@@ -16,27 +16,41 @@ import "./globals.css";
  *   cleanly at small sizes for nav, buttons, form labels, and body copy.
  * - JetBrains Mono (data) — tabular figures for prices and stat counters,
  *   so numbers align and feel deliberately "data-like" rather than prose.
+ *
+ * The fonts are self-hosted (src/app/fonts, see the README there) rather than
+ * loaded through next/font/google. That loader downloads from Google at build
+ * time and crashes (`Cannot read properties of null (reading '1')`) whenever
+ * Google answers with an extensionless /l/font?kit= URL — an intermittent
+ * upstream failure (vercel/next.js#99114) that broke production builds.
+ * Do not switch these back to next/font/google.
  */
-const fraunces = Fraunces({
-  subsets: ["latin"],
+const fraunces = localFont({
+  src: "./fonts/fraunces-latin-variable.woff2",
   variable: "--font-display",
   display: "swap",
-  // Variable-axis fonts (opsz/SOFT/WONK below) must leave `weight` unset —
-  // next/font rejects combining a fixed weight array with axes.
-  axes: ["opsz", "SOFT", "WONK"],
+  // Full variable file: wght 100–900 plus opsz 9–144, SOFT 0–100, WONK 0–1.
+  // opsz tracks font size automatically (font-optical-sizing: auto). No CSS
+  // sets font-variation-settings, so SOFT and WONK stay at the font's defaults.
+  weight: "100 900",
+  style: "normal",
+  adjustFontFallback: "Times New Roman",
 });
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const plusJakarta = localFont({
+  src: "./fonts/plus-jakarta-sans-latin-variable.woff2",
   variable: "--font-sans",
   display: "swap",
+  weight: "200 800",
+  style: "normal",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: "./fonts/jetbrains-mono-latin-variable.woff2",
   variable: "--font-mono",
   display: "swap",
-  weight: ["400", "500"],
+  // Variable file (100–800) clamped to the two weights previously requested.
+  weight: "400 500",
+  style: "normal",
 });
 
 export const metadata: Metadata = {

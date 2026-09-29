@@ -648,7 +648,7 @@ export async function markOrderFulfilled(
  * notify, and that must not fail an already-committed transition.
  */
 async function resolveSellerUserId(
-  tx: { seller: { findUnique: (args: unknown) => Promise<{ userId: string } | null> } },
+  tx: Pick<Prisma.TransactionClient, "seller">,
   sellerId: string
 ): Promise<string | null> {
   const seller = await tx.seller.findUnique({

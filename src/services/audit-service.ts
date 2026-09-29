@@ -19,11 +19,17 @@ export type AuditAction =
   | "moderation.listing_suspended"
   | "moderation.listing_approved"
   | "moderation.listing_rejected"
+  | "moderation.listing_restored"
+  | "moderation.seller_verified"
+  | "moderation.seller_rejected"
   | "moderation.user_suspended"
   | "moderation.user_banned"
   | "moderation.report_resolved"
   | "user.blocked_another_user"
-  | "user.role_changed";
+  | "user.role_changed"
+  | "admin.category_created"
+  | "admin.category_updated"
+  | "admin.category_deleted";
 
 export async function logAuditEvent(params: {
   action: AuditAction;

@@ -35,6 +35,7 @@ export {
   requireActionUser,
   requireActionIdentity,
   requireOnboardedActionUser,
+  requireAdministratorAction,
   requireUser,
   requireOnboardedUser,
   requireRole,

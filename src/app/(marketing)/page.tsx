@@ -35,7 +35,7 @@ const jsonLd = {
       url: APP_URL,
       potentialAction: {
         "@type": "SearchAction",
-        target: `${APP_URL}/search?q={search_term_string}`,
+        target: `${APP_URL}/marketplace?q={search_term_string}`,
         "query-input": "required name=search_term_string",
       },
     },

@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { verifySameOrigin } from "@/lib/csrf";
+import { canViewListing, isPublicListingStatus } from "@/lib/listing-visibility";
 import { listingSchema } from "@/lib/validations/listing";
 import { updateListing, deleteListing, ListingServiceError } from "@/services/listing-service";
 
@@ -15,10 +17,26 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!product) {
     return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
   }
+
+  // Drafts, archived, suspended and removed listings are only visible to
+  // their owner (and administrators) — same shared rule the detail pages
+  // apply (src/lib/listing-visibility.ts). Without this, knowing a listing's
+  // UUID would be enough to read a not-yet-published product — including its
+  // seller — straight out of the API.
+  if (!isPublicListingStatus(product.status)) {
+    const viewer = (await getCurrentUser())?.user;
+    if (!canViewListing(product, viewer)) {
+      return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
+    }
+  }
+
   return NextResponse.json({ success: true, data: product });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = verifySameOrigin(request);
+  if (csrf) return csrf;
+
   const { id } = await params;
   const user = (await getCurrentUser())?.user;
   if (!user) {
@@ -35,6 +53,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    // Ownership is asserted inside updateListing against the *session* user —
+    // the request never names a seller or owner.
     const product = await updateListing(id, user.id, parsed.data);
     return NextResponse.json({ success: true, data: { id: product.id, slug: product.slug } });
   } catch (error) {
@@ -46,7 +66,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrf = verifySameOrigin(request);
+  if (csrf) return csrf;
+
   const { id } = await params;
   const user = (await getCurrentUser())?.user;
   if (!user) {

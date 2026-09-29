@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { verifySameOrigin } from "@/lib/csrf";
 import { toggleFavorite, ListingServiceError } from "@/services/listing-service";
 
 export async function GET() {
@@ -25,6 +26,9 @@ export async function GET() {
 const toggleSchema = z.object({ productId: z.string().uuid() });
 
 export async function POST(request: NextRequest) {
+  const csrf = verifySameOrigin(request);
+  if (csrf) return csrf;
+
   const user = (await getCurrentUser())?.user;
 
   if (!user) {

@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   AuthServiceError,
+  enableSelling,
   ensureUserProvisioned,
   getAuthoritativeOnboardingState,
   readApplicationAccess,
@@ -441,5 +442,65 @@ describe("account provisioning — existing accounts", () => {
     assert.equal(store.tables.users.get(userId)?.phone, null);
     assert.equal(store.tables.profiles.get(userId)?.onboarded, false);
     assert.equal(store.tables.sellers.size, 0, "no Seller row survived the rollback");
+  });
+});
+
+
+describe("enableSelling — post-onboarding seller opt-in", () => {
+  async function seedOnboardedBuyer(role: "BUYER" | "ADMIN" = "BUYER") {
+    const store = createFakeAccountStore();
+    const userId = await ensureUserProvisioned(asStore(store), IDENTITY);
+    await store.user.update({ where: { id: userId }, data: { role } });
+    await store.profile.update({ where: { userId }, data: { onboarded: true } });
+    return { store, userId };
+  }
+
+  it("creates the sellers row and promotes BUYER to SELLER", async () => {
+    const { store, userId } = await seedOnboardedBuyer();
+
+    const result = await enableSelling(asStore(store), userId);
+
+    assert.equal(result.alreadyEnabled, false);
+    assert.ok(result.sellerId);
+    assert.equal(store.tables.sellers.size, 1);
+    const seller = store.tables.sellers.get(userId)!;
+    assert.equal(seller.userId, userId);
+    assert.equal(store.tables.users.get(userId)?.role, "SELLER");
+  });
+
+  it("is idempotent — a second call returns the existing row without writing another", async () => {
+    const { store, userId } = await seedOnboardedBuyer();
+
+    const first = await enableSelling(asStore(store), userId);
+    const second = await enableSelling(asStore(store), userId);
+
+    assert.equal(first.alreadyEnabled, false);
+    assert.equal(second.alreadyEnabled, true);
+    assert.equal(second.sellerId, first.sellerId);
+    assert.equal(store.tables.sellers.size, 1);
+  });
+
+  it("never rewrites a role that is already privileged (ADMIN stays ADMIN)", async () => {
+    const { store, userId } = await seedOnboardedBuyer("ADMIN");
+
+    await enableSelling(asStore(store), userId);
+
+    assert.equal(store.tables.sellers.size, 1);
+    assert.equal(store.tables.users.get(userId)?.role, "ADMIN");
+  });
+
+  it("refuses an account that has not finished onboarding", async () => {
+    const store = createFakeAccountStore();
+    const userId = await ensureUserProvisioned(asStore(store), IDENTITY);
+    // profile exists but onboarded stays false
+
+    await assert.rejects(
+      () => enableSelling(asStore(store), userId),
+      (error: unknown) =>
+        error instanceof AuthServiceError &&
+        error.message === "Finish setting up your profile before you start selling."
+    );
+    assert.equal(store.tables.sellers.size, 0);
+    assert.equal(store.tables.users.get(userId)?.role, "BUYER");
   });
 });

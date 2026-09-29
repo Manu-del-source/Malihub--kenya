@@ -88,7 +88,17 @@ describe("middleware — route ownership", () => {
     behaviour = { kind: "no-session" };
     const fn = await loadMiddleware();
 
-    for (const path of ["/", "/products/iphone-13", "/sellers/yegon", "/login", "/register"]) {
+    for (const path of [
+      "/",
+      "/products/iphone-13",
+      "/sellers/yegon",
+      "/login",
+      "/register",
+      // The canonical marketplace is public browsing — no session needed.
+      "/marketplace",
+      "/marketplace/6b1f3a5e-1111-4222-8333-444455556666",
+      "/search?q=phones",
+    ]) {
       const response = await fn(requestFor(path));
       assert.equal(response.status, 200, `${path} should pass through untouched`);
       assert.equal(
@@ -117,15 +127,20 @@ describe("middleware — route ownership", () => {
 
     for (const path of [
       "/buyer",
+      "/buyer/cart",
+      "/buyer/orders",
       "/seller/listings",
+      "/seller/orders",
       "/messages",
       "/messages/abc123",
       "/notifications",
+      // The shared profile/account area is protected too.
+      "/account",
     ]) {
       await fn(requestFor(path));
     }
 
-    assert.equal(handlerCalls, 5, `expected 5 SDK invocations, saw ${handlerCalls}`);
+    assert.equal(handlerCalls, 9, `expected 9 SDK invocations, saw ${handlerCalls}`);
   });
 
   it("does not treat a lookalike prefix as protected", async () => {

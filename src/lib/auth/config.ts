@@ -176,6 +176,7 @@ export const PROTECTED_PREFIXES = [
   "/admin",
   "/messages",
   "/notifications",
+  "/account",
 ] as const;
 
 /**

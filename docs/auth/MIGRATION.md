@@ -259,13 +259,13 @@ never reach Google.
 
 **Verification (staging, then production)**
 - [ ] Register → `/verify-email` → verify (link **and** code paths) → `/complete-profile` → dashboard
-- [ ] Sign in as buyer → `/dashboard/buyer`; as seller → `/dashboard/seller`
+- [ ] Sign in as buyer → `/buyer`; as seller → `/seller`
 - [ ] Sign out → protected route redirects to `/login?redirectTo=…` → sign in lands back there
 - [ ] Google sign-in from a fresh account and from an existing one
 - [ ] Forgot password → email → `/reset-password?token=…` → new password works, old does not
 - [ ] Expired token (wait 15 min) → "Link expired" card, not a crash
-- [ ] Banned account → redirected away from `/dashboard/*`, and to `/` not `/login`
-- [ ] Non-seller visiting `/seller` → `/dashboard/buyer`
+- [ ] Banned account → redirected away from protected routes, and to `/` not `/login`
+- [ ] Non-seller visiting `/seller` → `/buyer`
 - [ ] Non-admin visiting `/admin` → refused
 - [ ] `//evil.example` as `redirectTo` → falls back to the dashboard
 - [ ] **Fail-closed drill:** unset `NEON_AUTH_BASE_URL`, rebuild → protected routes
@@ -328,7 +328,7 @@ token, which outlives the permission it describes.
   token and re-authenticate, which loops.
 * **Database unreachable, or JWKS unreachable** → `503`. "Cannot answer" must
   never be reported as "you have no account": on the frontend, a cache that
-  could lag the database produced the /dashboard ↔ /complete-profile loop this
+  could lag the database produced the `/buyer` ↔ `/complete-profile` loop this
   migration removes. Both cases fail closed, and both are tested.
 
 ### Rollback

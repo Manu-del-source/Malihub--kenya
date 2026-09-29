@@ -35,7 +35,7 @@ of which MaliHub hit in production:
    `refreshSession()` and hope the response's rotated cookies reach the browser.
 2. **Staleness produces redirect loops.** Middleware reading `onboarded: false`
    from a token that predated a committed profile write bounced the user from
-   `/dashboard/*` back to `/complete-profile`, which saw the profile as complete
+   `/buyer` back to `/complete-profile`, which saw the profile as complete
    and bounced them to the dashboard. This repository fixed that loop twice.
 3. **It cannot be reproduced on Neon Auth.** Managed Better Auth accepts no
    custom Better Auth plugins and exposes no arbitrary claims, so there is nowhere
@@ -153,7 +153,8 @@ Neon Auth session, for the routes that need one.
 ### Route ownership (`config.ts`)
 
 ```
-PROTECTED_PREFIXES   /dashboard   /messages   /notifications
+PROTECTED_PREFIXES   /buyer  /seller  /admin  /messages  /notifications
+                     /account
 AUTH_ROUTE_PREFIXES  /login  /register  /forgot-password  /reset-password
                      /verify-email  /complete-profile
 ```
@@ -245,9 +246,9 @@ Server Action must fail differently.
 |---|---|---|
 | `requireUser()` | session + mapped row + not banned/inactive | `/login`; banned → `/`; unmapped → `/complete-profile` |
 | `requireOnboardedUser()` | the above + `profiles.onboarded` | `/complete-profile` |
-| `requireSellerAccess()` | the above + a `sellers` row **or** admin role | `/dashboard/buyer` |
+| `requireSellerAccess()` | the above + a `sellers` row **or** admin role | `/buyer` |
 | `requireAdministrator()` | the above + `ADMIN`/`SUPER_ADMIN` | `/` |
-| `requireRole(roles)` | the above + role in list | `/dashboard/buyer` |
+| `requireRole(roles)` | the above + role in list | `/buyer` |
 
 A banned account is redirected to `/`, **not** `/login`: the account exists and
 authenticates fine, so bouncing it to the sign-in form is both confusing and a way

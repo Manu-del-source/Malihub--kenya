@@ -146,6 +146,21 @@ export async function getListingBySlug(slug: string) {
   });
 }
 
+/**
+ * Canonical by-id lookup backing `/marketplace/[productId]`. `productId` is a
+ * UUID column, so an id that isn't one is answered with `null` instead of
+ * letting Postgres raise a malformed-UUID error on every probe.
+ */
+export async function getListingById(productId: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
+    return null;
+  }
+  return prisma.product.findUnique({
+    where: { id: productId },
+    include: PRODUCT_INCLUDE,
+  });
+}
+
 export async function getSimilarListings(productId: string, categoryId: string, county: string) {
   return prisma.product.findMany({
     where: {

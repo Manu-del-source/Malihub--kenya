@@ -5,7 +5,6 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
 import {
   ADMIN_DASHBOARD_PATH,
-  BUYER_DASHBOARD_PATH,
   SELLER_DASHBOARD_PATH,
 } from "@/lib/auth/config";
 import { signOutAction } from "@/app/(auth)/actions";
@@ -27,6 +26,71 @@ import { signOutAction } from "@/app/(auth)/actions";
  */
 export const dynamic = "force-dynamic";
 
+type NavItem = { label: string; href: string };
+
+/**
+ * Role-aware navigation.
+ *
+ * Links are built from MaliHub's OWN rows read on this request — never from a
+ * claim — so what a visitor sees always matches what the guards below will
+ * actually allow: seller links appear only for accounts with a `sellers` row
+ * (or an administrator, whom `requireSellerAccess()` lets through for
+ * support), and the admin link only for administrator roles. Hiding a link is
+ * presentation only; every destination still re-checks server-side.
+ */
+function buildNav({
+  hasSellerProfile,
+  isAdmin,
+}: {
+  hasSellerProfile: boolean;
+  isAdmin: boolean;
+}): { primary: NavItem[]; shared: NavItem[] } {
+  const primary: NavItem[] = [
+    { label: "Marketplace", href: "/marketplace" },
+    { label: "Cart", href: "/buyer/cart" },
+    { label: "Wishlist", href: "/buyer/wishlist" },
+  ];
+
+  if (hasSellerProfile || isAdmin) {
+    // Seller operating group — `/seller/*` re-verifies the sellers row on
+    // every request via requireSellerAccess().
+    primary.push(
+      { label: "Dashboard", href: SELLER_DASHBOARD_PATH },
+      { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products` },
+      { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders` },
+      { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` }
+    );
+  } else {
+    // Buyers get their order history directly; sellers reach theirs through
+    // the seller group above (their buyer orders remain on /buyer/orders).
+    primary.push({ label: "Orders", href: "/buyer/orders" });
+  }
+
+  const shared: NavItem[] = [
+    { label: "Profile", href: "/account" },
+    { label: "Messages", href: "/messages" },
+  ];
+  if (isAdmin) shared.push({ label: "Admin", href: ADMIN_DASHBOARD_PATH });
+
+  return { primary, shared };
+}
+
+function NavLinks({ items }: { items: NavItem[] }) {
+  return (
+    <>
+      {items.map((item) => (
+        <Link
+          key={`${item.label}-${item.href}`}
+          href={item.href}
+          className="whitespace-nowrap transition-colors hover:text-foreground"
+        >
+          {item.label}
+        </Link>
+      ))}
+    </>
+  );
+}
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Role and seller access are read from MaliHub's own rows on every request.
   // They used to come from the provider's `app_metadata` JWT claims, which could
@@ -34,13 +98,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // claim to go stale now, so a role change takes effect on the next request.
   const { user } = await requireUser();
 
-  const hasSellerProfile = user.hasSellerProfile;
-  const isAdmin = isAdministratorRole(user.role);
+  const { primary, shared } = buildNav({
+    hasSellerProfile: user.hasSellerProfile,
+    isAdmin: isAdministratorRole(user.role),
+  });
 
   return (
     <div className="min-h-svh">
       <header className="border-b border-border">
-        <Container className="flex items-center justify-between py-4">
+        <Container className="flex items-center justify-between gap-6 py-4">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-medium">
             <span
               aria-hidden
@@ -51,26 +117,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
             MaliHub
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm text-muted-foreground sm:flex" aria-label="Dashboard">
-            <Link href="/messages" className="transition-colors hover:text-foreground">
-              Messages
-            </Link>
-            <Link href={BUYER_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
-              Buyer
-            </Link>
-            {hasSellerProfile && (
-              <Link href={SELLER_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
-                Seller
-              </Link>
-            )}
-            {isAdmin && (
-              <Link href={ADMIN_DASHBOARD_PATH} className="transition-colors hover:text-foreground">
-                Admin
-              </Link>
-            )}
+          <nav
+            className="hidden items-center gap-5 text-sm text-muted-foreground md:flex"
+            aria-label="Dashboard"
+          >
+            <NavLinks items={primary} />
+            <span aria-hidden className="h-4 w-px bg-border" />
+            <NavLinks items={shared} />
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/messages"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground md:hidden"
+            >
+              Messages
+            </Link>
             <NotificationBell isSignedIn />
             <form action={signOutAction}>
               <button
@@ -83,6 +145,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </form>
           </div>
         </Container>
+
+        {/* Mobile: same role-aware links, horizontally scrollable. */}
+        <div className="border-t border-border md:hidden">
+          <Container>
+            <nav
+              className="flex gap-4 overflow-x-auto py-2.5 text-sm text-muted-foreground"
+              aria-label="Dashboard (mobile)"
+            >
+              <NavLinks items={primary} />
+              <NavLinks items={shared} />
+            </nav>
+          </Container>
+        </div>
       </header>
 
       <main>{children}</main>

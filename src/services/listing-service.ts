@@ -240,6 +240,17 @@ export async function recordListingView(productId: string, viewerId: string | nu
 }
 
 export async function toggleFavorite(userId: string, productId: string) {
+  // Resolve the listing first so a forged/stale id fails with a clean 400
+  // instead of a foreign-key error, and the notification below can read the
+  // title without a second lookup.
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { title: true, slug: true, ownerId: true },
+  });
+  if (!product) {
+    throw new ListingServiceError("That listing no longer exists.");
+  }
+
   const existing = await prisma.wishlist.findUnique({
     where: { userId_productId: { userId, productId } },
     select: { id: true },
@@ -260,11 +271,7 @@ export async function toggleFavorite(userId: string, productId: string) {
 
   // Fire-and-forget: notify the listing owner, but never let a
   // notification failure break the favorite action itself.
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-    select: { title: true, slug: true, ownerId: true },
-  });
-  if (product && product.ownerId !== userId) {
+  if (product.ownerId !== userId) {
     notifyUser({
       userId: product.ownerId,
       type: "NEW_FAVORITE",

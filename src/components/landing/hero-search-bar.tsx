@@ -28,7 +28,7 @@ export function HeroSearchBar() {
     if (query.trim()) params.set("q", query.trim());
     if (category) params.set("category", category);
     if (county) params.set("county", county);
-    router.push(`/search?${params.toString()}`);
+    router.push(`/marketplace?${params.toString()}`);
   }
 
   function applySuggestion(term: string) {

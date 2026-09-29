@@ -99,7 +99,7 @@ add an **unsigned** preset, and put its name in
 `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`. The listing-creation image
 uploader (`next-cloudinary`'s widget) uploads directly from the browser
 using this preset — no server-side signing involved, so without it
-"Add photo" on /dashboard/seller/listings/new silently has nothing to
+"Add photo" on /seller/listings/new silently has nothing to
 upload to.
 
 ```bash

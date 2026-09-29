@@ -12,7 +12,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOutAction } from "@/app/(auth)/actions";
 
 const NAV_LINKS = [
-  { label: "Explore", href: "/search" },
+  { label: "Explore", href: "/marketplace" },
   { label: "Categories", href: "/#categories" },
   { label: "How it works", href: "/#why-malihub" },
   { label: "Sell on MaliHub", href: "/#sell" },

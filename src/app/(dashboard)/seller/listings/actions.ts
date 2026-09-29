@@ -51,6 +51,7 @@ export async function createListingAction(
     const product = await createListing(userId, sellerId, parsed.data);
     revalidatePath("/seller/listings");
     revalidatePath("/search");
+    revalidatePath("/marketplace");
     return { slug: product.slug };
   });
 }

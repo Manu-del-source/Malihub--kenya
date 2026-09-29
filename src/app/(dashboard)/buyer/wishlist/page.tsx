@@ -69,7 +69,7 @@ export default async function FavoritesPage() {
           title="No favorites yet"
           description="Tap the heart on any listing to save it here for later."
           actionLabel="Explore listings"
-          actionHref="/search"
+          actionHref="/marketplace"
         />
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

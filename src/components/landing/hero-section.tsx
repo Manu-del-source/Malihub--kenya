@@ -87,7 +87,7 @@ export function HeroSection() {
               </Link>
             </Button>
             <Button size="lg" variant="secondary" asChild>
-              <Link href="/search">Explore marketplace</Link>
+              <Link href="/marketplace">Explore marketplace</Link>
             </Button>
           </motion.div>
         </motion.div>

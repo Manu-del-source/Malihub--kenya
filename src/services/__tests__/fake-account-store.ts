@@ -84,6 +84,8 @@ export type SellerRow = {
   businessName: string;
   slug: string;
   county: string | null;
+  /** Present once created through the store (seeds may omit it). */
+  id?: string;
 };
 
 export type Tables = {
@@ -137,6 +139,7 @@ export type FakeStore = {
       update: ProfileUpdate;
     }): Promise<ProfileRow>;
     update(args: { where: { userId: string }; data: ProfileUpdate }): Promise<ProfileRow>;
+    findUnique(args: { where: { userId: string }; select?: unknown }): Promise<ProfileRow | null>;
   };
   seller: {
     findUnique(args: { where: { userId: string } }): Promise<SellerRow | null>;
@@ -298,15 +301,24 @@ export function createFakeAccountStore(): FakeStore {
         tables.profiles.set(where.userId, merged);
         return merged;
       },
+      async findUnique({ where }) {
+        store.operations.push(`profile.findUnique:${where.userId}`);
+        const existing = tables.profiles.get(where.userId);
+        return existing ? { ...existing } : null;
+      },
     },
     seller: {
       async findUnique({ where }) {
-        return tables.sellers.get(where.userId) ?? null;
+        const row = tables.sellers.get(where.userId);
+        return row ? { ...row } : null;
       },
       async create({ data }) {
         store.operations.push(`seller.create:${data.userId}`);
-        tables.sellers.set(data.userId, { ...data });
-        return { ...data };
+        // `enableSelling` reads `create(...).id`; real Postgres would fill the
+        // uuid default, so the fake mirrors that with a deterministic id.
+        const row: SellerRow = { ...data, id: data.id ?? `seller-${data.userId}` };
+        tables.sellers.set(data.userId, row);
+        return { ...row };
       },
     },
     async $transaction<T>(fn: (tx: FakeStore) => Promise<T>): Promise<T> {

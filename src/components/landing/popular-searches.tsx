@@ -10,7 +10,7 @@ export function PopularSearches() {
       {POPULAR_SEARCHES.map((term) => (
         <Link
           key={term}
-          href={`/search?q=${encodeURIComponent(term)}`}
+          href={`/marketplace?q=${encodeURIComponent(term)}`}
           className="rounded-full border border-border/80 px-3 py-1 text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary-400"
         >
           {term}

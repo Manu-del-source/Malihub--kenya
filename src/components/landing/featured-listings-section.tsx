@@ -22,7 +22,7 @@ export function FeaturedListingsSection() {
             subtitle="A snapshot of what's moving fastest across the marketplace this week."
           />
           <Button variant="outline" asChild className="shrink-0">
-            <Link href="/search">
+            <Link href="/marketplace">
               View all listings
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>

@@ -113,12 +113,12 @@ const { response, user } = await updateSession(request);   // src/lib/supabase/m
 and the response. Everything else in middleware is **claim logic** and would
 survive any identity provider *if* the claims exist:
 
-1. signed-out + `/dashboard/{seller,buyer,admin}` → redirect `/login?redirectTo=…`
+1. signed-out + `/{seller,buyer,admin}` → redirect `/login?redirectTo=…`
 2. `app_metadata.onboarded !== true` → force `/complete-profile` (except an
    exempt list: profile, password reset, verify-email, `/api`)
-3. signed-in + onboarded + an auth route (`/login`, `/register`, …) → `/dashboard/buyer`
-4. `/dashboard/admin` requires `app_metadata.role ∈ {ADMIN, SUPER_ADMIN}`
-5. `/dashboard/seller` requires `app_metadata.has_seller_profile === true` (or admin)
+3. signed-in + onboarded + an auth route (`/login`, `/register`, …) → `/buyer`
+4. `/admin` requires `app_metadata.role ∈ {ADMIN, SUPER_ADMIN}`
+5. `/seller` requires `app_metadata.has_seller_profile === true` (or admin)
 
 So: **the Supabase dependency is the session source; the authorization model is
 `app_metadata`.**

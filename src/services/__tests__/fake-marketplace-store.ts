@@ -111,6 +111,29 @@ export type ProductImageRow = {
 export type CategoryRow = { id: string; name: string; slug: string };
 
 export type ProfileRow = { userId: string; fullName: string; county: string | null };
+export type UserRow = { id: string; email: string; role: string };
+export type AuditLogRow = {
+  id: string;
+  action: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: unknown;
+  ipAddress: string | null;
+  createdAt: Date;
+};
+export type NotificationRow = {
+  id: string;
+  userId: string;
+  type: string;
+  channel: string;
+  title: string;
+  body: string;
+  linkUrl: string | null;
+  isRead: boolean;
+  createdAt: Date;
+};
 
 export type Tables = {
   products: Map<string, ProductRow>;
@@ -122,6 +145,9 @@ export type Tables = {
   orderItems: Map<string, OrderItemRow>;
   sellers: Map<string, SellerRow>;
   profiles: Map<string, ProfileRow>;
+  users: Map<string, UserRow>;
+  auditLogs: Map<string, AuditLogRow>;
+  notifications: Map<string, NotificationRow>;
 };
 
 export type FakeMarketplaceStore = {
@@ -140,6 +166,25 @@ export type FakeMarketplaceStore = {
    * rival's transaction was never ours to undo. Cleared after one fire.
    */
   beforeTransaction: (() => void) | null;
+  /**
+   * One-shot hook that runs the first time an `order` row is READ inside a
+   * transaction, immediately after the read is handed back to the caller.
+   *
+   * This models the harder interleaving for `order-transition-service`: both
+   * requests read `PENDING` and both pass the pure state-machine check, and
+   * only then does a rival transaction commit. Because the mutation happens
+   * after our snapshot, a naive fake would roll the rival's commit back along
+   * with our own writes and the race could never be observed. Anything this
+   * hook writes through `commitOrderStatus` is therefore replayed on rollback,
+   * standing in for a transaction that had already committed.
+   */
+  afterOrderRead: (() => void) | null;
+  /**
+   * Applies a status change that is treated as ALREADY COMMITTED by a rival
+   * transaction: it takes effect immediately and is preserved when the current
+   * transaction rolls back.
+   */
+  commitOrderStatus(orderId: string, status: string): void;
   cartItem: {
     findMany(args?: Args): Promise<unknown[]>;
     findUnique(args: Args): Promise<unknown>;
@@ -161,11 +206,30 @@ export type FakeMarketplaceStore = {
     create(args: Args): Promise<unknown>;
     findMany(args?: Args): Promise<unknown[]>;
     findFirst(args: Args): Promise<unknown>;
+    findUnique(args: Args): Promise<unknown>;
+    update(args: Args): Promise<unknown>;
+    /**
+     * Conditional multi-row update — the primitive `order-transition-service`
+     * uses to CLAIM a transition. Returning `count: 0` when the `where` no
+     * longer matches is what makes a lost race observable to the service, so
+     * it must be a real filtered update and not a blanket write.
+     */
+    updateMany(args: Args): Promise<{ count: number }>;
     count(args?: Args): Promise<number>;
     aggregate(args?: Args): Promise<unknown>;
   };
   orderItem: {
+    findMany(args?: Args): Promise<unknown[]>;
     aggregate(args?: Args): Promise<unknown>;
+  };
+  user: {
+    findUnique(args: Args): Promise<unknown>;
+  };
+  auditLog: {
+    create(args: Args): Promise<unknown>;
+  };
+  notification: {
+    create(args: Args): Promise<unknown>;
   };
   seller: {
     findUnique(args: Args): Promise<unknown>;
@@ -240,6 +304,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     orderItems: new Map(),
     sellers: new Map(),
     profiles: new Map(),
+    users: new Map(),
+    auditLogs: new Map(),
+    notifications: new Map(),
   };
 
   // Rows are mutated in place, so the snapshot must clone every ROW, not just
@@ -264,10 +331,23 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         (map as Map<string, unknown>).set(key, row);
       }
     }
+    // Re-apply writes that stand for a rival transaction which had already
+    // committed by the time ours started rolling back. Without this, a
+    // concurrent cancel could never be observed: our rollback would erase the
+    // competitor's win and the test would pass for the wrong reason.
+    for (const committed of committedWrites) {
+      const table = tables[committed.table] as Map<string, unknown>;
+      const row = table.get(committed.id);
+      if (row) Object.assign(row, committed.row);
+    }
   };
 
   const sellerByUserId = (userId: string): SellerRow | undefined =>
     [...tables.sellers.values()].find((s) => s.userId === userId);
+
+  // Writes that model an already-committed rival transaction. Replayed after a
+  // rollback so a lost race is visible to the test.
+  const committedWrites: Array<{ table: keyof Tables; id: string; row: Record<string, unknown> }> = [];
 
   function attachProduct(product: ProductRow, takeImages?: number) {
     const images = [...tables.productImages.values()]
@@ -333,6 +413,20 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     }
   }
 
+  /**
+   * Applies a Prisma `select` to a row. Fields the caller did not ask for are
+   * dropped, so a service that accidentally reads a field it did not select
+   * sees `undefined` here exactly as it would against a real client.
+   */
+  function project(row: object, select?: Args): Record<string, unknown> {
+    if (!select) return { ...row };
+    const out: Record<string, unknown> = {};
+    for (const [key, wanted] of Object.entries(select)) {
+      if (wanted) out[key] = (row as Record<string, unknown>)[key];
+    }
+    return out;
+  }
+
   function attachOrder(row: OrderRow, include: Args) {
     const out: Record<string, unknown> = { ...row };
 
@@ -384,6 +478,15 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     failNextOrderCreate: false,
     forceUpdateManyMiss: false,
     beforeTransaction: null,
+    afterOrderRead: null,
+
+    commitOrderStatus(orderId, status) {
+      const row = tables.orders.get(orderId);
+      if (!row) return;
+      row.status = status;
+      row.updatedAt = new Date();
+      committedWrites.push({ table: "orders", id: orderId, row: { status, updatedAt: row.updatedAt } });
+    },
 
     cartItem: {
       async findMany(args = {}) {
@@ -650,7 +753,10 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           }
         }
         const row: OrderRow = {
-          id: nextId("ord"),
+          // A real UUID, because `orders.id` is `@db.Uuid` in the schema and
+          // route-level validation checks the path segment for UUID shape. A
+          // synthetic `ord-0001` would fail that check for the wrong reason.
+          id: randomUUID(),
           orderNumber: data.orderNumber,
           buyerId: String(data.buyerId),
           sellerId: String(data.sellerId),
@@ -692,12 +798,52 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         const include = args.include as Args | undefined;
         const row = [...tables.orders.values()].find((r) => matchesOrderWhere(r, where));
         if (!row) return null;
-        return include ? attachOrder(row, include) : { ...row };
+        const result = include ? attachOrder(row, include) : { ...row };
+        // Give a test the chance to model a rival transaction committing in the
+        // window between this read and the caller's next write.
+        if (store.afterOrderRead) {
+          const hook = store.afterOrderRead;
+          store.afterOrderRead = null;
+          hook();
+        }
+        return result;
       },
       async count(args = {}) {
         store.operations.push("order.count");
         const where = args.where as Args | undefined;
         return [...tables.orders.values()].filter((row) => matchesOrderWhere(row, where)).length;
+      },
+      async findUnique(args) {
+        store.operations.push("order.findUnique");
+        const where = (args.where ?? {}) as Args;
+        const row = [...tables.orders.values()].find((r) => matchesOrderWhere(r, where));
+        if (!row) return null;
+        return project(row, args.select as Args | undefined);
+      },
+      async update(args) {
+        store.operations.push("order.update");
+        const id = (args.where as { id: string }).id;
+        const row = tables.orders.get(id);
+        if (!row) throw new PrismaKnownError("P2025", "order row to update not found");
+        merge(row as unknown as Record<string, unknown>, args.data as Args);
+        row.updatedAt = new Date();
+        return { ...row };
+      },
+      /**
+       * The claim primitive. Applies `data` ONLY to rows matching `where` and
+       * reports how many were touched — so a transition whose `where` no longer
+       * matches (because a competing transaction already moved the row) gets
+       * `count: 0` and the service can abort before it does anything else.
+       */
+      async updateMany(args) {
+        store.operations.push("order.updateMany");
+        const where = args.where as Args | undefined;
+        const rows = [...tables.orders.values()].filter((row) => matchesOrderWhere(row, where));
+        for (const row of rows) {
+          merge(row as unknown as Record<string, unknown>, args.data as Args);
+          row.updatedAt = new Date();
+        }
+        return { count: rows.length };
       },
       async aggregate(args = {}) {
         store.operations.push("order.aggregate");
@@ -713,6 +859,16 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     },
 
     orderItem: {
+      async findMany(args = {}) {
+        store.operations.push("orderItem.findMany");
+        const where = (args.where ?? {}) as { orderId?: string; productId?: string };
+        const rows = [...tables.orderItems.values()]
+          .filter((row) =>
+            where.orderId ? row.orderId === where.orderId : true
+          )
+          .filter((row) => (where.productId ? row.productId === where.productId : true));
+        return rows.map((row) => project(row, args.select as Args | undefined));
+      },
       async aggregate(args = {}) {
         store.operations.push("orderItem.aggregate");
         const where = (args.where ?? {}) as { order?: Args };
@@ -731,12 +887,76 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
       },
     },
 
+    user: {
+      async findUnique(args) {
+        store.operations.push("user.findUnique");
+        const where = (args.where ?? {}) as { id?: string; email?: string };
+        const row = [...tables.users.values()].find(
+          (u) =>
+            (where.id !== undefined && u.id === where.id) ||
+            (where.email !== undefined && u.email === where.email)
+        );
+        return row ? project(row, args.select as Args | undefined) : null;
+      },
+    },
+
+    // `logAuditEvent` and `notifyUser` both reach the global `prisma` client
+    // rather than an injected handle, so these two delegates are how the
+    // transition service's audit/notification fan-out becomes observable in a
+    // test at all.
+    auditLog: {
+      async create(args) {
+        store.operations.push("auditLog.create");
+        const data = (args.data ?? {}) as Record<string, unknown>;
+        const row: AuditLogRow = {
+          id: nextId("audit"),
+          action: String(data.action),
+          actorId: (data.actorId as string | null) ?? null,
+          actorEmail: (data.actorEmail as string | null) ?? null,
+          targetType: (data.targetType as string | null) ?? null,
+          targetId: (data.targetId as string | null) ?? null,
+          metadata: data.metadata ?? null,
+          ipAddress: (data.ipAddress as string | null) ?? null,
+          createdAt: new Date(),
+        };
+        tables.auditLogs.set(row.id, row);
+        return { ...row };
+      },
+    },
+
+    notification: {
+      async create(args) {
+        store.operations.push("notification.create");
+        const data = (args.data ?? {}) as Record<string, unknown>;
+        const row: NotificationRow = {
+          id: nextId("notif"),
+          userId: String(data.userId),
+          type: String(data.type),
+          channel: String(data.channel ?? "IN_APP"),
+          title: String(data.title ?? ""),
+          body: String(data.body ?? ""),
+          linkUrl: (data.linkUrl as string | null) ?? null,
+          isRead: false,
+          createdAt: new Date(),
+        };
+        tables.notifications.set(row.id, row);
+        return { ...row };
+      },
+    },
+
     seller: {
       async findUnique(args) {
         store.operations.push("seller.findUnique");
-        const userId = (args.where as { userId: string }).userId;
-        const row = sellerByUserId(userId);
-        return row ? { ...row } : null;
+        const where = (args.where ?? {}) as { id?: string; userId?: string };
+        // Both lookups are real: the seller's owning user is resolved by `id`,
+        // and the caller's own sellers row by `userId`.
+        const row =
+          where.id !== undefined
+            ? tables.sellers.get(where.id)
+            : where.userId !== undefined
+              ? sellerByUserId(where.userId)
+              : undefined;
+        return row ? project(row, args.select as Args | undefined) : null;
       },
     },
 
@@ -859,6 +1079,24 @@ export function asOrderStore(
 }
 
 // ─── Seed helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Seeds a `users` row. `notifyUser` looks the recipient up to decide whether to
+ * email them, so a cancellation test that wants to observe a notification needs
+ * a real user row with an address.
+ */
+export function seedUser(
+  store: FakeMarketplaceStore,
+  overrides: Partial<UserRow> & { id: string }
+): UserRow {
+  const row: UserRow = {
+    id: overrides.id,
+    email: overrides.email ?? `${overrides.id}@example.com`,
+    role: overrides.role ?? "BUYER",
+  };
+  store.tables.users.set(row.id, row);
+  return row;
+}
 
 export function seedCategory(store: FakeMarketplaceStore, slug = "electronics"): CategoryRow {
   const row: CategoryRow = { id: nextId("cat"), name: slug, slug };

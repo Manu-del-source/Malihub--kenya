@@ -99,6 +99,49 @@ export type OrderItemRow = {
   createdAt: Date;
 };
 
+/**
+ * Mirrors `payments` (prisma/schema.prisma). Enum columns stay strings, as on
+ * `OrderRow`; the uniques the table actually enforces —
+ * `provider_transaction_id`, `provider_reference`, and
+ * `(provider, provider_event_id)` on `payment_events` — raise P2002 here
+ * exactly as Postgres would, because the payment service's idempotency and
+ * race guarantees all hinge on those violations being observable.
+ */
+export type PaymentRow = {
+  id: string;
+  orderId: string;
+  provider: string;
+  method: string;
+  status: string;
+  amountCents: number;
+  currency: string;
+  providerTransactionId: string | null;
+  providerReference: string | null;
+  customerReference: string;
+  payerReference: string | null;
+  metadata: unknown;
+  failureCode: string | null;
+  failureReason: string | null;
+  rawCallbackPayload: unknown;
+  retryCount: number;
+  paidAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PaymentEventRow = {
+  id: string;
+  paymentId: string | null;
+  provider: string;
+  providerEventId: string;
+  eventType: string;
+  payloadHash: string;
+  rawPayload: unknown;
+  processingStatus: string;
+  processedAt: Date | null;
+  receivedAt: Date;
+};
+
 export type ProductImageRow = {
   id: string;
   productId: string;
@@ -143,6 +186,8 @@ export type Tables = {
   wishlists: Map<string, WishlistRow>;
   orders: Map<string, OrderRow>;
   orderItems: Map<string, OrderItemRow>;
+  payments: Map<string, PaymentRow>;
+  paymentEvents: Map<string, PaymentEventRow>;
   sellers: Map<string, SellerRow>;
   profiles: Map<string, ProfileRow>;
   users: Map<string, UserRow>;
@@ -222,6 +267,24 @@ export type FakeMarketplaceStore = {
     findMany(args?: Args): Promise<unknown[]>;
     aggregate(args?: Args): Promise<unknown>;
   };
+  payment: {
+    create(args: Args): Promise<unknown>;
+    findMany(args?: Args): Promise<unknown[]>;
+    findFirst(args: Args): Promise<unknown>;
+    findUnique(args: Args): Promise<unknown>;
+    /**
+     * The settlement claim primitive. As with `order.updateMany`, returning
+     * `count: 0` when the guard (current status, missing provider id) no
+     * longer matches is how a lost settlement race becomes observable — a
+     * blanket write would hide exactly the duplicates these tests prove out.
+     */
+    updateMany(args: Args): Promise<{ count: number }>;
+  };
+  paymentEvent: {
+    create(args: Args): Promise<unknown>;
+    findUnique(args: Args): Promise<unknown>;
+    updateMany(args: Args): Promise<{ count: number }>;
+  };
   user: {
     findUnique(args: Args): Promise<unknown>;
   };
@@ -249,6 +312,12 @@ export type FakeMarketplaceStore = {
     delete(args: Args): Promise<unknown>;
     findMany(args?: Args): Promise<unknown[]>;
   };
+  /**
+   * Raw SQL — a recorded no-op. Its only production use in the covered
+   * services is the initiation advisory lock (`pg_advisory_xact_lock`), which
+   * has no observable effect on a single-threaded in-memory store.
+   */
+  $executeRaw(...args: unknown[]): Promise<number>;
   $transaction<T>(arg: ((tx: FakeMarketplaceStore) => Promise<T>) | Promise<unknown>[]): Promise<T>;
 };
 
@@ -293,6 +362,26 @@ function matchesOrderWhere(row: OrderRow, where: Args | undefined): boolean {
   return true;
 }
 
+function matchesPaymentWhere(row: PaymentRow, where: Args | undefined): boolean {
+  if (!where) return true;
+  if (typeof where.id === "string" && row.id !== where.id) return false;
+  if (typeof where.orderId === "string" && row.orderId !== where.orderId) return false;
+  if (typeof where.provider === "string" && row.provider !== where.provider) return false;
+  if (typeof where.customerReference === "string" && row.customerReference !== where.customerReference)
+    return false;
+  if (typeof where.status === "string" && row.status !== where.status) return false;
+  if (where.status && typeof where.status === "object") {
+    const s = where.status as { in?: string[] };
+    if (s.in && !s.in.includes(row.status)) return false;
+  }
+  // `providerTransactionId: null` is the "not yet claimed by the provider"
+  // guard the initiation claim relies on.
+  if (where.providerTransactionId === null && row.providerTransactionId !== null) return false;
+  if (typeof where.providerTransactionId === "string" && row.providerTransactionId !== where.providerTransactionId)
+    return false;
+  return true;
+}
+
 export function createFakeMarketplaceStore(): FakeMarketplaceStore {
   const tables: Tables = {
     products: new Map(),
@@ -302,6 +391,8 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     wishlists: new Map(),
     orders: new Map(),
     orderItems: new Map(),
+    payments: new Map(),
+    paymentEvents: new Map(),
     sellers: new Map(),
     profiles: new Map(),
     users: new Map(),
@@ -324,8 +415,12 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     return out;
   };
 
-  const restore = (snap: Record<string, Map<string, unknown>>) => {
+  const restore = (snap: Record<string, Map<string, unknown>>, skip?: ReadonlySet<keyof Tables>) => {
     for (const [name, map] of Object.entries(tables)) {
+      // Tables the failing transaction rolled back precisely via its undo log
+      // (payments/paymentEvents) are skipped: restoring their snapshot here
+      // would erase a CONCURRENT transaction's already-committed writes.
+      if (skip?.has(name as keyof Tables)) continue;
       map.clear();
       for (const [key, row] of snap[name]!.entries()) {
         (map as Map<string, unknown>).set(key, row);
@@ -389,6 +484,33 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         throw new PrismaKnownError(
           "P2002",
           "Unique constraint failed on wishlists.user_id, wishlists.product_id"
+        );
+      }
+    }
+  }
+
+  /**
+   * `payments.provider_transaction_id` and `payments.provider_reference` are
+   * `@unique` in the schema. Enforcing them here is what lets tests prove the
+   * idempotency story: a second insert/claim carrying the same provider
+   * identifier must blow up with P2002 exactly as Postgres would make it.
+   */
+  function assertPaymentUniques(
+    data: { providerTransactionId: string | null; providerReference: string | null },
+    ignoreId: string | undefined
+  ) {
+    for (const row of tables.payments.values()) {
+      if (ignoreId !== undefined && row.id === ignoreId) continue;
+      if (data.providerTransactionId && row.providerTransactionId === data.providerTransactionId) {
+        throw new PrismaKnownError(
+          "P2002",
+          "Unique constraint failed on payments.provider_transaction_id"
+        );
+      }
+      if (data.providerReference && row.providerReference === data.providerReference) {
+        throw new PrismaKnownError(
+          "P2002",
+          "Unique constraint failed on payments.provider_reference"
         );
       }
     }
@@ -887,6 +1009,174 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
       },
     },
 
+    payment: {
+      async create(args) {
+        store.operations.push("payment.create");
+        const data = args.data as Args;
+        assertPaymentUniques(
+          {
+            providerTransactionId: (data.providerTransactionId as string | null) ?? null,
+            providerReference: (data.providerReference as string | null) ?? null,
+          },
+          /* ignoreId */ undefined
+        );
+        const row: PaymentRow = {
+          id: randomUUID(),
+          orderId: String(data.orderId),
+          provider: String(data.provider ?? "PAYHERO"),
+          method: String(data.method ?? "MOBILE_MONEY"),
+          status: String(data.status ?? "PENDING"),
+          amountCents: Number(data.amountCents ?? 0),
+          currency: String(data.currency ?? "KES"),
+          providerTransactionId: (data.providerTransactionId as string | null) ?? null,
+          providerReference: (data.providerReference as string | null) ?? null,
+          customerReference: String(data.customerReference),
+          payerReference: (data.payerReference as string | null) ?? null,
+          metadata: data.metadata ?? null,
+          failureCode: (data.failureCode as string | null) ?? null,
+          failureReason: (data.failureReason as string | null) ?? null,
+          rawCallbackPayload: data.rawCallbackPayload ?? null,
+          retryCount: Number(data.retryCount ?? 0),
+          paidAt: (data.paidAt as Date | null) ?? null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        tables.payments.set(row.id, row);
+        return project(row, args.select as Args | undefined);
+      },
+      async findMany(args = {}) {
+        store.operations.push("payment.findMany");
+        const where = args.where as Args | undefined;
+        // Latest-first, matching the service's `orderBy: createdAt: "desc"`:
+        // ties fall to the most recently inserted row (identifier strings in
+        // the fake are no-op for creation order, so reverse-then-stable-sort).
+        const rows = [...tables.payments.values()]
+          .reverse()
+          .filter((row) => matchesPaymentWhere(row, where))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return rows.map((row) => project(row, args.select as Args | undefined));
+      },
+      async findFirst(args) {
+        store.operations.push("payment.findFirst");
+        const where = args.where as Args | undefined;
+        const rows = [...tables.payments.values()]
+          .reverse()
+          .filter((row) => matchesPaymentWhere(row, where))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        const row = rows[0];
+        return row ? project(row, args.select as Args | undefined) : null;
+      },
+      async findUnique(args) {
+        store.operations.push("payment.findUnique");
+        const where = (args.where ?? {}) as {
+          id?: string;
+          providerTransactionId?: string;
+          providerReference?: string;
+        };
+        const row = [...tables.payments.values()].find(
+          (candidate) =>
+            (where.id !== undefined && candidate.id === where.id) ||
+            (where.providerTransactionId !== undefined &&
+              candidate.providerTransactionId === where.providerTransactionId) ||
+            (where.providerReference !== undefined &&
+              candidate.providerReference === where.providerReference)
+        );
+        return row ? project(row, args.select as Args | undefined) : null;
+      },
+      async updateMany(args) {
+        store.operations.push("payment.updateMany");
+        const where = args.where as Args | undefined;
+        const data = args.data as Args;
+        const matched = [...tables.payments.values()].filter((row) =>
+          matchesPaymentWhere(row, where)
+        );
+        // Enforce the unique columns against the post-merge image, exactly as
+        // Postgres evaluates them — P2002 mid-update rolls the caller back.
+        for (const row of matched) {
+          const nextTransactionId =
+            data.providerTransactionId !== undefined
+              ? (data.providerTransactionId as string | null)
+              : row.providerTransactionId;
+          const nextReference =
+            data.providerReference !== undefined
+              ? (data.providerReference as string | null)
+              : row.providerReference;
+          assertPaymentUniques(
+            {
+              providerTransactionId: nextTransactionId,
+              providerReference: nextReference,
+            },
+            row.id
+          );
+        }
+        for (const row of matched) {
+          merge(row as unknown as Record<string, unknown>, data);
+          row.updatedAt = new Date();
+        }
+        return { count: matched.length };
+      },
+    },
+
+    paymentEvent: {
+      async create(args) {
+        store.operations.push("paymentEvent.create");
+        const data = args.data as Args;
+        const provider = String(data.provider);
+        const providerEventId = String(data.providerEventId);
+        for (const other of tables.paymentEvents.values()) {
+          if (other.provider === provider && other.providerEventId === providerEventId) {
+            throw new PrismaKnownError(
+              "P2002",
+              "Unique constraint failed on payment_events.provider, payment_events.provider_event_id"
+            );
+          }
+        }
+        const row: PaymentEventRow = {
+          id: randomUUID(),
+          paymentId: (data.paymentId as string | null) ?? null,
+          provider,
+          providerEventId,
+          eventType: String(data.eventType),
+          payloadHash: String(data.payloadHash),
+          rawPayload: data.rawPayload ?? null,
+          processingStatus: String(data.processingStatus ?? "RECEIVED"),
+          processedAt: (data.processedAt as Date | null) ?? null,
+          receivedAt: new Date(),
+        };
+        tables.paymentEvents.set(row.id, row);
+        return { ...row };
+      },
+      async findUnique(args) {
+        store.operations.push("paymentEvent.findUnique");
+        const where = (args.where ?? {}) as {
+          id?: string;
+          provider_providerEventId?: { provider: string; providerEventId: string };
+        };
+        const row = [...tables.paymentEvents.values()].find(
+          (candidate) =>
+            (where.id !== undefined && candidate.id === where.id) ||
+            (where.provider_providerEventId !== undefined &&
+              candidate.provider === where.provider_providerEventId.provider &&
+              candidate.providerEventId === where.provider_providerEventId.providerEventId)
+        );
+        return row ? { ...row } : null;
+      },
+      async updateMany(args) {
+        store.operations.push("paymentEvent.updateMany");
+        const where = (args.where ?? {}) as Args;
+        let count = 0;
+        for (const row of tables.paymentEvents.values()) {
+          if (typeof where.provider === "string" && row.provider !== where.provider) continue;
+          if (typeof where.providerEventId === "string" && row.providerEventId !== where.providerEventId)
+            continue;
+          if (typeof where.paymentId === "string" && row.paymentId !== where.paymentId) continue;
+          merge(row as unknown as Record<string, unknown>, args.data as Args);
+          count++;
+        }
+        return { count };
+      },
+    },
+
     user: {
       async findUnique(args) {
         store.operations.push("user.findUnique");
@@ -1039,6 +1329,19 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
       },
     },
 
+    async $executeRaw(...args: unknown[]) {
+      store.operations.push("$executeRaw");
+      const key = extractAdvisoryLockKey(args);
+      if (key !== null) {
+        // Called outside a transaction: emulate a session-level acquire that
+        // releases immediately — no production caller does this today.
+        const token = {};
+        await acquireAdvisoryLock(token, key);
+        releaseAdvisoryLocks(token);
+      }
+      return 1;
+    },
+
     async $transaction<T>(arg: ((tx: FakeMarketplaceStore) => Promise<T>) | Promise<unknown>[]) {
       store.operations.push("$transaction");
       if (Array.isArray(arg)) {
@@ -1054,17 +1357,162 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
       }
       const snap = snapshot();
       const opCount = store.operations.length;
+      const token = {};
+      // Before-images of this transaction's own payment writes (see
+      // bindTransaction). Undone on rollback INSTEAD of the wholesale snapshot
+      // restore for those tables, so a concurrent settlement is not clobbered.
+      const undoLog: Array<() => void> = [];
       try {
-        return await arg(store);
+        // The callback receives a bound view of the store whose `$executeRaw`
+        // honors this transaction's advisory locks (see acquireAdvisoryLock).
+        return await arg(bindTransaction(token, undoLog));
       } catch (error) {
-        restore(snap);
+        for (const undo of undoLog.reverse()) undo();
+        restore(snap, PRECISE_ROLLBACK_TABLES);
         store.operations.length = opCount;
         throw error;
+      } finally {
+        // pg_advisory_xact_lock releases at COMMIT/ROLLBACK — so do these.
+        releaseAdvisoryLocks(token);
       }
     },
   };
 
+  // ─── Advisory lock emulation ────────────────────────────────────────────
+  // `pg_advisory_xact_lock` serializes concurrent payment initiations of the
+  // same order in production. Node is single-threaded, so the emulation uses
+  // a queue-yield spin: the contender keeps yielding until the holder's
+  // transaction finishes (its locks release in `finally` above) — which is
+  // exactly Postgres's blocking semantics, observed by tests as one clean
+  // serialization instead of two overlapping transactions.
+  const advisoryLocks = new Map<string, object>();
+
+  async function acquireAdvisoryLock(token: object, key: string): Promise<void> {
+    while (advisoryLocks.has(key) && advisoryLocks.get(key) !== token) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    advisoryLocks.set(key, token);
+  }
+
+  function releaseAdvisoryLocks(token: object): void {
+    for (const [key, owner] of [...advisoryLocks.entries()]) {
+      if (owner === token) advisoryLocks.delete(key);
+    }
+  }
+
+  /**
+   * The tx-scoped view handed to transaction callbacks. Everything forwards
+   * to the root store except `$executeRaw` (lock-aware, bound to this
+   * transaction's token), `$transaction` (nested calls start a fresh
+   * transaction scope, as Prisma's nested-transaction support would), and
+   * the payment/paymentEvent delegates, which are WRITE-TRACKED: their
+   * before-images feed `undoLog`, so a rollback undoes exactly this
+   * transaction's financial writes instead of the wholesale `restore(snap)`
+   * — which would also erase a CONCURRENT transaction's committed settlement
+   * (e.g. the duplicate-callback race, where the loser's event insert hits
+   * P2002 and rolls back an empty log, leaving the winner's commit intact).
+   * The other tables keep the legacy snapshot/restore semantics the existing
+   * suites are built and verified on.
+   */
+  function bindTransaction(token: object, undoLog: Array<() => void>): FakeMarketplaceStore {
+    return new Proxy(store, {
+      get(target, property, receiver) {
+        if (property === "$executeRaw") {
+          return async (...args: unknown[]) => {
+            store.operations.push("$executeRaw");
+            const key = extractAdvisoryLockKey(args);
+            if (key !== null) await acquireAdvisoryLock(token, key);
+            return 1;
+          };
+        }
+        if (property === "$transaction") {
+          return (nested: ((tx: FakeMarketplaceStore) => Promise<unknown>) | Promise<unknown>[]) =>
+            store.$transaction(nested);
+        }
+        if (property === "payment") {
+          return instrumentWrites(tables.payments, store.payment, matchesPaymentWhere, undoLog);
+        }
+        if (property === "paymentEvent") {
+          return instrumentWrites(
+            tables.paymentEvents,
+            store.paymentEvent,
+            (row, where) => {
+              if (!where) return true;
+              if (typeof where.provider === "string" && row.provider !== where.provider) return false;
+              if (typeof where.providerEventId === "string" && row.providerEventId !== where.providerEventId)
+                return false;
+              if (typeof where.paymentId === "string" && row.paymentId !== where.paymentId) return false;
+              return true;
+            },
+            undoLog
+          );
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as FakeMarketplaceStore;
+  }
+
   return store;
+}
+
+const LOGGED_MUTATORS = new Set(["create", "update", "updateMany", "delete", "deleteMany"]);
+
+/** Tables rolled back via the per-transaction undo log, not the snapshot. */
+const PRECISE_ROLLBACK_TABLES: ReadonlySet<keyof Tables> = new Set(["payments", "paymentEvents"]);
+
+/**
+ * Wraps one delegate so every mutating call records an undo closure
+ * (post-create delete for `create`; pre-image restore for the rest) on the
+ * transaction's log. Read methods pass straight through.
+ */
+function instrumentWrites<Row extends { id: string }>(
+  table: Map<string, Row>,
+  delegate: Record<string, unknown>,
+  matches: (row: Row, where: Args | undefined) => boolean,
+  undoLog: Array<() => void>
+): Record<string, unknown> {
+  return new Proxy(delegate, {
+    get(target, property: string, receiver) {
+      const original = Reflect.get(target, property, receiver) as (...args: unknown[]) => unknown;
+      if (typeof original !== "function" || !LOGGED_MUTATORS.has(property)) return original;
+      return async (args?: Args) => {
+        if (property === "create") {
+          const created = (await original(args)) as { id?: string } | undefined;
+          if (created?.id) {
+            const id = created.id;
+            undoLog.push(() => table.delete(id));
+          }
+          return created;
+        }
+        const beforeImages = [...table.values()]
+          .filter((row) => matches(row, (args?.where ?? undefined) as Args | undefined))
+          .map((row) => structuredClone(row));
+        const result = await original(args);
+        undoLog.push(() => {
+          for (const image of beforeImages) table.set(image.id, image);
+        });
+        return result;
+      };
+    },
+  });
+}
+
+/**
+ * Reads the lock key out of a tagged-template `$executeRaw` call
+ * (`tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orderId}))``):
+ * the first interpolated value is the key. Returns null for anything that is
+ * not an advisory-lock statement.
+ */
+function extractAdvisoryLockKey(args: unknown[]): string | null {
+  const first = args[0];
+  let text = "";
+  if (typeof first === "string") text = first;
+  else if (Array.isArray(first)) text = first.join(" ");
+  else if (first && typeof first === "object" && "raw" in first) {
+    text = ((first as { raw?: unknown[] }).raw ?? []).join(" ");
+  }
+  if (!text.includes("pg_advisory_xact_lock")) return null;
+  return String(args[1]);
 }
 
 /** Casts the fake onto the Prisma-shaped interfaces the services expect. */
@@ -1177,5 +1625,40 @@ export function seedCartItem(
     updatedAt: new Date(),
   };
   store.tables.cartItems.set(row.id, row);
+  return row;
+}
+
+/**
+ * Seeds a `payments` row directly (bypassing `payment.create` on purpose:
+ * fixtures describe HISTORY — e.g. a PROCESSING attempt from an earlier
+ * request — and must not trip the operation log or unique assertions for
+ * rows a scenario deliberately duplicates).
+ */
+export function seedPayment(
+  store: FakeMarketplaceStore,
+  overrides: Partial<PaymentRow> & { orderId: string; customerReference: string }
+): PaymentRow {
+  const row: PaymentRow = {
+    id: overrides.id ?? randomUUID(),
+    orderId: overrides.orderId,
+    provider: overrides.provider ?? "PAYHERO",
+    method: overrides.method ?? "MOBILE_MONEY",
+    status: overrides.status ?? "PROCESSING",
+    amountCents: overrides.amountCents ?? 100_000,
+    currency: overrides.currency ?? "KES",
+    providerTransactionId: overrides.providerTransactionId ?? null,
+    providerReference: overrides.providerReference ?? null,
+    customerReference: overrides.customerReference,
+    payerReference: overrides.payerReference ?? "254712345678",
+    metadata: overrides.metadata ?? { payhero: { reference: "PH-REF-1" } },
+    failureCode: overrides.failureCode ?? null,
+    failureReason: overrides.failureReason ?? null,
+    rawCallbackPayload: overrides.rawCallbackPayload ?? null,
+    retryCount: overrides.retryCount ?? 0,
+    paidAt: overrides.paidAt ?? null,
+    createdAt: overrides.createdAt ?? new Date(),
+    updatedAt: overrides.updatedAt ?? new Date(),
+  };
+  store.tables.payments.set(row.id, row);
   return row;
 }

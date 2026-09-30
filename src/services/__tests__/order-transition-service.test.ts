@@ -546,9 +546,9 @@ describe("markOrderPaid — the PENDING → PAID primitive", () => {
       actor: { id: "payment-webhook", source: "payment_webhook" },
     });
 
-    // Phase 9.1 must not fabricate financial records. The store has no payments
-    // table at all, which is the strongest available statement of that.
-    assert.equal((store.tables as Record<string, unknown>).payments, undefined);
+    // Phase 9.1 must not fabricate financial records. The fake store models a
+    // payments table since Phase 9.2-A; `markOrderPaid` must leave it empty.
+    assert.equal(store.tables.payments.size, 0, "no Payment row was created");
   });
 
   it("does not restore inventory — paying is not cancelling", async () => {

@@ -39,7 +39,30 @@ export type AuditAction =
   | "order.cancelled"
   | "order.shipped"
   | "order.delivered"
-  | "order.completed";
+  | "order.completed"
+  // ─── Payment collection (Phase 9.2-A) ──────────────────────────────────────
+  // Payment-level facts the `order.*` actions can't express. `order.paid`
+  // already covers the successful order transition (written by markOrderPaid);
+  // these cover the Payment side: a collection started by a buyer, a
+  // provider-reported failure (buyer can retry), and the two anomaly classes
+  // that must be findable without digging through payment_events — a callback
+  // whose amount disagrees with the authoritative row, and a settled payment
+  // whose order cannot be marked paid (e.g. cancellation won the race, which
+  // a later refund/reconciliation phase acts on). Metadata rules are the same
+  // as everywhere else here: amounts and references, never payer PII or
+  // credentials.
+  | "payment.initiated"
+  // `payment.success`: this attempt transitioned to SUCCESS (the order's own
+  // transition is `order.paid` via markOrderPaid). Fired once per payment —
+  // replays and recovery never re-emit it.
+  | "payment.success"
+  | "payment.failed"
+  // Distinct from `payment.failed`: the buyer cancelled the STK prompt, which
+  // never cancels the ORDER — the order stays PENDING and payable, and a
+  // retry is a legitimate new attempt.
+  | "payment.cancelled"
+  | "payment.amount_mismatch"
+  | "payment.anomaly";
 
 export async function logAuditEvent(params: {
   action: AuditAction;

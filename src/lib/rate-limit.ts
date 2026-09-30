@@ -38,6 +38,13 @@ const limiters = {
   signup: () => buildLimiter("signup", 5, 600),
   passwordReset: () => buildLimiter("password-reset", 5, 600),
   listingCreate: () => buildLimiter("listing-create", 10, 3600),
+  // STK initiation spam control (Phase 9.3): each push costs the provider
+  // round the clock money/attention and spams the phone it targets. The
+  // per-order attempt cap in the payment service is the hard, always-on
+  // bound; this per-buyer sliding window is the cross-order bound (a buyer
+  // cycling many orders to hammer one phone). 10 per 5 minutes is generous
+  // for real checkout browsing, tight for scripting.
+  paymentInitiate: () => buildLimiter("payment-initiate", 10, 300),
   api: () => buildLimiter("api", 120, 60),
 } as const;
 
@@ -53,6 +60,7 @@ export const rateLimit = {
   signup: (ip: string) => check(limiters.signup(), ip),
   passwordReset: (email: string) => check(limiters.passwordReset(), email.toLowerCase()),
   listingCreate: (sellerId: string) => check(limiters.listingCreate(), sellerId),
+  paymentInitiate: (buyerId: string) => check(limiters.paymentInitiate(), buyerId),
   api: (userIdOrIp: string) => check(limiters.api(), userIdOrIp),
 };
 

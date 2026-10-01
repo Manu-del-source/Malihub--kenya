@@ -103,7 +103,7 @@ using this preset — no server-side signing involved, so without it
 upload to.
 
 ```bash
-npm run prisma:seed          # seeds the 16 marketplace categories
+npm run prisma:seed          # seeds the 17 marketplace categories
 npm run dev
 ```
 

@@ -105,6 +105,7 @@ export const CATEGORY_LISTING_COUNTS: Record<string, number> = {
   electronics: 27600,
   phones: 41200,
   fashion: 33800,
+  "shoes-footwear": 14600,
   vehicles: 18400,
   property: 9200,
   furniture: 12100,

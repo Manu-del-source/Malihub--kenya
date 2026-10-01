@@ -715,7 +715,7 @@ tipping into visual noise.
       Neon Managed Better Auth — see `docs/auth/`: email/password + Google,
       email verification, forgot/reset password, complete-profile onboarding,
       role-based route protection, RLS policies, avatar storage)
-- [x] **Phase 5 — Marketplace core** (16-category taxonomy, full-text
+- [x] **Phase 5 — Marketplace core** (17-category taxonomy, full-text
       search with filters/sort/infinite scroll, category pages, product
       detail, listing CRUD with Cloudinary images, favorites, view
       tracking, seller listings management + dashboard stats, API routes)

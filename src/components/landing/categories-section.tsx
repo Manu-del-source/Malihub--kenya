@@ -15,7 +15,7 @@ export function CategoriesSection() {
         <SectionHeading
           eyebrow="Browse"
           title="Whatever you need, it's here"
-          subtitle="Ten categories covering everything Kenyans buy and sell every day — each one searchable down to the sub-county."
+          subtitle="Every category Kenyans buy and sell every day — each one searchable down to the sub-county."
         />
 
         <motion.div

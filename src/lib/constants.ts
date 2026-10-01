@@ -19,6 +19,7 @@ export const DEFAULT_CATEGORIES = [
   { name: "Electronics", slug: "electronics", iconName: "Tv" },
   { name: "Phones", slug: "phones", iconName: "Smartphone" },
   { name: "Fashion", slug: "fashion", iconName: "Shirt" },
+  { name: "Shoes & Footwear", slug: "shoes-footwear", iconName: "Footprints" },
   { name: "Vehicles", slug: "vehicles", iconName: "Car" },
   { name: "Property", slug: "property", iconName: "Home" },
   { name: "Furniture", slug: "furniture", iconName: "Sofa" },

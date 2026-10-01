@@ -1,6 +1,6 @@
 # Buyer checkout & M-Pesa payment frontend — Phase 18 report
 
-Branch: `arena/01a0f841-malihub-kenya` · base commit `b30699f` · date 2026-10-01
+Branch: `arena/01a0f841-malihub-kenya` · base commit `b30699f` · PR #22 · date 2026-10-01
 
 The buyer payment layer is implemented on top of the **existing** PayHero
 backend. No backend contract was redesigned, no provider was added, no schema
@@ -146,11 +146,13 @@ claiming success before the server confirms.
 | `npm run lint` | clean, 0 warnings. |
 | `npx next build` | succeeded; `/checkout` built as a dynamic route (3.78 kB / 144 kB first load); middleware 75 kB. |
 | Dev smoke (`next dev`, unauthenticated curl) | `/checkout` → `307` to `/login?redirectTo=%2Fcheckout`; `GET /api/payments/payhero/status` → `401 {"success":false,"error":"Sign in required."}`. |
+| Vercel preview build (PR #22 check) | passed — runs the full `npm run build` (`prisma generate && next build`) with network access. |
 
-Environment note: `npx prisma generate` cannot run in this sandbox because
-`binaries.prisma.sh` is unreachable (no network route); the build above used
-the already-generated client. On a machine with network access the unchanged
-`npm run build` script (`prisma generate && next build`) is the full command.
+Environment note: `npx prisma generate` cannot run in the agent sandbox
+because `binaries.prisma.sh` is unreachable (no network route); the local
+build above used the already-generated client. CI runs the unchanged
+`npm run build` (`prisma generate && next build`) with network access and its
+Vercel preview build for this PR passed (see the verification table).
 
 ## 9. Limitations and follow-ups
 

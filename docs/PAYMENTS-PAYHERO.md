@@ -316,6 +316,50 @@ PROCESSING payments.
   `payment.anomaly` audit events; confirm `PAYHERO_CALLBACK_URL` points at
   the deployment you paid against.
 
+## Buyer checkout UI
+
+The buyer-facing surface that drives the collection flow above:
+
+| Layer | File | Responsibility |
+| --- | --- | --- |
+| Checkout page | `src/app/(dashboard)/checkout/page.tsx` | Server component: session (`requireUser()`, also middleware-gated via `PROTECTED_PREFIXES`) + the cart read from the database with `getCart`. Opening it creates and reserves **nothing**. |
+| Checkout screen | `src/components/shell/buyer/checkout-view.tsx` | Review → create orders → pay, with the explicit "Pay … with M-Pesa" action. |
+| Per-order M-Pesa block | `src/components/shell/buyer/mpesa-pay-section.tsx` | Phone field, action button, queued/waiting/success/failed states. Shared with the buyer order page (retry). |
+| Payment state hook | `src/hooks/use-mpesa-payment.ts` | One order's collection lifecycle, including the bounded status poll. |
+| Browser client | `src/lib/payments/checkout-client.ts` | The only place the screens call the network. |
+| Status endpoint | `src/app/api/payments/payhero/status/route.ts`, `src/services/payment-status-service.ts` | Ownership-scoped snapshot; POST variant runs the existing `verifyPayheroPaymentStatus`. |
+
+The browser sends exactly what the routes already accept — `{}` to
+`POST /api/orders` (the session is the payload), `{ orderId, phoneNumber }` to
+`POST /api/payments/payhero/stk`, and `{ orderId }` to the status route.
+Amounts, prices, buyer/seller ids, channel, callback URL and payment status are
+never sent, and `PAYHERO_*` configuration is never referenced by client code.
+
+Status semantics the UI obeys:
+
+- A **QUEUED** STK response renders "STK Push sent — check your phone",
+  never success. Success is shown only once the server reports the payment
+  `SUCCESS` (callback or verification) or the order `PAID`.
+- `GET /api/payments/payhero/status?orderId=…` is a pure database read and
+  makes no provider call. `POST` (same-origin guarded, rate-limited by
+  `paymentStatusCheck`, 30/60s per buyer) reconciles a waiting attempt through
+  the same claims the callback uses before answering.
+- Ownership is enforced in `payment-status-service.ts` (`{ id, buyerId }`):
+  another buyer's order id answers 404, identical to a nonexistent one.
+- Polling is bounded (every 6s for 2 minutes, then a manual "Check status")
+  and stops on any terminal outcome.
+- Retrying a failed/cancelled attempt calls the STK route again with the
+  **same order id**; the service's attempt cap and idempotency rules decide
+  whether it joins the active attempt or books the next numbered one. A retry
+  never creates a second order.
+
+**Multi-seller carts** (one cart, several sellers): `checkoutCart` creates one
+order per seller, and the checkout screen collects them one at a time — a
+single M-Pesa prompt is in flight at any moment, each with its own amount and
+attempt ledger. N sellers means N prompts, never one prompt charged against
+several orders. The buyer can also leave unpaid orders and pay each later from
+its order page.
+
 ## Explicitly out of scope (Phases 9.2-A/9.3 — Phase 9.4+ candidates)
 
 Seller payment accounts, KYC, payouts/settlements, commission, refunds and

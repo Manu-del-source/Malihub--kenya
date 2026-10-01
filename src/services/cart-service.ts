@@ -49,7 +49,11 @@ const CART_INCLUDE = {
   product: {
     include: {
       images: { orderBy: { sortOrder: "asc" as const }, take: 1 },
-      seller: { select: { businessName: true, verificationStatus: true } },
+      // `id` is included alongside the display fields because checkout groups
+      // the cart by seller (the order service creates one order per seller —
+      // see `checkoutCart`) and the grouping key must come from the product
+      // row, never from the client.
+      seller: { select: { id: true, businessName: true, verificationStatus: true } },
     },
   },
 } satisfies Prisma.CartItemInclude;

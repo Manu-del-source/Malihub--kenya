@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { Minus, Plus, ShoppingCart, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CHECKOUT_PATH } from "@/lib/payments/checkout-client";
 import { formatKes } from "@/utils";
 
 /**
@@ -18,6 +19,12 @@ import { formatKes } from "@/utils";
  * travels in these payloads. On success the server components are re-read
  * (`router.refresh()`), so the totals shown are always recomputed from the
  * database, never from client-side arithmetic.
+ *
+ * "Proceed to checkout" is navigation ONLY. It goes to `/checkout`, which
+ * re-reads the cart server-side; the order is created there, when the buyer
+ * explicitly presses "Pay … with M-Pesa". Browsing into checkout therefore
+ * reserves no stock and creates no order, and this button carries no price or
+ * product data with it.
  */
 
 export type CartItemDto = {
@@ -59,7 +66,6 @@ export function CartView({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [checkingOut, setCheckingOut] = useState(false);
 
   function mutate(fn: () => Promise<{ ok: boolean; error?: string }>) {
     startTransition(async () => {
@@ -83,30 +89,6 @@ export function CartView({
     mutate(() => callCart("DELETE", { productId: item.productId }));
   }
 
-  async function checkout() {
-    setCheckingOut(true);
-    try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
-        toast.error(payload?.error ?? "Could not place your order. Please try again.");
-        router.refresh();
-        return;
-      }
-      toast.success("Order placed. Payment comes next — your order is saved.");
-      router.push("/buyer/orders");
-      router.refresh();
-    } catch {
-      toast.error("Could not place your order. Please try again.");
-    } finally {
-      setCheckingOut(false);
-    }
-  }
-
   if (items.length === 0) {
     return (
       <EmptyState
@@ -121,6 +103,12 @@ export function CartView({
 
   const unavailable = items.filter((item) => !item.isAvailable);
 
+  // Checkout is blocked — not silently trimmed — when a line can no longer be
+  // purchased. The checkout transaction would refuse the whole cart anyway
+  // (`checkoutCart` throws `unavailable`), so letting the buyer press through
+  // would only produce an error on the next screen.
+  const canCheckout = unavailable.length === 0 && subtotalCents > 0;
+
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
       <div className="flex-1">
@@ -129,8 +117,8 @@ export function CartView({
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
             <p className="text-amber-600 dark:text-amber-400">
               {unavailable.length === 1
-                ? "1 item is no longer available and will be skipped at checkout. Remove it to continue."
-                : `${unavailable.length} items are no longer available and will be skipped at checkout.`}
+                ? "1 item is no longer available. Remove it to continue to checkout."
+                : `${unavailable.length} items are no longer available. Remove them to continue to checkout.`}
             </p>
           </div>
         )}
@@ -240,16 +228,18 @@ export function CartView({
             </span>
           </div>
 
-          <Button
-            className="mt-5 w-full"
-            onClick={checkout}
-            disabled={checkingOut || isPending || subtotalCents === 0}
-          >
-            {checkingOut ? "Placing order…" : "Proceed to checkout"}
-          </Button>
+          {canCheckout ? (
+            <Button asChild className="mt-5 w-full">
+              <Link href={CHECKOUT_PATH}>Proceed to checkout</Link>
+            </Button>
+          ) : (
+            <Button className="mt-5 w-full" disabled>
+              Proceed to checkout
+            </Button>
+          )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Payment is collected in a later step — your order is reserved as soon as you
-            continue.
+            You&apos;ll review the order and pay with M-Pesa on the next step. Nothing is
+            reserved until you press pay.
           </p>
         </div>
       </aside>

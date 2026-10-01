@@ -91,6 +91,9 @@ describe("canonical routes — visibility classification", () => {
       "/buyer/wishlist",
       "/buyer/orders",
       "/buyer/orders/ord-1",
+      // Checkout is a buyer surface outside the /buyer prefix: it reads the
+      // session's cart and creates orders, so it is middleware-gated too.
+      "/checkout",
     ]) {
       assert.ok(isProtectedPath(path), `${path} should require a session`);
     }

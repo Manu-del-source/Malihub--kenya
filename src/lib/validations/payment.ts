@@ -35,3 +35,17 @@ export const initiateStkSchema = z.object({
 });
 
 export type InitiateStkInput = z.infer<typeof initiateStkSchema>;
+
+/**
+ * The buyer's own payment-status lookup / verification request.
+ *
+ * One field, because ownership and monetary facts come from the session and
+ * the order row: there is no payment id, buyer id, amount or status for a
+ * request to steer. (`not_found` is answered for another buyer's order id —
+ * the same no-oracle rule the initiation route and the order screens use.)
+ */
+export const paymentStatusRequestSchema = z.object({
+  orderId: z.string().uuid("A valid order id is required."),
+});
+
+export type PaymentStatusRequestInput = z.infer<typeof paymentStatusRequestSchema>;

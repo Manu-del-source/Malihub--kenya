@@ -45,6 +45,15 @@ const limiters = {
   // cycling many orders to hammer one phone). 10 per 5 minutes is generous
   // for real checkout browsing, tight for scripting.
   paymentInitiate: () => buildLimiter("payment-initiate", 10, 300),
+  // Payment-status verification (the checkout "waiting for payment" poll and
+  // the manual "check status" action). Unlike the initiation limiter this
+  // caps PROVIDER round-trips, not money-moving requests: a status check can
+  // call PayHero's transaction-status endpoint when an attempt is awaiting
+  // confirmation. A buyer watching one payment polls every few seconds
+  // (10/min at the checkout interval), so 30/min is generous for a human and
+  // bounded for a script. A read-only lookup that does not verify is not
+  // limited — it never leaves our database.
+  paymentStatusCheck: () => buildLimiter("payment-status-check", 30, 60),
   api: () => buildLimiter("api", 120, 60),
 } as const;
 
@@ -61,6 +70,7 @@ export const rateLimit = {
   passwordReset: (email: string) => check(limiters.passwordReset(), email.toLowerCase()),
   listingCreate: (sellerId: string) => check(limiters.listingCreate(), sellerId),
   paymentInitiate: (buyerId: string) => check(limiters.paymentInitiate(), buyerId),
+  paymentStatusCheck: (buyerId: string) => check(limiters.paymentStatusCheck(), buyerId),
   api: (userIdOrIp: string) => check(limiters.api(), userIdOrIp),
 };
 

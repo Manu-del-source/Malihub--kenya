@@ -177,6 +177,12 @@ export const PROTECTED_PREFIXES = [
   "/messages",
   "/notifications",
   "/account",
+  // Checkout is a buyer surface even though it sits outside the /buyer
+  // prefix: it reads the session's cart and creates orders, so it must go
+  // through the same middleware gate (with the same `redirectTo`) as the
+  // rest of the buyer area. The page itself also calls `requireUser()`,
+  // exactly like the buyer pages. See src/app/(dashboard)/checkout/page.tsx.
+  "/checkout",
 ] as const;
 
 /**

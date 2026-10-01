@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBuyerOrder } from "@/services/order-service";
+import { readBuyerPaymentSnapshot } from "@/services/payment-status-service";
 import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button";
+import { MpesaPaySection } from "@/components/shell/buyer/mpesa-pay-section";
+import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 
@@ -43,6 +46,15 @@ export default async function BuyerOrderDetailPage({
   // same response as a nonexistent id, so order ids can't be probed.
   const order = await getBuyerOrder(prisma, user.id, id);
   if (!order) notFound();
+
+  // Payment state for this order, ownership-scoped inside the service. A
+  // PENDING order gets the real "Pay with M-Pesa" flow (which retries against
+  // THIS order — it never creates another one); a paid order shows its
+  // settlement details.
+  const paymentSnapshot = await readBuyerPaymentSnapshot(prisma, {
+    userId: user.id,
+    orderId: order.id,
+  });
 
   const itemSubtotal = order.items.reduce((sum, item) => sum + item.totalCents, 0);
 
@@ -119,22 +131,70 @@ export default async function BuyerOrderDetailPage({
         </section>
 
         <aside className="flex flex-col gap-4">
+          {order.status === "PENDING" && (
+            <MpesaPaySection
+              order={{
+                id: order.id,
+                orderNumber: order.orderNumber,
+                totalCents: order.totalCents,
+                sellerName: order.seller.businessName,
+              }}
+              defaultPhone={user.phone ?? ""}
+              initialSnapshot={paymentSnapshot}
+              refreshOnSuccess
+            />
+          )}
+
           <div className="glass rounded-2xl p-5 text-sm">
             <h2 className="font-display text-base font-medium">Status</h2>
+            {order.status === "PENDING" ? (
+              <p className="mt-2 font-medium text-amber-500">Payment required</p>
+            ) : null}
             <p className="mt-2 text-muted-foreground">
               {order.status === "PENDING"
-                ? "This order is awaiting payment. Payment and delivery tracking arrive with the payment phase — nothing has been charged yet."
-                : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
+                ? "This order is awaiting payment — nothing has been charged yet. Pay with M-Pesa above, or cancel the order."
+                : isPaidOrderStatus(order.status)
+                  ? "This order has been paid. The seller will arrange delivery with you."
+                  : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
             </p>
-            {order.status === "PENDING" && (
-              <>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  You won&apos;t be charged until payment is set up for this order.
-                </p>
-                <div className="mt-4">
-                  <CancelOrderButton orderId={order.id} />
+
+            {paymentSnapshot?.payment && (
+              <dl className="mt-3 space-y-1 text-xs text-muted-foreground">
+                <div className="flex justify-between gap-3">
+                  <dt>Payment</dt>
+                  <dd className="text-right text-foreground">
+                    {paymentAttemptLabel(paymentSnapshot)}
+                  </dd>
                 </div>
-              </>
+                {paymentSnapshot.payment.providerReference && (
+                  <div className="flex justify-between gap-3">
+                    <dt>M-Pesa receipt</dt>
+                    <dd className="font-mono text-foreground">
+                      {paymentSnapshot.payment.providerReference}
+                    </dd>
+                  </div>
+                )}
+                {paymentSnapshot.payment.paidAt && (
+                  <div className="flex justify-between gap-3">
+                    <dt>Paid</dt>
+                    <dd className="text-foreground">{timeAgo(paymentSnapshot.payment.paidAt)}</dd>
+                  </div>
+                )}
+                {order.status === "PENDING" && (
+                  <div className="flex justify-between gap-3">
+                    <dt>Attempts</dt>
+                    <dd className="text-foreground">
+                      {paymentSnapshot.attempts.used} of {paymentSnapshot.attempts.max}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
+
+            {order.status === "PENDING" && (
+              <div className="mt-4">
+                <CancelOrderButton orderId={order.id} />
+              </div>
             )}
           </div>
 

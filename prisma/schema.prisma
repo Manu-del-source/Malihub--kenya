@@ -124,6 +124,7 @@ enum PaymentMethod {
 /// - `MANUAL`  — offline/settled-by-hand money (e.g. cash on delivery recorded
 ///               by an admin). No external processor is involved.
 enum PaymentProvider {
+  PAYSTACK
   PAYHERO
   DARAJA
   MANUAL

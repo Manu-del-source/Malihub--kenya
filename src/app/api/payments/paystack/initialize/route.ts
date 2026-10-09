@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "A valid orderId is required." }, { status: 400 });
   }
 
-  const config = resolvePaystackConfig(process.env);
+  const config = resolvePaystackConfig({
+    PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
+    PAYSTACK_CALLBACK_URL: process.env.PAYSTACK_CALLBACK_URL,
+    PAYSTACK_TIMEOUT_MS: process.env.PAYSTACK_TIMEOUT_MS,
+  });
   if (!config.ok) {
     console.error("[payments] Paystack configuration invalid", config);
     return NextResponse.json({ success: false, error: "Online payments are temporarily unavailable.", code: "provider_not_configured" }, { status: 503 });

@@ -63,7 +63,7 @@ export type PaymentMethodOption = {
 
 export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
-    id: "mpesa",
+    id: "paystack",
     label: "Paystack",
     description: "Pay securely on Paystack using the payment methods available at checkout.",
     provider: "PAYSTACK",
@@ -196,7 +196,7 @@ export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>
 }
 
 /**
- * `POST /api/payments/paystack/initialize` — starts (or joins) the M-Pesa collection
+ * `POST /api/payments/paystack/initialize` — initializes hosted checkout
  * for one of the caller's own PENDING orders.
  *
  * A 200 here means PayHero QUEUED the prompt. It is NOT a completed payment;
@@ -221,7 +221,7 @@ export async function initiateStkPayment(
 
   const body = await readJson(response);
   if (!response.ok || body?.success !== true) {
-    return failureFrom(response, body, "We couldn't start the M-Pesa payment. Please try again.");
+    return failureFrom(response, body, "We couldn't start Paystack checkout. Please try again.");
   }
 
   const data = body.data as StkQueuedResult | undefined;

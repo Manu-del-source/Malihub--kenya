@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
-import { CategoriesSection } from "@/components/landing/categories-section";
-import { FeaturedListingsSection } from "@/components/landing/featured-listings-section";
+import { CategoryTiles } from "@/components/landing/category-tiles";
+import { ListingStrip } from "@/components/landing/listing-strip";
+import { FEATURED_LISTINGS } from "@/lib/landing-data";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
 import { StatsSection } from "@/components/landing/stats-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
@@ -50,8 +51,9 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HeroSection />
-      <CategoriesSection />
-      <FeaturedListingsSection />
+      <CategoryTiles />
+      <ListingStrip eyebrow="Trending now" title="Top selling items" listings={FEATURED_LISTINGS} />
+      <ListingStrip eyebrow="Fresh" title="Just in" listings={[...FEATURED_LISTINGS].reverse()} />
       <WhyMaliHubSection />
       <StatsSection />
       <SellerCtaSection />

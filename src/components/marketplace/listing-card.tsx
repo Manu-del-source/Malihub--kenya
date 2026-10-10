@@ -57,12 +57,12 @@ export function ListingCard({
         href={`/products/${listing.slug}`}
         className="block overflow-hidden rounded-lg border border-border bg-card transition-shadow duration-300 hover:shadow-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
             src={listing.imageUrl}
             alt={listing.title}
             fill
-            sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw"
+            sizes="(min-width: 1024px) 280px, (min-width: 640px) 31vw, 46vw"
             priority={priority}
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
@@ -70,20 +70,20 @@ export function ListingCard({
           <FavoriteButton
             productId={listing.id}
             initialFavorited={listing.isFavorited ?? false}
-            className="absolute right-3 top-3"
+            className="absolute right-2 top-2"
           />
 
           {listing.isVerifiedSeller && (
-            <Badge variant="verified" className="absolute left-3 top-3 glass-sm">
+            <Badge variant="verified" className="absolute left-2 top-2 glass-sm">
               <ShieldCheck className="h-3 w-3" aria-hidden />
               Verified
             </Badge>
           )}
         </div>
 
-        <div className="flex flex-col gap-2 p-4">
+        <div className="flex flex-col gap-1.5 p-3">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-mono text-lg font-medium tabular-nums">
+            <p className="font-mono text-base font-semibold tabular-nums sm:text-lg">
               {formatKes(listing.priceCents)}
               {listing.isNegotiable && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -93,7 +93,7 @@ export function ListingCard({
             </p>
           </div>
 
-          <h3 className="line-clamp-1 text-sm font-medium text-foreground/90">
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-[13px] leading-snug text-foreground/90">
             {listing.title}
           </h3>
 

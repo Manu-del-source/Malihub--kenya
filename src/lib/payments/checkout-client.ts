@@ -86,8 +86,8 @@ export type CheckoutOrder = {
   totalCents: number;
 };
 
-/** Paystack's hosted checkout initialization response. */
-export type PaystackCheckoutResult = { authorizationUrl: string; reference: string; reused: boolean };
+/** Paystack InlineJS transaction details returned by the server. */
+export type PaystackCheckoutResult = { accessCode: string; reference: string; reused: boolean };
 
 // Kept for the existing M-Pesa component/hook modules while they remain in the
 // codebase; the buyer checkout itself now uses Paystack-hosted checkout.
@@ -207,7 +207,7 @@ export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>
 }
 
 /**
- * `POST /api/payments/paystack/initialize` — initializes hosted checkout
+ * `POST /api/payments/paystack/initialize` — initializes a Paystack transaction
  * for one of the caller's own PENDING orders.
  *
  * A 200 here means PayHero QUEUED the prompt. It is NOT a completed payment;
@@ -263,8 +263,8 @@ export async function initiatePaystackCheckout(orderId: string): Promise<ApiResu
     return failureFrom(response, body, "We couldn't start Paystack checkout. Please try again.");
   }
   const data = body.data as PaystackCheckoutResult | undefined;
-  if (!data?.authorizationUrl || !data.authorizationUrl.startsWith("https://checkout.paystack.com/")) {
-    return { ok: false, status: response.status, message: "Paystack returned an invalid checkout link." };
+  if (!data?.accessCode || typeof data.accessCode !== "string" || !data.reference) {
+    return { ok: false, status: response.status, message: "Paystack returned invalid checkout details." };
   }
   return { ok: true, data };
 }

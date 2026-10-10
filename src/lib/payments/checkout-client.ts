@@ -89,6 +89,17 @@ export type CheckoutOrder = {
 /** Paystack's hosted checkout initialization response. */
 export type PaystackCheckoutResult = { authorizationUrl: string; reference: string; reused: boolean };
 
+// Kept for the existing M-Pesa component/hook modules while they remain in the
+// codebase; the buyer checkout itself now uses Paystack-hosted checkout.
+export type StkQueuedResult = {
+  paymentReference: string;
+  checkoutRequestId: string | null;
+  paymentStatus: string;
+  amountCents: number;
+  alreadyInitiated: boolean;
+  providerStatus: "QUEUED";
+};
+
 export type ApiFailure = {
   ok: false;
   status: number;

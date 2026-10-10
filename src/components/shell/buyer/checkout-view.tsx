@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -22,9 +23,24 @@ import {
   createSerializedTask,
   PAYMENT_METHODS,
   initiatePaystackCheckout,
+  fetchPaymentStatus,
   type CheckoutOrder,
 } from "@/lib/payments/checkout-client";
 import { formatKes } from "@/utils";
+
+type PaystackPopupCallbacks = {
+  onSuccess: (transaction: { reference: string }) => void;
+  onCancel: () => void;
+  onError: (error: { message: string }) => void;
+};
+
+declare global {
+  interface Window {
+    PaystackPop?: new () => {
+      resumeTransaction: (accessCode: string, callbacks?: PaystackPopupCallbacks) => unknown;
+    };
+  }
+}
 
 /**
  * The checkout screen.
@@ -62,6 +78,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
   
   const [error, setError] = useState<string | null>(null);
+  const [paystackReady, setPaystackReady] = useState(false);
 
   // One order-creation call at a time, for the lifetime of this screen.
   const createOrdersOnce = useMemo(() => createSerializedTask(createCheckoutOrders), []);
@@ -93,10 +110,44 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
       setStage("paying");
       return;
     }
-    window.location.assign(payment.data.authorizationUrl);
+    if (!window.PaystackPop) {
+      setError("Secure checkout is still loading. Please try again in a moment.");
+      setStage("paying");
+      return;
+    }
+
+    try {
+      const popup = new window.PaystackPop();
+      popup.resumeTransaction(payment.data.accessCode, {
+        onSuccess: async () => {
+          // The browser callback is not proof of payment. Ask MaliHub's server
+          // to verify the transaction before navigating to the order page.
+          const verified = await fetchPaymentStatus(result.data[0]!.id, { verify: true });
+          if (verified.ok && verified.data.order.status === "PAID") {
+            window.location.assign(`/buyer/orders/${result.data[0]!.id}`);
+            return;
+          }
+          setError("Paystack returned from checkout, but MaliHub has not confirmed payment yet. Check Your orders before trying again.");
+          setStage("paying");
+        },
+        onCancel: () => {
+          setError("Checkout was closed before payment was confirmed. You can continue from this page.");
+          setStage("paying");
+        },
+        onError: () => {
+          setError("Paystack checkout could not load. Your order is still unpaid; please try again or check Your orders first.");
+          setStage("paying");
+        },
+      });
+    } catch {
+      setError("We couldn't open secure checkout inside MaliHub. Please try again.");
+      setStage("paying");
+    }
   }
 
   return (
+    <>
+    <Script src="https://js.paystack.co/v2/inline.js" strategy="afterInteractive" onReady={() => setPaystackReady(true)} />
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         {/* ── Delivery / buyer information ───────────────────────────────── */}
@@ -314,9 +365,9 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
               type="button"
               className="mt-5 w-full"
               onClick={() => void handlePay()}
-              disabled={blockedByStock || summary.totalCents <= 0}
+              disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady}
             >
-              Continue to Paystack · {formatKes(summary.totalCents)}
+              {paystackReady ? `Pay securely · ${formatKes(summary.totalCents)}` : "Loading secure checkout…"}
             </Button>
           )}
 
@@ -365,5 +416,6 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
         </div>
       </aside>
     </div>
+    </>
   );
 }

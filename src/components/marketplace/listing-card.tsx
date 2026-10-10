@@ -42,10 +42,13 @@ export function ListingCard({
   listing,
   className,
   priority = false,
+  compact = false,
 }: {
   listing: ListingCardData;
   className?: string;
   priority?: boolean;
+  /** Denser marketplace-style card for app screens (square image, 2-line title). */
+  compact?: boolean;
 }) {
   return (
     <motion.div
@@ -57,12 +60,12 @@ export function ListingCard({
         href={`/products/${listing.slug}`}
         className="block overflow-hidden rounded-lg border border-border bg-card transition-shadow duration-300 hover:shadow-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-square overflow-hidden bg-muted">
+        <div className={cn("relative overflow-hidden bg-muted", compact ? "aspect-square" : "aspect-[4/3]")}>
           <Image
             src={listing.imageUrl}
             alt={listing.title}
             fill
-            sizes="(min-width: 1024px) 280px, (min-width: 640px) 31vw, 46vw"
+            sizes={compact ? "(min-width: 1024px) 280px, (min-width: 640px) 31vw, 46vw" : "(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw"}
             priority={priority}
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
@@ -70,20 +73,20 @@ export function ListingCard({
           <FavoriteButton
             productId={listing.id}
             initialFavorited={listing.isFavorited ?? false}
-            className="absolute right-2 top-2"
+            className={compact ? "absolute right-2 top-2" : "absolute right-3 top-3"}
           />
 
           {listing.isVerifiedSeller && (
-            <Badge variant="verified" className="absolute left-2 top-2 glass-sm">
+            <Badge variant="verified" className={cn("absolute glass-sm", compact ? "left-2 top-2" : "left-3 top-3")}>
               <ShieldCheck className="h-3 w-3" aria-hidden />
               Verified
             </Badge>
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5 p-3">
+        <div className={cn("flex flex-col", compact ? "gap-1.5 p-3" : "gap-2 p-4")}>
           <div className="flex items-start justify-between gap-2">
-            <p className="font-mono text-base font-semibold tabular-nums sm:text-lg">
+            <p className={cn("font-mono font-medium tabular-nums", compact ? "text-base font-semibold sm:text-lg" : "text-lg")}>
               {formatKes(listing.priceCents)}
               {listing.isNegotiable && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -93,7 +96,7 @@ export function ListingCard({
             </p>
           </div>
 
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-[13px] leading-snug text-foreground/90">
+          <h3 className={cn("text-foreground/90", compact ? "line-clamp-2 min-h-[2.5rem] text-[13px] leading-snug" : "line-clamp-1 text-sm font-medium")}>
             {listing.title}
           </h3>
 

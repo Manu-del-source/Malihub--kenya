@@ -11,7 +11,7 @@ export function SimilarListings({ listings }: { listings: ProductWithRelations[]
       <SectionHeading align="left" title="Similar listings" className="mb-6" />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {listings.map((listing) => (
-          <ListingCard key={listing.id} listing={toListingCardData(listing)} />
+          <ListingCard key={listing.id} listing={toListingCardData(listing)} compact />
         ))}
       </div>
     </section>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
+import { StorefrontHome } from "@/components/marketplace/storefront-home";
 
 export const metadata: Metadata = {
   title: "Marketplace",
@@ -18,15 +19,22 @@ type MarketplacePageProps = {
  * the database through `searchListings`. It shares its implementation with
  * `/search` (MarketplaceBrowser) so the two can never diverge.
  *
+ * With no search or filter applied it opens with the storefront "front door"
+ * (banners, categories, listing rows) above the full browser.
+ *
  * Public by design: browsing the catalogue needs no session (see
  * `PROTECTED_PREFIXES` in src/lib/auth/config.ts).
  */
 export default async function MarketplacePage({ searchParams }: MarketplacePageProps) {
   const rawParams = await searchParams;
+  const hasQuery = Object.values(rawParams).some((v) => (Array.isArray(v) ? v.length > 0 : !!v));
 
   return (
-    <Container className="py-10">
-      <MarketplaceBrowser rawParams={rawParams} />
-    </Container>
+    <>
+      {!hasQuery && <StorefrontHome />}
+      <Container className="py-10">
+        <MarketplaceBrowser rawParams={rawParams} />
+      </Container>
+    </>
   );
 }

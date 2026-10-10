@@ -1,4 +1,4 @@
-import { SiteHeader } from "@/components/landing/site-header";
+import { AppHeader } from "@/components/shell/app-header";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { getHeaderUser } from "@/lib/header-user";
 
@@ -13,7 +13,7 @@ export default async function MarketplaceLayout({ children }: { children: React.
 
   return (
     <>
-      <SiteHeader user={headerUser} />
+      <AppHeader user={headerUser} />
       {/* The header is fixed, so reserve its height. */}
       <main className="min-h-[70vh] pt-20">{children}</main>
       <SiteFooter />

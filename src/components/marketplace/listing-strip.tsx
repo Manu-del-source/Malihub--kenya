@@ -42,7 +42,7 @@ export function ListingStrip({
           <div className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 sm:px-6">
             {listings.map((l) => (
               <div key={l.id} className="w-[46%] shrink-0 snap-start sm:w-[31%] lg:w-[22%]">
-                <ListingCard listing={l} />
+                <ListingCard listing={l} compact />
               </div>
             ))}
           </div>

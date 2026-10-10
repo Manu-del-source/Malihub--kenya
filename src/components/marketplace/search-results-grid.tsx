@@ -65,7 +65,7 @@ export function SearchResultsGrid({
     <div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((listing, i) => (
-          <ListingCard key={listing.id} listing={listing} priority={i < 4} />
+          <ListingCard key={listing.id} listing={listing} priority={i < 4} compact />
         ))}
       </div>
 

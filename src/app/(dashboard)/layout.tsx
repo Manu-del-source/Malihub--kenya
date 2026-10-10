@@ -1,13 +1,18 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { LogOut, ShoppingCart } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
 import {
   ADMIN_DASHBOARD_PATH,
+  BUYER_DASHBOARD_PATH,
   SELLER_DASHBOARD_PATH,
 } from "@/lib/auth/config";
 import { signOutAction } from "@/app/(auth)/actions";
+import {
+  BottomNav, DesktopNav, HeaderSearchLink,
+  type BottomItem, type NavItem as ClientNavItem,
+} from "@/components/shell/dashboard-nav";
 
 /**
  * Rendered per request — never prerendered.
@@ -75,20 +80,30 @@ function buildNav({
   return { primary, shared };
 }
 
-function NavLinks({ items }: { items: NavItem[] }) {
-  return (
-    <>
-      {items.map((item) => (
-        <Link
-          key={`${item.label}-${item.href}`}
-          href={item.href}
-          className="whitespace-nowrap transition-colors hover:text-foreground"
-        >
-          {item.label}
-        </Link>
-      ))}
-    </>
-  );
+/** The four tabs shown in the mobile bottom bar (a fifth, "More", holds the rest). */
+function buildTabs({ hasSeller, isAdmin }: { hasSeller: boolean; isAdmin: boolean }): BottomItem[] {
+  if (hasSeller) {
+    return [
+      { label: "Dashboard", href: SELLER_DASHBOARD_PATH, icon: "dashboard" },
+      { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products`, icon: "products" },
+      { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders`, icon: "orders" },
+      { label: "Messages", href: "/messages", icon: "messages" },
+    ];
+  }
+  if (isAdmin) {
+    return [
+      { label: "Admin", href: ADMIN_DASHBOARD_PATH, icon: "admin" },
+      { label: "Shop", href: "/marketplace", icon: "shop" },
+      { label: "Cart", href: "/buyer/cart", icon: "cart" },
+      { label: "Messages", href: "/messages", icon: "messages" },
+    ];
+  }
+  return [
+    { label: "Dashboard", href: BUYER_DASHBOARD_PATH, icon: "dashboard" },
+    { label: "Shop", href: "/marketplace", icon: "shop" },
+    { label: "Cart", href: "/buyer/cart", icon: "cart" },
+    { label: "Orders", href: "/buyer/orders", icon: "orders" },
+  ];
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -103,10 +118,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
     isAdmin: isAdministratorRole(user.role),
   });
 
+  const tabs = buildTabs({
+    hasSeller: user.hasSellerProfile,
+    isAdmin: isAdministratorRole(user.role),
+  });
+  // Everything, for the mobile "More" sheet (includes the buyer dashboard).
+  const all: ClientNavItem[] = [
+    { label: "Buyer dashboard", href: BUYER_DASHBOARD_PATH },
+    ...primary,
+    ...shared,
+  ];
+
   return (
-    <div className="min-h-svh">
-      <header className="border-b border-border">
-        <Container className="flex items-center justify-between gap-6 py-4">
+    <div className="flex min-h-svh flex-col">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
+        <Container className="flex h-14 items-center justify-between gap-4 md:h-16">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-medium">
             <span
               aria-hidden
@@ -117,27 +143,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
             MaliHub
           </Link>
 
-          <nav
-            className="hidden items-center gap-5 text-sm text-muted-foreground md:flex"
-            aria-label="Dashboard"
-          >
-            <NavLinks items={primary} />
-            <span aria-hidden className="h-4 w-px bg-border" />
-            <NavLinks items={shared} />
-          </nav>
+          <DesktopNav primary={primary} shared={shared} />
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <HeaderSearchLink />
             <Link
-              href="/messages"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground md:hidden"
+              href="/buyer/cart"
+              aria-label="Cart"
+              className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
             >
-              Messages
+              <ShoppingCart className="h-[18px] w-[18px]" />
             </Link>
             <NotificationBell isSignedIn />
-            <form action={signOutAction}>
+            <form action={signOutAction} className="hidden md:block">
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+                className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
               >
                 <LogOut className="h-3.5 w-3.5" aria-hidden />
                 Sign out
@@ -145,22 +166,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </form>
           </div>
         </Container>
-
-        {/* Mobile: same role-aware links, horizontally scrollable. */}
-        <div className="border-t border-border md:hidden">
-          <Container>
-            <nav
-              className="flex gap-4 overflow-x-auto py-2.5 text-sm text-muted-foreground"
-              aria-label="Dashboard (mobile)"
-            >
-              <NavLinks items={primary} />
-              <NavLinks items={shared} />
-            </nav>
-          </Container>
-        </div>
       </header>
 
-      <main>{children}</main>
+      <main className="flex-1">{children}</main>
+
+      <BottomNav tabs={tabs} all={all} />
     </div>
   );
 }

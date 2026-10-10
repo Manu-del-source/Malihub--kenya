@@ -18,7 +18,7 @@ export function MessagesShell({
   const isThreadOpen = pathname !== "/messages";
 
   return (
-    <div className="flex h-[calc(100svh-65px)] overflow-hidden">
+    <div className="flex h-[calc(100svh-121px)] md:h-[calc(100svh-65px)] overflow-hidden">
       <div
         className={cn(
           "w-full shrink-0 border-r border-border lg:block lg:w-80",

@@ -1,7 +1,6 @@
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getHeaderUser } from "@/lib/header-user";
 
 /**
  * Rendered per request — never prerendered.
@@ -23,27 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Marketing pages are public, so this is a lookup rather than a guard: an
   // unauthenticated visitor simply gets the signed-out header.
-  const current = await getCurrentUser();
-  const user = current?.user;
-
-  const profile = user
-    ? await prisma.profile.findUnique({
-        where: { userId: user.id },
-        select: { fullName: true, avatarUrl: true },
-      })
-    : null;
-
-  const headerUser = user
-    ? {
-        email: user.email,
-        fullName: profile?.fullName || null,
-        // Falls back to the auth-provider photo when no avatar has been
-        // uploaded — the identity carries `user.image` (e.g. a Google profile
-        // photo) where the previous provider kept it in `user_metadata`.
-        avatarUrl: profile?.avatarUrl || current?.identity.image || null,
-        hasSellerProfile: user.hasSellerProfile,
-      }
-    : null;
+  const headerUser = await getHeaderUser();
 
   return (
     <>

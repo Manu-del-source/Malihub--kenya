@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { OrderStatusPill } from "@/components/shared/order-status-pill";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Package } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireSellerAccess } from "@/lib/auth";
 import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
@@ -13,7 +13,6 @@ import {
   listSellerOrders,
 } from "@/services/order-service";
 import { formatKes, timeAgo } from "@/utils";
-import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -70,9 +69,7 @@ export default async function SellerOrdersPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-mono text-sm font-medium">{order.orderNumber}</span>
-                  <Badge variant={isPaidOrderStatus(order.status) ? "primary" : "default"}>
-                    {ORDER_STATUS_LABEL[order.status]}
-                  </Badge>
+                  <OrderStatusPill status={order.status} />
                 </div>
                 <span className="text-xs text-muted-foreground">{timeAgo(order.createdAt)}</span>
               </div>

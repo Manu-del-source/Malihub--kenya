@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrderStatusPill } from "@/components/shared/order-status-pill";
 import type { Metadata } from "next";
 import {
   Search,
@@ -11,7 +12,6 @@ import {
   Eye,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
 import { requireUser } from "@/lib/auth";
@@ -19,7 +19,6 @@ import { prisma } from "@/lib/prisma";
 import { getCartSummary } from "@/services/cart-service";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
 import { formatKes, timeAgo } from "@/utils";
-import { ORDER_STATUS_LABEL, PAID_ORDER_STATUSES } from "@/lib/order-status";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -267,11 +266,7 @@ export default async function BuyerDashboardPage() {
                     {formatKes(order.totalCents)}
                   </p>
                   <div className="mt-1 flex items-center justify-end gap-2">
-                    <Badge
-                      variant={PAID_ORDER_STATUSES.includes(order.status) ? "primary" : "default"}
-                    >
-                      {ORDER_STATUS_LABEL[order.status] ?? order.status}
-                    </Badge>
+                    <OrderStatusPill status={order.status} />
                     <span className="text-xs text-muted-foreground">
                       {timeAgo(order.createdAt)}
                     </span>

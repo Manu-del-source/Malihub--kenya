@@ -17,6 +17,8 @@ import {
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { OrderStatusPill } from "@/components/shared/order-status-pill";
+import { QuickActions, SectionHeader, StatTile } from "@/components/shell/shared/dashboard-ui";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireSellerAccess } from "@/lib/auth";
 import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
@@ -25,7 +27,6 @@ import { getSellerStats } from "@/services/listing-service";
 import type { RecentInquiry } from "@/services/listing-service";
 import { listSellerOrders } from "@/services/order-service";
 import { formatKes, timeAgo } from "@/utils";
-import { ORDER_STATUS_LABEL } from "@/lib/order-status";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -80,35 +81,28 @@ export default async function SellerDashboardPage() {
   const ordersPreview = (recentOrders ?? []).slice(0, 5);
 
   return (
-    <Container className="py-12">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <Container className="py-6 sm:py-10">
+      <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary-50 via-card to-card p-4 sm:p-6">
+        <div className="min-w-0">
           <Badge variant={seller.verificationStatus === "VERIFIED" ? "verified" : "default"}>
             {seller.verificationStatus}
           </Badge>
-          <h1 className="mt-2 font-display text-3xl font-medium">{seller.businessName}</h1>
+          <h1 className="mt-2 truncate font-display text-2xl font-medium sm:text-3xl">
+            {seller.businessName}
+          </h1>
+          <p className="text-xs text-muted-foreground">Seller dashboard</p>
         </div>
-        <Button asChild>
+        <Button asChild className="shrink-0">
           <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
             <Plus className="h-4 w-4" aria-hidden />
-            New listing
+            <span className="hidden min-[400px]:inline">New listing</span>
           </Link>
         </Button>
       </div>
 
-      {/* ── Quick links ─────────────────────────────────────────────────── */}
-      <nav className="mb-8 flex flex-wrap gap-2" aria-label="Seller sections">
-        {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
-          <Link
-            key={label}
-            href={href}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-          >
-            <Icon className="h-4 w-4" aria-hidden />
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <div className="mb-5">
+        <QuickActions items={QUICK_LINKS} />
+      </div>
 
       {/* ── First-product empty state ───────────────────────────────────── */}
       {stats.totalListings === 0 && (
@@ -123,15 +117,9 @@ export default async function SellerDashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {STAT_CARDS.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="rounded-xl border border-border bg-card p-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary-400">
-              <Icon className="h-4 w-4" aria-hidden />
-            </div>
-            <p className="mt-3 font-mono text-2xl font-medium tabular-nums">{stats[key].toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
-          </div>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+        {STAT_CARDS.map(({ key, label, icon }) => (
+          <StatTile key={key} icon={icon} label={label} value={stats[key].toLocaleString()} />
         ))}
       </div>
 
@@ -152,16 +140,8 @@ export default async function SellerDashboardPage() {
       )}
 
       {/* ── Recent orders ───────────────────────────────────────────────── */}
-      <div className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-medium">Recent orders</h2>
-          <Link
-            href={`${SELLER_DASHBOARD_PATH}/orders`}
-            className="text-sm text-primary-400 hover:underline"
-          >
-            View all orders
-          </Link>
-        </div>
+      <div className="mt-8">
+        <SectionHeader title="Recent orders" href={`${SELLER_DASHBOARD_PATH}/orders`} linkLabel="View all" />
 
         {ordersPreview.length === 0 ? (
           <EmptyState
@@ -172,7 +152,7 @@ export default async function SellerDashboardPage() {
             actionHref={`${SELLER_DASHBOARD_PATH}/listings`}
           />
         ) : (
-          <div className="glass flex flex-col divide-y divide-border rounded-2xl">
+          <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {ordersPreview.map((order) => (
               <div key={order.id} className="flex items-center justify-between gap-4 px-5 py-4">
                 <div className="min-w-0">
@@ -196,7 +176,7 @@ export default async function SellerDashboardPage() {
                     {formatKes(order.totalCents)}
                   </p>
                   <div className="mt-1 flex items-center justify-end gap-2">
-                    <Badge>{ORDER_STATUS_LABEL[order.status]}</Badge>
+                    <OrderStatusPill status={order.status} />
                     <span className="text-xs text-muted-foreground">
                       {timeAgo(order.createdAt)}
                     </span>
@@ -208,13 +188,8 @@ export default async function SellerDashboardPage() {
         )}
       </div>
 
-      <div className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-medium">Recent inquiries</h2>
-          <Link href={`${SELLER_DASHBOARD_PATH}/listings`} className="text-sm text-primary-400 hover:underline">
-            View all listings
-          </Link>
-        </div>
+      <div className="mt-8">
+        <SectionHeader title="Recent inquiries" href="/messages" linkLabel="Open messages" />
 
         {stats.recentInquiries.length === 0 ? (
           <EmptyState
@@ -223,7 +198,7 @@ export default async function SellerDashboardPage() {
             description="When buyers message you about a listing, their conversations will show up here."
           />
         ) : (
-          <div className="glass flex flex-col divide-y divide-border rounded-2xl">
+          <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {stats.recentInquiries.map((inquiry: RecentInquiry) => (
               <div key={inquiry.id} className="flex items-center justify-between px-5 py-4">
                 <div>

@@ -1,3 +1,4 @@
+import { OrderStatusPill } from "@/components/shared/order-status-pill";
 import { Badge } from "@/components/ui/badge";
 import type {
   OrderStatus,
@@ -7,7 +8,6 @@ import type {
   SettlementStatus,
   UserRole,
 } from "@prisma/client";
-import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 
 /**
  * Status badges for the admin area. Presentation-only helpers on top of the
@@ -70,18 +70,7 @@ export function SellerVerificationBadge({ status }: { status: SellerVerification
 }
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  if (status === "CANCELLED" || status === "REFUNDED") {
-    return (
-      <Badge variant="default" className="bg-destructive/15 text-destructive">
-        {ORDER_STATUS_LABEL[status]}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant={isPaidOrderStatus(status) ? "primary" : "default"}>
-      {ORDER_STATUS_LABEL[status]}
-    </Badge>
-  );
+  return <OrderStatusPill status={status} />;
 }
 
 const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {

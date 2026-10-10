@@ -12,9 +12,9 @@ import type {
  * Exactly what the existing route handlers accept and nothing else:
  *
  *   POST /api/orders                       → `{}` (the session is the payload)
- *   POST /api/payments/payhero/stk         → `{ orderId, phoneNumber }`
- *   GET  /api/payments/payhero/status      → `?orderId=…`
- *   POST /api/payments/payhero/status      → `{ orderId }`
+ *   POST /api/payments/paystack/initialize         → `{ orderId, phoneNumber }`
+ *   GET  /api/payments/paystack/verify      → `?orderId=…`
+ *   POST /api/payments/paystack/verify      → `{ orderId }`
  *
  * Amounts, prices, seller ids, buyer ids, provider/channel/callback details
  * and payment statuses are never sent — the server derives every one of them
@@ -33,8 +33,8 @@ import type {
 
 export const CHECKOUT_PATH = "/checkout";
 export const ORDERS_ENDPOINT = "/api/orders";
-export const STK_ENDPOINT = "/api/payments/payhero/stk";
-export const PAYMENT_STATUS_ENDPOINT = "/api/payments/payhero/status";
+export const STK_ENDPOINT = "/api/payments/paystack/initialize";
+export const PAYMENT_STATUS_ENDPOINT = "/api/payments/paystack/verify";
 
 /** How often the waiting screen asks the server, and for how long. */
 export const PAYMENT_POLL_INTERVAL_MS = 6_000;
@@ -43,38 +43,38 @@ export const PAYMENT_POLL_WINDOW_MS = 120_000;
 /**
  * The payment methods the checkout may offer.
  *
- * One entry today: M-Pesa collected through PayHero. It is a list, and the
+ * One entry today: Paystack-hosted checkout. It is a list, and the
  * payment-method section renders it as one, so adding a provider later is a
  * data change plus its own server route — not a checkout rewrite. Nothing
  * here claims a method MaliHub cannot actually collect (no card, bank
  * transfer or Airtel Money entry exists).
  */
 export type PaymentMethodOption = {
-  id: "mpesa";
+  id: "paystack";
   label: string;
   description: string;
   /** The channel behind this option, for display and diagnostics only. */
-  provider: "PAYHERO";
+  provider: "PAYSTACK";
   method: "MOBILE_MONEY";
   /** The option needs a phone number to prompt. */
-  requiresPhone: true;
+  requiresPhone: false;
   enabled: boolean;
 };
 
 export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
-    id: "mpesa",
-    label: "M-Pesa",
-    description: "Pay securely using M-Pesa. An STK Push will be sent to your phone.",
-    provider: "PAYHERO",
+    id: "paystack",
+    label: "Paystack",
+    description: "Pay securely on Paystack using the payment methods available at checkout.",
+    provider: "PAYSTACK",
     method: "MOBILE_MONEY",
-    requiresPhone: true,
+    requiresPhone: false,
     enabled: true,
   },
 ];
 
 /** The one method this build can collect with. */
-export const MPESA_METHOD = PAYMENT_METHODS[0]!;
+export const PAYSTACK_METHOD = PAYMENT_METHODS[0]!;
 
 /** The created-order shape `POST /api/orders` actually returns. */
 export type CheckoutOrder = {
@@ -86,7 +86,11 @@ export type CheckoutOrder = {
   totalCents: number;
 };
 
-/** The STK route's response body — a QUEUED prompt, never a payment. */
+/** Paystack's hosted checkout initialization response. */
+export type PaystackCheckoutResult = { authorizationUrl: string; reference: string; reused: boolean };
+
+// Kept for the existing M-Pesa component/hook modules while they remain in the
+// codebase; the buyer checkout itself now uses Paystack-hosted checkout.
 export type StkQueuedResult = {
   paymentReference: string;
   checkoutRequestId: string | null;
@@ -203,7 +207,7 @@ export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>
 }
 
 /**
- * `POST /api/payments/payhero/stk` — starts (or joins) the M-Pesa collection
+ * `POST /api/payments/paystack/initialize` — initializes hosted checkout
  * for one of the caller's own PENDING orders.
  *
  * A 200 here means PayHero QUEUED the prompt. It is NOT a completed payment;
@@ -228,7 +232,7 @@ export async function initiateStkPayment(
 
   const body = await readJson(response);
   if (!response.ok || body?.success !== true) {
-    return failureFrom(response, body, "We couldn't start the M-Pesa payment. Please try again.");
+    return failureFrom(response, body, "We couldn't start Paystack checkout. Please try again.");
   }
 
   const data = body.data as StkQueuedResult | undefined;
@@ -238,6 +242,29 @@ export async function initiateStkPayment(
       status: response.status,
       message: "We couldn't start the M-Pesa payment. Please try again.",
     };
+  }
+  return { ok: true, data };
+}
+
+/** Start a Paystack-hosted checkout. The secret key stays on the server. */
+export async function initiatePaystackCheckout(orderId: string): Promise<ApiResult<PaystackCheckoutResult>> {
+  let response: Response;
+  try {
+    response = await fetch("/api/payments/paystack/initialize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    });
+  } catch {
+    return { ok: false, status: 0, message: "We couldn't reach the server. Please try again." };
+  }
+  const body = await readJson(response);
+  if (!response.ok || body?.success !== true) {
+    return failureFrom(response, body, "We couldn't start Paystack checkout. Please try again.");
+  }
+  const data = body.data as PaystackCheckoutResult | undefined;
+  if (!data?.authorizationUrl || !data.authorizationUrl.startsWith("https://checkout.paystack.com/")) {
+    return { ok: false, status: response.status, message: "Paystack returned an invalid checkout link." };
   }
   return { ok: true, data };
 }

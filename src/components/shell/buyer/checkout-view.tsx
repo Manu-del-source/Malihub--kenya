@@ -9,21 +9,19 @@ import {
   Loader2,
   Lock,
   ShoppingCart,
-  Smartphone,
+  CreditCard,
   TriangleAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MpesaPaySection } from "@/components/shell/buyer/mpesa-pay-section";
-import type { MpesaPhase } from "@/hooks/use-mpesa-payment";
+
+
 import type { CheckoutSummary } from "@/lib/payments/checkout-summary";
 import {
   createCheckoutOrders,
   createSerializedTask,
-  firstUnpaidOrderId,
   PAYMENT_METHODS,
-  validateMpesaPhone,
+  initiatePaystackCheckout,
   type CheckoutOrder,
 } from "@/lib/payments/checkout-client";
 import { formatKes } from "@/utils";
@@ -62,32 +60,18 @@ export type CheckoutViewProps = {
 export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
   const [stage, setStage] = useState<Stage>("review");
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
-  const [phases, setPhases] = useState<Record<string, MpesaPhase>>({});
-  const [phone, setPhone] = useState(buyer.phone ?? "");
-  const [phoneError, setPhoneError] = useState<string | null>(null);
+  
   const [error, setError] = useState<string | null>(null);
 
   // One order-creation call at a time, for the lifetime of this screen.
   const createOrdersOnce = useMemo(() => createSerializedTask(createCheckoutOrders), []);
 
   const blockedByStock = summary.unavailableCount > 0;
-  const activeOrderId =
-    orders.find(
-      (order) => phases[order.id] === "initiating" || phases[order.id] === "awaiting"
-    )?.id ?? null;
-  // Every created order is settled (one prompt per seller, sequentially).
-  const allPaid =
-    stage === "paying" && orders.length > 0 && firstUnpaidOrderId(orders, phases) === null;
+
 
   async function handlePay() {
     if (stage !== "review") return;
 
-    const validation = validateMpesaPhone(phone);
-    if (validation) {
-      setPhoneError(validation);
-      return;
-    }
-    setPhoneError(null);
     setError(null);
     setStage("creating");
 
@@ -98,7 +82,18 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
       return;
     }
     setOrders(result.data);
-    setStage("paying");
+    if (result.data.length !== 1) {
+      setError("Paystack checkout currently handles one seller order at a time. Please return to your cart and checkout items from one seller at a time. Your orders were created, so check Your orders before retrying.");
+      setStage("paying");
+      return;
+    }
+    const payment = await initiatePaystackCheckout(result.data[0]!.id);
+    if (!payment.ok) {
+      setError(payment.message);
+      setStage("paying");
+      return;
+    }
+    window.location.assign(payment.data.authorizationUrl);
   }
 
   return (
@@ -118,9 +113,9 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                Phone (used for M-Pesa)
+                Phone
               </dt>
-              <dd className="mt-0.5">{phone || buyer.phone || "Entered at payment"}</dd>
+              <dd className="mt-0.5">{buyer.phone || "Not set"}</dd>
             </div>
           </dl>
           <p className="mt-3 text-xs text-muted-foreground">
@@ -221,31 +216,18 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
 
             {orders.length > 1 && (
               <p className="rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
-                Your cart had items from {orders.length} sellers, so MaliHub created{" "}
-                {orders.length} separate orders. Each order is paid with its own M-Pesa prompt —
-                pay them one at a time. You are never charged twice for the same order.
+                Your cart had items from multiple sellers. Paystack checkout is currently available for one seller order at a time.
               </p>
             )}
 
-            {orders.map((order, index) => (
-              <MpesaPaySection
-                key={order.id}
-                order={{ id: order.id, orderNumber: order.orderNumber, totalCents: order.totalCents }}
-                defaultPhone={phone}
-                autoPayPhone={index === 0 ? phone : null}
-                disabled={activeOrderId !== null && activeOrderId !== order.id}
-                disabledReason={
-                  activeOrderId !== null && activeOrderId !== order.id
-                    ? "Finish the M-Pesa prompt for the order above first."
-                    : undefined
-                }
-                onPhaseChange={(phase) =>
-                  setPhases((current) => ({ ...current, [order.id]: phase }))
-                }
-              />
+            {orders.map((order) => (
+              <div key={order.id} className="rounded-xl border border-border p-4 text-sm">
+                <p className="font-medium">{order.orderNumber}</p>
+                <p className="mt-1 text-muted-foreground">Paystack checkout for {formatKes(order.totalCents)}</p>
+              </div>
             ))}
 
-            {allPaid && (
+            {false && (
               <div className="rounded-2xl border border-success/40 bg-success/10 p-5">
                 <p className="flex items-center gap-2 font-medium text-success">
                   <CheckCircle2 className="h-5 w-5" aria-hidden />
@@ -276,7 +258,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
 
           <div className="mt-4 flex flex-col gap-3">
             {PAYMENT_METHODS.map((method) => {
-              const selected = method.id === "mpesa";
+              const selected = method.id === "paystack";
               return (
                 <label
                   key={method.id}
@@ -294,7 +276,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
                   </span>
                   <span className="min-w-0">
                     <span className="flex items-center gap-2 text-sm font-medium">
-                      <Smartphone className="h-4 w-4 text-primary-400" aria-hidden />
+                      <CreditCard className="h-4 w-4 text-primary-400" aria-hidden />
                       {method.label}
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">
@@ -310,34 +292,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
             </p>
           </div>
 
-          {stage === "review" && (
-            <>
-              <div className="mt-5">
-                <label htmlFor="checkout-phone" className="text-sm font-medium">
-                  M-Pesa phone number
-                </label>
-                <Input
-                  id="checkout-phone"
-                  name="phoneNumber"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="0712345678"
-                  className="mt-2"
-                  value={phone}
-                  invalid={Boolean(phoneError)}
-                  onChange={(event) => {
-                    setPhone(event.target.value);
-                    setPhoneError(null);
-                  }}
-                />
-                {phoneError && (
-                  <p className="mt-1.5 text-xs text-destructive" role="alert">
-                    {phoneError}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+
 
           {stage === "paying" && orders.length > 0 && (
             <dl className="mt-5 space-y-1 text-sm">
@@ -361,7 +316,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
               onClick={() => void handlePay()}
               disabled={blockedByStock || summary.totalCents <= 0}
             >
-              Pay {formatKes(summary.totalCents)} with M-Pesa
+              Continue to Paystack · {formatKes(summary.totalCents)}
             </Button>
           )}
 
@@ -383,8 +338,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
             <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
               <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>
-                Your M-Pesa PIN is entered only on the official M-Pesa prompt. MaliHub never asks
-                for or stores your M-Pesa PIN.
+                You will complete payment on Paystack’s secure hosted checkout. MaliHub never receives your card details or payment PIN.
               </span>
             </p>
           )}

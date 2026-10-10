@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
     select: { id: true, customerReference: true, metadata: true },
   });
   if (existing) {
-    const meta = existing.metadata as { paystack?: { authorizationUrl?: string } } | null;
-    if (meta?.paystack?.authorizationUrl) {
-      return NextResponse.json({ success: true, data: { authorizationUrl: meta.paystack.authorizationUrl, reference: existing.customerReference, reused: true } });
+    const meta = existing.metadata as { paystack?: { authorizationUrl?: string; accessCode?: string } } | null;
+    if (meta?.paystack?.accessCode) {
+      return NextResponse.json({ success: true, data: { accessCode: meta.paystack.accessCode, reference: existing.customerReference, reused: true } });
     }
     // An earlier request may have timed out after Paystack accepted it. Do not
     // blindly create another charge; ask the buyer to retry status/support.
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({
       success: true,
-      data: { authorizationUrl: initialized.authorization_url, reference: initialized.reference, reused: false },
+      data: { accessCode: initialized.access_code, reference: initialized.reference, reused: false },
     });
   } catch (error) {
     // Preserve the reserved row/reference: a timeout can be ambiguous, so

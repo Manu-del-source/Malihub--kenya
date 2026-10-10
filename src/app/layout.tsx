@@ -87,7 +87,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
+    { media: "(prefers-color-scheme: light)", color: "#F68B1E" },
     { media: "(prefers-color-scheme: dark)", color: "#0c0e14" },
   ],
   width: "device-width",
@@ -107,7 +107,7 @@ export default function RootLayout({
               (function () {
                 try {
                   var stored = document.cookie.match(/malihub-theme=(dark|light)/);
-                  var theme = stored ? stored[1] : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                  var theme = stored ? stored[1] : 'light';
                   document.documentElement.classList.toggle('dark', theme === 'dark');
                   document.documentElement.style.colorScheme = theme;
                 } catch (e) {}

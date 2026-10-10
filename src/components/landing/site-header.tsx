@@ -1,146 +1,169 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Moon, Sun, ArrowUpRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
-import { useTheme } from "@/providers/theme-provider";
+import {
+  Menu, X, Search, ShoppingCart, ChevronRight, LayoutDashboard, MessageCircle,
+  Store, Package, Heart, LifeBuoy, Mail, LogOut, UserRound, Star,
+} from "lucide-react";
 import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { DEFAULT_CATEGORIES } from "@/lib/constants";
 import { signOutAction } from "@/app/(auth)/actions";
 
-const NAV_LINKS = [
-  { label: "Explore", href: "/marketplace" },
-  { label: "Categories", href: "/#categories" },
-  { label: "How it works", href: "/#why-malihub" },
-  { label: "Sell on MaliHub", href: "/#sell" },
-];
+function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-1.5 text-[22px] font-extrabold tracking-tight text-foreground">
+      MALIHUB
+      <span aria-hidden className="grid h-4 w-4 place-items-center rounded-full bg-primary">
+        <Star className="h-2.5 w-2.5 fill-white text-white" />
+      </span>
+    </Link>
+  );
+}
+
+function SearchBar({ className = "" }: { className?: string }) {
+  return (
+    <form action="/marketplace" role="search" className={className}>
+      <label className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 lg:rounded-md">
+        <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        <input
+          name="q"
+          type="search"
+          placeholder="Search products, brands and categories"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+      </label>
+    </form>
+  );
+}
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  const close = () => setOpen(false);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50">
-      <Container className="pt-4">
-        <div className="glass flex items-center justify-between rounded-full px-4 py-2.5 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-display text-lg font-medium">
-            <span
-              aria-hidden
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-secondary text-sm font-semibold text-primary-foreground"
-            >
-              M
-            </span>
-            MaliHub
-          </Link>
+    <>
+      <header className="sticky top-0 z-40 border-b border-border bg-card">
+        <div className="container flex h-14 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={open}
+            className="-ml-1 p-1 lg:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <Logo />
 
-          <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          <SearchBar className="mx-6 hidden flex-1 lg:block" />
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-
+          <div className="ml-auto flex items-center gap-1 sm:gap-3">
             <NotificationBell isSignedIn={!!user} />
-
             {user ? (
               <AccountMenu user={user} />
             ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                  <Link href="/login">Sign in</Link>
-                </Button>
-                <Button variant="primary" size="sm" asChild className="hidden sm:inline-flex">
-                  <Link href="/register">
-                    Start selling
-                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-                  </Link>
-                </Button>
-              </>
+              <Link href="/login" aria-label="Sign in" className="flex items-center gap-1.5 p-1.5 text-sm font-medium">
+                <UserRound className="h-6 w-6" />
+                <span className="hidden sm:inline">Sign in</span>
+              </Link>
             )}
-
-            <button
-              type="button"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground lg:hidden"
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+            <Link href="/buyer/cart" aria-label="Cart" className="flex items-center gap-1.5 p-1.5 text-sm font-medium">
+              <ShoppingCart className="h-6 w-6" />
+              <span className="hidden sm:inline">Cart</span>
+            </Link>
           </div>
         </div>
-      </Container>
+        <div className="container pb-2.5 lg:hidden">
+          <SearchBar />
+        </div>
+      </header>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="px-4 pt-2 lg:hidden"
-          >
-            <div className="glass flex flex-col gap-1 rounded-2xl p-3">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="mt-1 flex gap-2 border-t border-border pt-3">
-                {user ? (
-                  <>
-                    <Button variant="secondary" size="sm" asChild className="flex-1">
-                      <Link href="/buyer" onClick={() => setMobileOpen(false)}>
-                        Dashboard
-                      </Link>
-                    </Button>
-                    <form action={signOutAction} className="flex-1">
-                      <button
-                        type="submit"
-                        className="h-9 w-full rounded-full border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
-                      >
-                        Sign out
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="secondary" size="sm" asChild className="flex-1">
-                      <Link href="/login">Sign in</Link>
-                    </Button>
-                    <Button variant="primary" size="sm" asChild className="flex-1">
-                      <Link href="/register">Start selling</Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </header>
+      {/* Slide-in menu (mobile) */}
+      <div className={`fixed inset-0 z-50 lg:hidden ${open ? "visible" : "invisible"}`} aria-hidden={!open}>
+        <div
+          onClick={close}
+          className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+        />
+        <aside
+          className={`absolute left-0 top-0 h-full w-[87%] max-w-sm overflow-y-auto bg-card transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <div className="flex h-14 items-center gap-4 border-b border-border px-4">
+            <button type="button" onClick={close} aria-label="Close menu"><X className="h-5 w-5" /></button>
+            <Logo />
+          </div>
+
+          <MenuLink href="/support" label="NEED HELP?" heading chevron onClick={close} />
+          <MenuLink href={user ? "/buyer" : "/login"} label="MY MALIHUB ACCOUNT" heading chevron onClick={close} />
+          <MenuLink href="/buyer/orders" label="Orders" icon={Package} onClick={close} />
+          <MenuLink href="/messages" label="Messages" icon={MessageCircle} onClick={close} />
+          <MenuLink href="/buyer/wishlist" label="Wishlist" icon={Heart} onClick={close} />
+          <MenuLink href="/buyer" label="Dashboard" icon={LayoutDashboard} onClick={close} />
+
+          <div className="mt-1 flex items-center justify-between border-t border-border px-4 pb-1 pt-4 text-xs font-semibold text-muted-foreground">
+            OUR CATEGORIES
+            <Link href="/marketplace" onClick={close} className="font-normal text-primary">See All</Link>
+          </div>
+          {DEFAULT_CATEGORIES.map((c) => (
+            <MenuLink key={c.slug} href={`/categories/${c.slug}`} label={c.name} onClick={close} />
+          ))}
+
+          <div className="mt-1 border-t border-border px-4 pb-1 pt-4 text-xs font-semibold text-muted-foreground">
+            OUR SERVICES
+          </div>
+          <MenuLink
+            href={user?.hasSellerProfile ? "/seller" : "/register?role=seller"}
+            label={user?.hasSellerProfile ? "Seller dashboard" : "Sell on MaliHub"}
+            icon={Store}
+            onClick={close}
+          />
+
+          <div className="mt-1 border-t border-border">
+            <MenuLink href="/support" label="Help Center" icon={LifeBuoy} onClick={close} />
+            <MenuLink href="/contact" label="Contact us" icon={Mail} onClick={close} />
+            {user && (
+              <form action={signOutAction}>
+                <button type="submit" className="flex w-full items-center gap-4 px-4 py-3 text-left text-sm text-destructive">
+                  <LogOut className="h-5 w-5" /> Sign out
+                </button>
+              </form>
+            )}
+          </div>
+          <div className="h-8" />
+        </aside>
+      </div>
+    </>
+  );
+}
+
+function MenuLink({
+  href, label, icon: Icon, heading, chevron, onClick,
+}: {
+  href: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  heading?: boolean;
+  chevron?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-4 px-4 py-3 active:bg-muted ${
+        heading ? "border-b border-border text-xs font-semibold text-muted-foreground" : "text-sm"
+      }`}
+    >
+      {Icon && <Icon className="h-5 w-5" />}
+      <span className="flex-1">{label}</span>
+      {chevron && <ChevronRight className="h-4 w-4" />}
+    </Link>
   );
 }

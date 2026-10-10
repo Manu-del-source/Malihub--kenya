@@ -9,45 +9,45 @@
  */
 @layer base {
   :root {
-    /* Light theme — warm neutral canvas */
-    --background: 40 25% 97%;
-    --foreground: 222 30% 12%;
+    /* Light theme — Jumia-style: light-gray canvas, white cards, orange brand */
+    --background: 240 5% 95%;
+    --foreground: 0 0% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 30% 12%;
+    --card-foreground: 0 0% 16%;
 
-    --muted: 40 15% 92%;
-    --muted-foreground: 222 12% 40%;
+    --muted: 240 4% 92%;
+    --muted-foreground: 0 0% 38%;
 
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 32 78% 52%;
+    --border: 0 0% 90%;
+    --input: 0 0% 88%;
+    --ring: 32 92% 54%;
 
-    /* Primary — copper horizon */
-    --primary: 32 78% 52%;
-    --primary-foreground: 26 40% 12%;
-    --primary-50: 33 90% 96%;
-    --primary-100: 33 85% 90%;
-    --primary-400: 32 82% 62%;
-    --primary-500: 32 78% 52%;
-    --primary-600: 28 72% 44%;
-    --primary-700: 24 65% 36%;
+    /* Primary — Jumia orange #F68B1E */
+    --primary: 32 92% 54%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50: 32 100% 95%;
+    --primary-100: 32 100% 88%;
+    --primary-400: 32 92% 60%;
+    --primary-500: 32 92% 54%;
+    --primary-600: 30 90% 46%;
+    --primary-700: 28 85% 38%;
 
-    /* Secondary — Rift Valley dusk indigo */
-    --secondary: 258 32% 30%;
-    --secondary-foreground: 40 25% 97%;
+    /* Secondary — ink */
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 100%;
 
-    --accent: 152 38% 28%;
-    --accent-foreground: 40 25% 97%;
+    /* Accent — deal green (discount badges, verified) */
+    --accent: 137 48% 38%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Soft cyan highlight — trending/verified accents, hero glow */
     --cyan: 189 70% 45%;
-    --cyan-foreground: 226 32% 7%;
+    --cyan-foreground: 0 0% 100%;
 
-    --success: 152 45% 32%;
+    --success: 137 48% 38%;
     --warning: 38 92% 50%;
     --destructive: 6 74% 48%;
-    --destructive-foreground: 40 25% 97%;
+    --destructive-foreground: 0 0% 100%;
   }
 
   .dark {
@@ -105,12 +105,15 @@
 
 @layer utilities {
   /* Glassmorphism surface — used for nav bars, cards floating over gradients */
+  /* Flat Jumia-style surface (was glassmorphism) */
   .glass {
-    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-glass;
+    @apply bg-card border border-border shadow-sm;
   }
   .glass-sm {
-    @apply bg-card/70 backdrop-blur-md border border-white/10 shadow-glass-sm;
+    @apply bg-card border border-border shadow-sm;
   }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
 
   /* Skeleton loader shimmer */
   .skeleton {

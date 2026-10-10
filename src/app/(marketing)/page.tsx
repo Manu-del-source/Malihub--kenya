@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { HeroSection } from "@/components/landing/hero-section";
-import { CategoriesSection } from "@/components/landing/categories-section";
-import { FeaturedListingsSection } from "@/components/landing/featured-listings-section";
-import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
-import { StatsSection } from "@/components/landing/stats-section";
+import { HeroCarousel } from "@/components/landing/hero-carousel";
+import { CategoryTiles } from "@/components/landing/category-tiles";
+import { ListingStrip } from "@/components/landing/featured-listings-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
-import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { FaqSection } from "@/components/landing/faq-section";
-import { NewsletterSection } from "@/components/landing/newsletter-section";
+import { FEATURED_LISTINGS } from "@/lib/landing-data";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -49,15 +46,15 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HeroSection />
-      <CategoriesSection />
-      <FeaturedListingsSection />
-      <WhyMaliHubSection />
-      <StatsSection />
+      <HeroCarousel />
+      <CategoryTiles />
+      <ListingStrip title="Top selling items" listings={FEATURED_LISTINGS} />
+      <ListingStrip
+        title="Just in"
+        listings={[...FEATURED_LISTINGS].reverse()}
+      />
       <SellerCtaSection />
-      <TestimonialsSection />
       <FaqSection />
-      <NewsletterSection />
     </>
   );
 }

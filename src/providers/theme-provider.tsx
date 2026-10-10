@@ -16,7 +16,7 @@ const STORAGE_KEY = "malihub-theme";
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
+  defaultTheme = "light",
 }: {
   children: React.ReactNode;
   defaultTheme?: Theme;
@@ -27,7 +27,7 @@ export function ThemeProvider({
     const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
     const initial =
       stored ??
-      (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      "light";
     setThemeState(initial);
   }, []);
 

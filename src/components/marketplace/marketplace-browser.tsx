@@ -88,9 +88,7 @@ export async function MarketplaceBrowser({
       <nav aria-label="Browse categories" className="mb-7">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Explore categories</h2>
-          <Link href="/categories" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-            All categories <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
+          <span className="text-xs text-muted-foreground">Shop by category</span>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {DEFAULT_CATEGORIES.slice(0, 10).map((category) => {

@@ -1,8 +1,14 @@
 # Support and Report Handling
 
+## Official support channel
+
+Public MaliHub support email: **hello@smartbiz365.site**. Use it for account issues, seller onboarding questions, and general support. Users should include "MaliHub" in the subject line. The mailbox must be monitored before launch; do not advertise a response-time commitment until one is staffed and agreed.
+
+For suspicious listings, encourage users to use the in-product **Report listing** control so the report is associated with the item. Email can be used for follow-up or if the reporting UI is unavailable.
+
 ## Before launch
 
-- [ ] Publish a support contact channel that is actively monitored.
+- [ ] Confirm hello@smartbiz365.site receives mail and is actively monitored.
 - [ ] Assign an owner and backup for safety reports.
 - [ ] Confirm who can access reports and who may restrict or remove content.
 - [ ] Test report submission from a signed-in account and confirm the report is persisted.

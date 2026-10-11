@@ -25,10 +25,10 @@ export function StartSellingButton() {
       }
       toast.success(
         result.data.alreadyEnabled
-          ? "Your seller profile is already set up."
-          : "You're all set to start selling."
+          ? "Your seller profile is ready for an application."
+          : "Seller profile created. Submit your application for review."
       );
-      router.push("/seller");
+      router.push("/seller/onboarding");
       router.refresh();
     });
   }

@@ -20,10 +20,13 @@ async function requireSeller() {
   const user = (await getCurrentUser())?.user;
   if (!user) throw new ListingServiceError("You need to sign in first.");
 
-  const seller = await prisma.seller.findUnique({ where: { userId: user.id }, select: { id: true } });
+  const seller = await prisma.seller.findUnique({
+    where: { userId: user.id },
+    select: { id: true, verificationStatus: true },
+  });
   if (!seller) throw new ListingServiceError("Complete your seller setup before listing an item.");
 
-  return { userId: user.id, sellerId: seller.id };
+  return { userId: user.id, sellerId: seller.id, verificationStatus: seller.verificationStatus };
 }
 
 function toResult<T>(fn: () => Promise<T>): Promise<ApiResult<T>> {
@@ -47,7 +50,10 @@ export async function createListingAction(
   }
 
   return toResult(async () => {
-    const { userId, sellerId } = await requireSeller();
+    const { userId, sellerId, verificationStatus } = await requireSeller();
+    if (verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Complete your seller application and wait for MaliHub approval before publishing listings.");
+    }
     const product = await createListing(userId, sellerId, parsed.data);
     revalidatePath("/seller/listings");
     revalidatePath("/search");
@@ -66,7 +72,10 @@ export async function updateListingAction(
   }
 
   return toResult(async () => {
-    const { userId } = await requireSeller();
+    const { userId, verificationStatus } = await requireSeller();
+    if (parsed.data.status === "ACTIVE" && verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Complete seller verification before publishing a listing.");
+    }
     const product = await updateListing(productId, userId, parsed.data);
     revalidatePath("/seller/listings");
     revalidatePath(`/products/${product.slug}`);
@@ -96,7 +105,10 @@ export async function archiveListingAction(productId: string): Promise<ApiResult
 
 export async function unarchiveListingAction(productId: string): Promise<ApiResult<null>> {
   return toResult(async () => {
-    const { userId } = await requireSeller();
+    const { userId, verificationStatus } = await requireSeller();
+    if (verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Your seller account must be verified before republishing listings.");
+    }
     await unarchiveListing(productId, userId);
     revalidatePath("/seller/listings");
     return null;
@@ -116,7 +128,10 @@ export async function duplicateListingAction(
   productId: string
 ): Promise<ApiResult<{ id: string }>> {
   return toResult(async () => {
-    const { userId } = await requireSeller();
+    const { userId, verificationStatus } = await requireSeller();
+    if (verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Your seller account must be verified before creating another listing.");
+    }
     const duplicate = await duplicateListing(productId, userId);
     revalidatePath("/seller/listings");
     return { id: duplicate.id };

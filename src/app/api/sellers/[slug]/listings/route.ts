@@ -19,7 +19,7 @@ export async function GET(
     },
   });
 
-  if (!seller || seller.verificationStatus === "UNVERIFIED") {
+  if (!seller || seller.verificationStatus !== "VERIFIED") {
     return NextResponse.json({ success: false, error: "Seller not found." }, { status: 404 });
   }
 

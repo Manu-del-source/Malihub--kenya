@@ -100,7 +100,7 @@ export default async function BuyerDashboardPage() {
     // Recently viewed comes from the real ListingView trail the product page
     // records (listing-service.recordListingView) — not a client-side guess.
     prisma.listingView.findMany({
-      where: { viewerId: user.id, product: { status: "ACTIVE" } },
+      where: { viewerId: user.id, product: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } } },
       orderBy: { createdAt: "desc" },
       take: 24,
       select: { product: { include: CARD_INCLUDE } },
@@ -112,7 +112,7 @@ export default async function BuyerDashboardPage() {
       select: { id: true, label: true, query: true },
     }),
     prisma.product.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
       orderBy: { publishedAt: "desc" },
       take: 4,
       include: CARD_INCLUDE,

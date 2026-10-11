@@ -6,9 +6,9 @@ import { isAdministratorRole } from "@/lib/auth";
  * (`/marketplace/[productId]` and `/products/[slug]`) and
  * `GET /api/products/[id]` so the pages and the API can never drift apart.
  *
- *  - `ACTIVE` and `SOLD` are public — anyone may read them.
- *  - every other status (DRAFT, PENDING_REVIEW, ARCHIVED, SUSPENDED, REMOVED)
- *    is visible ONLY to the listing's owner and to administrators. The rule
+ *  - `ACTIVE` and `SOLD` are public only when the seller is VERIFIED.
+ *  - every other status, and every listing from a non-verified seller, is
+ *    visible ONLY to the listing's owner and to administrators. The rule
  *    is enforced against the *session* viewer — nothing in the request
  *    decides it — so knowing a listing's UUID never exposes an unpublished
  *    product (or its seller) to the public.
@@ -24,10 +24,23 @@ export function isPublicListingStatus(status: string): boolean {
 }
 
 export function canViewListing(
-  listing: { status: string; ownerId: string },
+  listing: {
+    status: string;
+    ownerId: string;
+    seller?: { verificationStatus?: string } | null;
+  },
   viewer: { id: string; role: UserRole } | null | undefined
 ): boolean {
-  if (isPublicListingStatus(listing.status)) return true;
-  if (!viewer) return false;
-  return viewer.id === listing.ownerId || isAdministratorRole(viewer.role);
+  const isOwnerOrAdmin = Boolean(
+    viewer && (viewer.id === listing.ownerId || isAdministratorRole(viewer.role))
+  );
+
+  // Public listings require an approved seller as well as a public listing
+  // status. The owner and administrators retain access for support/moderation.
+  if (
+    isPublicListingStatus(listing.status) &&
+    listing.seller?.verificationStatus === "VERIFIED"
+  ) return true;
+
+  return isOwnerOrAdmin;
 }

@@ -68,7 +68,7 @@ export function AdminSellerReviewPanel({
         </span>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Review {businessName}&rsquo;s profile and documents, then record a decision. The seller is
+        Review {businessName}&rsquo;s submitted business profile and available verification details, then record a decision. The seller is
         notified in-app, and the decision is written to the audit log.
       </p>
 

@@ -20,8 +20,8 @@ before(async () => {
 const OWNER = "owner-user";
 const STRANGER = "stranger-user";
 
-function listing(status: string) {
-  return { status, ownerId: OWNER };
+function listing(status: string, verificationStatus = "VERIFIED") {
+  return { status, ownerId: OWNER, seller: { verificationStatus } };
 }
 
 /**
@@ -41,6 +41,20 @@ describe("listing visibility — one rule for pages and API", () => {
     }
     assert.equal(visibility.isPublicListingStatus("ACTIVE"), true);
     assert.equal(visibility.isPublicListingStatus("SOLD"), true);
+  });
+
+  it("hides ACTIVE and SOLD listings when the seller is not verified", () => {
+    for (const verificationStatus of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+      assert.equal(visibility.canViewListing(listing("ACTIVE", verificationStatus), null), false);
+      assert.equal(
+        visibility.canViewListing(listing("ACTIVE", verificationStatus), { id: STRANGER, role: "BUYER" }),
+        false
+      );
+      assert.equal(
+        visibility.canViewListing(listing("ACTIVE", verificationStatus), { id: OWNER, role: "BUYER" }),
+        true
+      );
+    }
   });
 
   it("hides every non-public status from anonymous visitors", () => {

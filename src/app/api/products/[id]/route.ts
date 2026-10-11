@@ -11,19 +11,24 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true },
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+      category: true,
+      seller: { select: { verificationStatus: true } },
+    },
   });
 
   if (!product) {
     return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
   }
 
-  // Drafts, archived, suspended and removed listings are only visible to
-  // their owner (and administrators) — same shared rule the detail pages
-  // apply (src/lib/listing-visibility.ts). Without this, knowing a listing's
-  // UUID would be enough to read a not-yet-published product — including its
-  // seller — straight out of the API.
-  if (!isPublicListingStatus(product.status)) {
+  // Keep the anonymous fast path for genuinely public listings. An ACTIVE or
+  // SOLD listing from a non-verified seller is not public; only then do we
+  // resolve the viewer to check owner/admin access.
+  const publicAndVerified =
+    isPublicListingStatus(product.status) &&
+    product.seller.verificationStatus === "VERIFIED";
+  if (!publicAndVerified) {
     const viewer = (await getCurrentUser())?.user;
     if (!canViewListing(product, viewer)) {
       return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
@@ -53,6 +58,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    // Publishing is gated by the seller's database-backed verification state,
+    // even when this REST route is called directly rather than through the UI.
+    if (parsed.data.status === "ACTIVE") {
+      const seller = await prisma.seller.findUnique({
+        where: { userId: user.id },
+        select: { verificationStatus: true },
+      });
+      if (seller?.verificationStatus !== "VERIFIED") {
+        return NextResponse.json(
+          { success: false, error: "Complete seller verification before publishing a listing." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Ownership is asserted inside updateListing against the *session* user —
     // the request never names a seller or owner.
     const product = await updateListing(id, user.id, parsed.data);

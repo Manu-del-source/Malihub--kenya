@@ -58,7 +58,10 @@ export async function searchListings(
   const sortConfig = SORT_COLUMNS[params.sort];
   const cursor = params.cursor ? decodeCursor(params.cursor) : null;
 
-  const conditions: Prisma.Sql[] = [Prisma.sql`p.status = 'ACTIVE'`];
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`p.status = 'ACTIVE'`,
+    Prisma.sql`EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED')`,
+  ];
 
   if (params.q?.trim()) {
     conditions.push(
@@ -166,6 +169,7 @@ export async function getSimilarListings(productId: string, categoryId: string, 
     where: {
       id: { not: productId },
       status: "ACTIVE",
+      seller: { verificationStatus: "VERIFIED" },
       OR: [{ categoryId }, { county }],
     },
     include: PRODUCT_INCLUDE,
@@ -181,10 +185,11 @@ export async function getSearchSuggestions(query: string, limit = 6) {
   if (!query.trim() || query.trim().length < 2) return [];
 
   const rows = await prisma.$queryRaw<{ title: string; slug: string }[]>`
-    SELECT title, slug
-    FROM products
-    WHERE status = 'ACTIVE' AND title % ${query.trim()}
-    ORDER BY similarity(title, ${query.trim()}) DESC
+    SELECT p.title, p.slug
+    FROM products p
+    JOIN sellers s ON s.id = p.seller_id AND s.verification_status = 'VERIFIED'
+    WHERE p.status = 'ACTIVE' AND p.title % ${query.trim()}
+    ORDER BY similarity(p.title, ${query.trim()}) DESC
     LIMIT ${limit}
   `;
   return rows;
@@ -195,7 +200,7 @@ export async function getSearchSuggestions(query: string, limit = 6) {
  * why the marketing page still uses editorial content instead. */
 export async function getTrendingSearchTerms(limit = 6) {
   const rows = await prisma.product.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
     orderBy: { viewCount: "desc" },
     take: limit,
     select: { title: true },

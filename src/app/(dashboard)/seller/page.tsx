@@ -88,13 +88,44 @@ export default async function SellerDashboardPage() {
           </Badge>
           <h1 className="mt-2 font-display text-3xl font-medium">{seller.businessName}</h1>
         </div>
-        <Button asChild>
-          <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
-            <Plus className="h-4 w-4" aria-hidden />
-            New listing
-          </Link>
-        </Button>
+        {seller.verificationStatus === "VERIFIED" ? (
+          <Button asChild>
+            <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
+              <Plus className="h-4 w-4" aria-hidden />
+              New listing
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild>
+            <Link href="/seller/onboarding">
+              <Plus className="h-4 w-4" aria-hidden />
+              {seller.verificationStatus === "PENDING" ? "View application" : "Complete application"}
+            </Link>
+          </Button>
+        )}
       </div>
+
+      {seller.verificationStatus !== "VERIFIED" && (
+        <section className="mb-8 rounded-2xl border border-orange-200 bg-orange-50 p-5 sm:p-6" aria-label="Seller verification status">
+          <h2 className="font-semibold text-slate-900">
+            {seller.verificationStatus === "PENDING"
+              ? "Your seller application is under review"
+              : seller.verificationStatus === "REJECTED"
+                ? "Your seller application needs attention"
+                : "Finish setting up your seller account"}
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
+            {seller.verificationStatus === "PENDING"
+              ? "MaliHub is reviewing your business details. You can check or update your application while you wait."
+              : seller.verificationStatus === "REJECTED"
+                ? "Update your business details and resubmit your application. New listings are available after approval."
+                : "Submit your business profile for review. Once MaliHub approves it, you can publish listings."}
+          </p>
+          <Link href="/seller/onboarding" className="mt-3 inline-flex text-sm font-semibold text-orange-700 underline underline-offset-4 hover:text-orange-800">
+            {seller.verificationStatus === "PENDING" ? "View application →" : "Continue application →"}
+          </Link>
+        </section>
+      )}
 
       {/* ── Quick links ─────────────────────────────────────────────────── */}
       <nav className="mb-8 flex flex-wrap gap-2" aria-label="Seller sections">
@@ -116,9 +147,11 @@ export default async function SellerDashboardPage() {
           <EmptyState
             icon={Package}
             title="You haven't listed any products yet."
-            description="Your first listing is how buyers find you. Add a product to start selling on MaliHub."
-            actionLabel="Add your first product"
-            actionHref={`${SELLER_DASHBOARD_PATH}/listings/new`}
+            description={seller.verificationStatus === "VERIFIED"
+              ? "Your first listing is how buyers find you. Add a product to start selling on MaliHub."
+              : "Complete seller verification first. Once approved, you can publish your first product."}
+            actionLabel={seller.verificationStatus === "VERIFIED" ? "Add your first product" : "Complete seller application"}
+            actionHref={seller.verificationStatus === "VERIFIED" ? `${SELLER_DASHBOARD_PATH}/listings/new` : "/seller/onboarding"}
           />
         </div>
       )}

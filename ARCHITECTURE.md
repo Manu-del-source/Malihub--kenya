@@ -207,6 +207,12 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   buying, it's purely a UI/copy distinction on top of the same `SELLER`
   role + Seller row. Seller-dashboard access is gated on **having a
   Seller row**, not on the role string — enforced by `requireSellerAccess()`.
+  That row is only the application starting point: sellers submit business
+  details at `/seller/onboarding`, which moves verification to `PENDING`
+  for the existing admin review queue. Only `VERIFIED` sellers may create,
+  publish, or republish listings, and public listing queries require a verified
+  seller as well as a public listing status. Identity-document uploads are
+  intentionally not enabled until private document storage is configured.
 - **Onboarding is enforced server-side, not in middleware.** Any authenticated
   user whose `profiles.onboarded` is not true is sent to `/complete-profile` by
   `requireOnboardedUser()`. Middleware deliberately does not check this: it would

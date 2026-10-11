@@ -13,7 +13,7 @@ export function CategoriesSection() {
       <Container className="flex flex-col gap-14">
         <SectionHeading
           eyebrow="Browse"
-          title="Whatever you need, it's here"
+          title="Browse marketplace categories"
           subtitle="Browse categories to discover listings that are currently available on MaliHub."
         />
 

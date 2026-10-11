@@ -8,6 +8,7 @@ import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
 import { toListingCardData } from "@/lib/mappers";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
+import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back-button";
 
 /**
  * Shared marketplace browser: a real database-backed catalogue with search,

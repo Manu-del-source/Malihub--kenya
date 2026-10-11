@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, CheckCircle2, RotateCcw, ShieldX } from "lucide-react";
+import { Ban, CheckCircle2, RotateCcw, ShieldX, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { moderateListingAction } from "@/app/(dashboard)/admin/actions";
+import { deleteAdminListingAction, moderateListingAction } from "@/app/(dashboard)/admin/actions";
 import type { ModerationAction } from "@/services/admin-service";
 import type { ListingStatus } from "@prisma/client";
 
@@ -21,15 +21,18 @@ export function AdminListingModerationPanel({
   productId,
   status,
   title,
+  isSuperAdmin = false,
 }: {
   productId: string;
   status: ListingStatus;
   title: string;
+  isSuperAdmin?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState<ModerationAction | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const can = (action: ModerationAction): boolean => {
     switch (action) {
@@ -63,6 +66,20 @@ export function AdminListingModerationPanel({
   }
 
   const nothingApplies = !can("approve") && !can("reject") && !can("suspend") && !can("restore");
+
+  function removeListing() {
+    setConfirmDelete(false);
+    startTransition(async () => {
+      const result = await deleteAdminListingAction({ productId });
+      if (!result.success) {
+        toast.error(result.error ?? "Could not delete this listing.");
+        return;
+      }
+      toast.success(`“${result.data.title}” removed from the marketplace.`);
+      router.push("/admin/listings");
+      router.refresh();
+    });
+  }
 
   return (
     <section aria-label="Listing moderation" className="glass rounded-2xl p-6">
@@ -127,6 +144,29 @@ export function AdminListingModerationPanel({
             "Reject — remove the listing",
             "Listing rejected and removed.",
             <ShieldX className="h-4 w-4" aria-hidden />
+          )}
+        </div>
+      )}
+
+      {isSuperAdmin && status !== "REMOVED" && (
+        <div className="mt-5 border-t border-border pt-4">
+          <p className="text-xs text-muted-foreground">Super-admin action</p>
+          {confirmDelete ? (
+            <div className="mt-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3">
+              <p className="text-sm font-medium">Remove “{title}” from the marketplace?</p>
+              <p className="mt-1 text-xs text-muted-foreground">It will no longer be listed publicly. Order and review history will be preserved.</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" disabled={isPending} onClick={removeListing} className="bg-destructive text-white hover:bg-destructive/90">
+                  {isPending ? "Removing…" : "Confirm delete"}
+                </Button>
+                <Button size="sm" variant="outline" disabled={isPending} onClick={() => setConfirmDelete(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <Button size="sm" variant="outline" disabled={isPending} onClick={() => setConfirmDelete(true)} className="mt-2 border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10">
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Delete product
+            </Button>
           )}
         </div>
       )}

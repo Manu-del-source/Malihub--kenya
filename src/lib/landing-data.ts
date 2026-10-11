@@ -1,11 +1,9 @@
 import type { ListingCardData } from "@/components/marketplace/listing-card";
 
 /**
- * Everything in this file is marketing-placeholder content for the landing
- * page only. Phase 5 replaces `FEATURED_LISTINGS` with a real
- * `prisma.product.findMany(...)` call — the shape (`ListingCardData`) is
- * already the shape that query will be mapped into, so the component tree
- * doesn't change, only the data source.
+ * Landing-page content that is safe to show without implying live marketplace
+ * counts, real customer testimonials, or sample products are actual listings.
+ * Featured listings remain empty until they are populated from live data.
  */
 
 export const FEATURED_LISTINGS: ListingCardData[] = [];

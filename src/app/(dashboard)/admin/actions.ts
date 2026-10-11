@@ -5,6 +5,7 @@ import { requireAdministratorAction } from "@/lib/auth";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
+  adminListingDeleteSchema,
   listingModerationActionSchema,
   sellerReviewActionSchema,
   uuidSchema,
@@ -13,6 +14,7 @@ import {
   AdminServiceError,
   createAdminCategory,
   deleteAdminCategory,
+  deleteAdminListing,
   moderateListing,
   setSellerVerificationStatus,
   updateAdminCategory,

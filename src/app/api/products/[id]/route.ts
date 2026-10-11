@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
-import { canViewListing } from "@/lib/listing-visibility";
+import { canViewListing, isPublicListingStatus } from "@/lib/listing-visibility";
 import { listingSchema } from "@/lib/validations/listing";
 import { updateListing, deleteListing, ListingServiceError } from "@/services/listing-service";
 
@@ -22,11 +22,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
   }
 
-  // Public statuses still require a verified seller. Drafts and other
-  // non-public statuses remain visible only to the owner or administrators.
-  const viewer = (await getCurrentUser())?.user;
-  if (!canViewListing(product, viewer)) {
-    return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
+  // Keep the anonymous fast path for genuinely public listings. An ACTIVE or
+  // SOLD listing from a non-verified seller is not public; only then do we
+  // resolve the viewer to check owner/admin access.
+  const publicAndVerified =
+    isPublicListingStatus(product.status) &&
+    product.seller.verificationStatus === "VERIFIED";
+  if (!publicAndVerified) {
+    const viewer = (await getCurrentUser())?.user;
+    if (!canViewListing(product, viewer)) {
+      return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
+    }
   }
 
   return NextResponse.json({ success: true, data: product });

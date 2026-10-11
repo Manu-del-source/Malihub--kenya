@@ -19,11 +19,6 @@ const jsonLd = {
       name: "MaliHub Kenya",
       url: APP_URL,
       logo: `${APP_URL}/icons/logo.png`,
-      sameAs: [
-        "https://facebook.com/malihub",
-        "https://twitter.com/malihub",
-        "https://instagram.com/malihub",
-      ],
     },
     {
       "@type": "WebSite",

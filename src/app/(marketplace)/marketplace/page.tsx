@@ -25,8 +25,10 @@ export default async function MarketplacePage({ searchParams }: MarketplacePageP
   const rawParams = await searchParams;
 
   return (
-    <Container className="py-10">
-      <MarketplaceBrowser rawParams={rawParams} />
-    </Container>
+    <main className="min-h-svh bg-gradient-to-br from-orange-100 via-amber-50 to-rose-100">
+      <Container className="py-10">
+        <MarketplaceBrowser rawParams={rawParams} />
+      </Container>
+    </main>
   );
 }

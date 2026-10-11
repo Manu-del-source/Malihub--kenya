@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Calendar, Package, ShieldCheck, Truck } from "lucide-react";
+import { MapPin, Package, ShieldCheck, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ListingGallery } from "@/components/marketplace/listing-gallery";
 import { SellerInfoCard } from "@/components/marketplace/seller-info-card";
@@ -12,7 +12,7 @@ import { AddToCartButton } from "@/components/marketplace/add-to-cart-button";
 import { getSimilarListings } from "@/services/search-service";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatKes, timeAgo } from "@/utils";
+import { formatKes } from "@/utils";
 import type { ProductWithRelations } from "@/types";
 
 /**
@@ -106,10 +106,6 @@ export async function ProductDetail({
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                 {product.subCounty ? `${product.subCounty}, ` : ""}{product.county}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                Posted {timeAgo(product.publishedAt ?? product.createdAt)}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Package className="h-4 w-4 shrink-0 text-primary" aria-hidden />

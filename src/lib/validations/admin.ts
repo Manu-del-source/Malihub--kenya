@@ -107,6 +107,9 @@ export const listingModerationActionSchema = z.object({
 });
 export type ListingModerationActionInput = z.infer<typeof listingModerationActionSchema>;
 
+/** Permanent UI removal is restricted to SUPER_ADMIN; the database row is soft-deleted. */
+export const adminListingDeleteSchema = z.object({ productId: uuidSchema });
+
 const categorySlugSchema = z
   .string()
   .trim()

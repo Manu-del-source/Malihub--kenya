@@ -1,12 +1,13 @@
 export function ListingCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="skeleton aspect-[4/3]" />
-      <div className="flex flex-col gap-2 p-4">
-        <div className="skeleton h-5 w-24 rounded" />
-        <div className="skeleton h-4 w-full rounded" />
-        <div className="skeleton h-3 w-2/3 rounded" />
-        <div className="mt-2 border-t border-border pt-2">
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+      <div className="skeleton aspect-square" />
+      <div className="flex flex-col gap-2.5 p-3 sm:p-3.5">
+        <div className="skeleton h-4 w-11/12 rounded" />
+        <div className="skeleton h-4 w-2/3 rounded" />
+        <div className="skeleton mt-1 h-6 w-1/2 rounded" />
+        <div className="skeleton h-3 w-3/4 rounded" />
+        <div className="mt-1 border-t border-border pt-3">
           <div className="skeleton h-3 w-1/2 rounded" />
         </div>
       </div>
@@ -14,9 +15,9 @@ export function ListingCardSkeleton() {
   );
 }
 
-export function ListingGridSkeleton({ count = 8 }: { count?: number }) {
+export function ListingGridSkeleton({ count = 10 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
         <ListingCardSkeleton key={i} />
       ))}

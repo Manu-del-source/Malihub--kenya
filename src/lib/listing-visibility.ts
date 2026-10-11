@@ -24,10 +24,23 @@ export function isPublicListingStatus(status: string): boolean {
 }
 
 export function canViewListing(
-  listing: { status: string; ownerId: string },
+  listing: {
+    status: string;
+    ownerId: string;
+    seller?: { verificationStatus?: string } | null;
+  },
   viewer: { id: string; role: UserRole } | null | undefined
 ): boolean {
-  if (isPublicListingStatus(listing.status)) return true;
-  if (!viewer) return false;
-  return viewer.id === listing.ownerId || isAdministratorRole(viewer.role);
+  const isOwnerOrAdmin = Boolean(
+    viewer && (viewer.id === listing.ownerId || isAdministratorRole(viewer.role))
+  );
+
+  // Public listings require an approved seller as well as a public listing
+  // status. The owner and administrators retain access for support/moderation.
+  if (
+    isPublicListingStatus(listing.status) &&
+    listing.seller?.verificationStatus === "VERIFIED"
+  ) return true;
+
+  return isOwnerOrAdmin;
 }

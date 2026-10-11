@@ -75,7 +75,7 @@ export async function ProductDetail({
             <ListingGallery images={product.images} title={product.title} />
           </section>
 
-          <section className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm sm:p-7">
+          <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -122,14 +122,14 @@ export async function ProductDetail({
               {product.brand && <Badge>{product.brand}</Badge>}
             </div>
 
-            <div className="mt-7">
+            <div className="mt-5">
               <h2 className="font-display text-lg font-semibold">Product description</h2>
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-foreground/85">
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-foreground/85">
                 {product.description}
               </p>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <ShareButtons title={product.title} url={canonicalUrl} />
               <ReportListingDialog productId={product.id} />
             </div>

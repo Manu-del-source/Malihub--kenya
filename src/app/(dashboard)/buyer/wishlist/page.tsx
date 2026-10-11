@@ -49,7 +49,6 @@ export default async function FavoritesPage() {
       isNegotiable: f.product.isNegotiable,
       imageUrl: f.product.images[0]?.url ?? "",
       county: f.product.county,
-      postedAt: (f.product.publishedAt ?? f.product.createdAt).toISOString(),
       isVerifiedSeller: f.product.seller.verificationStatus === "VERIFIED",
       sellerName: f.product.seller.businessName,
       favoriteCount: f.product.favoriteCount,

@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/utils";
-import { notifyUser } from "@/services/notification-service";
+import { notifyUser } from "@/modules/notifications";
 import type { ListingInput } from "@/lib/validations/listing";
 import type { Prisma, ReportReason } from "@prisma/client";
 

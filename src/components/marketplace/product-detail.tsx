@@ -111,12 +111,10 @@ export async function ProductDetail({
                 <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                 Posted {timeAgo(product.publishedAt ?? product.createdAt)}
               </span>
-              {product.brand && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Package className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  {product.brand}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5">
+                <Package className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                {isSold ? "No longer available" : `${product.quantity} available`}
+              </span>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">

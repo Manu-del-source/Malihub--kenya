@@ -11,7 +11,7 @@ const sections = [
   {
     title: "1. Who this policy applies to",
     paragraphs: [
-      "This Privacy Policy explains how MaliHub Kenya ("MaliHub", "we", "us") handles personal information when you browse the marketplace, create an account, publish a listing, contact another user, or otherwise use the website.",
+      "This Privacy Policy explains how MaliHub Kenya (MaliHub, we, us) handles personal information when you browse the marketplace, create an account, publish a listing, contact another user, or otherwise use the website.",
       "MaliHub is a marketplace service. The information visible on a public listing may be viewed by other visitors, so do not include personal information in listing text or photos unless you intend to make it public.",
     ],
   },

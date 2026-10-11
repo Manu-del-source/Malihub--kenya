@@ -33,7 +33,7 @@ export const RECENT_SEARCHES_SAMPLE = [
   "Baby cot",
 ];
 
-export const STATS = [];
+export const STATS: { label: string; value: number; suffix: string }[] = [];
 
 export const WHY_MALIHUB_FEATURES = [
   {
@@ -74,7 +74,7 @@ export const WHY_MALIHUB_FEATURES = [
   },
 ] as const;
 
-export const TESTIMONIALS = [];
+export const TESTIMONIALS: { name: string; role: string; quote: string; rating: number; initials: string }[] = [];
 
 export const FAQS = [
   {

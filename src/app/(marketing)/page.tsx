@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
 import { CategoriesSection } from "@/components/landing/categories-section";
-import { FeaturedListingsSection } from "@/components/landing/featured-listings-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
-import { StatsSection } from "@/components/landing/stats-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
-import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { FaqSection } from "@/components/landing/faq-section";
 import { NewsletterSection } from "@/components/landing/newsletter-section";
 
@@ -51,11 +48,8 @@ export default function HomePage() {
       />
       <HeroSection />
       <CategoriesSection />
-      <FeaturedListingsSection />
       <WhyMaliHubSection />
-      <StatsSection />
       <SellerCtaSection />
-      <TestimonialsSection />
       <FaqSection />
       <NewsletterSection />
     </>

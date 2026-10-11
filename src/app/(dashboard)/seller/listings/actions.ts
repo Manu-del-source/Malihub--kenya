@@ -72,7 +72,10 @@ export async function updateListingAction(
   }
 
   return toResult(async () => {
-    const { userId } = await requireSeller();
+    const { userId, verificationStatus } = await requireSeller();
+    if (parsed.data.status === "ACTIVE" && verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Complete seller verification before publishing a listing.");
+    }
     const product = await updateListing(productId, userId, parsed.data);
     revalidatePath("/seller/listings");
     revalidatePath(`/products/${product.slug}`);
@@ -102,7 +105,10 @@ export async function archiveListingAction(productId: string): Promise<ApiResult
 
 export async function unarchiveListingAction(productId: string): Promise<ApiResult<null>> {
   return toResult(async () => {
-    const { userId } = await requireSeller();
+    const { userId, verificationStatus } = await requireSeller();
+    if (verificationStatus !== "VERIFIED") {
+      throw new ListingServiceError("Your seller account must be verified before republishing listings.");
+    }
     await unarchiveListing(productId, userId);
     revalidatePath("/seller/listings");
     return null;

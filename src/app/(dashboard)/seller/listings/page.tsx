@@ -75,7 +75,7 @@ export default async function SellerListingsPage() {
           actionHref={`${SELLER_DASHBOARD_PATH}/listings/new`}
         />
       ) : (
-        <div className="glass overflow-hidden rounded-2xl">
+        <div className="glass rounded-2xl">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
               <tr>

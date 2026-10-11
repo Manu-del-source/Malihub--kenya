@@ -820,6 +820,57 @@ const LISTING_TRANSITIONS: Record<
   },
 };
 
+/**
+ * Super-admin removal of a listing. This intentionally uses the REMOVED state
+ * instead of deleting the row so order items, reviews and audit references remain valid.
+ * Authorization is enforced by the Server Action before reaching this service.
+ */
+export async function deleteAdminListing(params: {
+  productId: string;
+  actor: AdminActor;
+}) {
+  if (!isUuid(params.productId)) throw new AdminServiceError("Listing not found.");
+
+  const product = await prisma.product.findUnique({
+    where: { id: params.productId },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      status: true,
+      ownerId: true,
+    },
+  });
+  if (!product) throw new AdminServiceError("Listing not found.");
+  if (product.status === "REMOVED") {
+    throw new AdminServiceError("This listing has already been removed.");
+  }
+
+  await prisma.product.update({
+    where: { id: product.id },
+    data: { status: "REMOVED" },
+  });
+
+  await logAuditEvent({
+    action: "listing.deleted",
+    actorId: params.actor.id,
+    actorEmail: params.actor.email,
+    targetType: "product",
+    targetId: product.id,
+    metadata: { title: product.title, previousStatus: product.status, removedBy: "SUPER_ADMIN" },
+  });
+
+  await notifyUser({
+    userId: product.ownerId,
+    type: "LISTING_REMOVED",
+    title: "Your listing was removed",
+    body: `“${product.title}” was removed from the MaliHub marketplace by an administrator.`,
+    linkUrl: "/seller/listings",
+  }).catch((error) => console.error("Failed to notify owner about admin listing removal", error));
+
+  return { id: product.id, title: product.title, slug: product.slug };
+}
+
 export async function moderateListing(params: {
   productId: string;
   action: ModerationAction;

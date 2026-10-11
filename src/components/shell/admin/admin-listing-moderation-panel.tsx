@@ -90,8 +90,7 @@ export function AdminListingModerationPanel({
         </span>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Decisions use the marketplace&rsquo;s existing listing states — nothing is deleted, so
-        order history and reviews survive any takedown.
+        Moderation changes listing visibility while preserving order history and reviews. Super-admin deletion also uses the REMOVED state rather than erasing the database record.
       </p>
 
       <label className="mt-4 block text-sm">

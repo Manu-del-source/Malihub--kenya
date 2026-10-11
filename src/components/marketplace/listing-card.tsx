@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
-import { formatKes, timeAgo, cn } from "@/utils";
+import { formatKes, cn } from "@/utils";
 
 /**
  * Deliberately decoupled from Prisma's generated types: this is the shape
@@ -22,7 +22,6 @@ export type ListingCardData = {
   isNegotiable: boolean;
   imageUrl: string;
   county: string;
-  postedAt: string;
   isVerifiedSeller: boolean;
   sellerName: string;
   favoriteCount: number;
@@ -102,9 +101,6 @@ export function ListingCard({
               <MapPin className="h-3.5 w-3.5" aria-hidden />
               {listing.county}
             </span>
-            <span className="text-border">·</span>
-            <Clock3 className="h-3 w-3 shrink-0" aria-hidden />
-            <span className="truncate">{timeAgo(listing.postedAt)}</span>
           </div>
 
           <div className="flex items-center justify-between border-t border-border pt-2.5 text-xs">

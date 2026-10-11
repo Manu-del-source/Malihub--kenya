@@ -59,7 +59,11 @@ export default function SupportPage() {
         <section className="mt-10 rounded-2xl border border-border p-5 sm:p-6">
           <h2 className="text-xl font-semibold">Need help with an account or a report?</h2>
           <p className="mt-2 leading-7 text-muted-foreground">
-            For listing concerns, use the Report listing tool so the report is attached to the relevant item. For account or other support requests, use the official contact channel published by MaliHub. Do not send passwords, M-Pesa PINs, or verification codes.
+            For listing concerns, use the Report listing tool so the report is attached to the relevant item. For account or other support requests, email us at{" "}
+            <a href="mailto:hello@smartbiz365.site?subject=MaliHub%20Support" className="font-medium text-primary underline underline-offset-4">
+              hello@smartbiz365.site
+            </a>
+            . Please include “MaliHub” in your subject and never send passwords, M-Pesa PINs, or verification codes.
           </p>
         </section>
       </article>

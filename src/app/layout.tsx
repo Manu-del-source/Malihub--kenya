@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
@@ -100,6 +101,20 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Google Analytics 4 — shared SmartBiz measurement property. */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-8XD22ZZD9X"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){window.dataLayer.push(arguments);}
+            window.gtag = gtag;
+            gtag('js', new Date());
+            gtag('config', 'G-8XD22ZZD9X');
+          `}
+        </Script>
         {/* Runs before hydration to avoid a light/dark flash on load. */}
         <script
           dangerouslySetInnerHTML={{

@@ -16,6 +16,7 @@ import type { ListingStatus } from "@/types";
 
 export function ListingRowActions({ productId, status }: { productId: string; status: ListingStatus }) {
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -33,7 +34,21 @@ export function ListingRowActions({ productId, status }: { productId: string; st
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1">
+      {confirmDelete ? (
+        <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-xl border border-destructive/40 bg-card p-3 shadow-xl">
+          <p className="text-sm font-medium text-foreground">Delete this listing?</p>
+          <p className="mt-1 text-xs text-muted-foreground">It will be removed from the marketplace. Order history will be kept.</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" disabled={isPending} onClick={() => run(() => deleteListingAction(productId), "Listing deleted.")} className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Confirm delete</button>
+            <button type="button" disabled={isPending} onClick={() => setConfirmDelete(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground disabled:opacity-50">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => { setOpen(false); setConfirmDelete(true); }} disabled={isPending} aria-label="Delete listing" title="Delete listing" className="flex h-8 w-8 items-center justify-center rounded-full text-destructive hover:bg-destructive/10 disabled:opacity-50">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -101,15 +116,7 @@ export function ListingRowActions({ productId, status }: { productId: string; st
                 </button>
               )
             )}
-            <div className="my-1 h-px bg-border" />
-            <button
-              type="button"
-              onClick={() => run(() => deleteListingAction(productId), "Listing deleted.")}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </button>
+
           </div>
         </>
       )}

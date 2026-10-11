@@ -3,11 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { Clock3, MapPin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
-import { formatKes, timeAgo } from "@/utils";
-import { cn } from "@/utils";
+import { formatKes, timeAgo, cn } from "@/utils";
 
 /**
  * Deliberately decoupled from Prisma's generated types: this is the shape
@@ -51,13 +50,13 @@ export function ListingCard({
     <motion.div
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className={cn("group relative", className)}
+      className={cn("group relative min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg", className)}
     >
       <Link
         href={`/products/${listing.slug}`}
-        className="block overflow-hidden rounded-lg border border-border bg-card transition-shadow duration-300 hover:shadow-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="block overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
             src={listing.imageUrl}
             alt={listing.title}
@@ -81,9 +80,9 @@ export function ListingCard({
           )}
         </div>
 
-        <div className="flex flex-col gap-2 p-4">
+        <div className="flex min-w-0 flex-col gap-2.5 p-3 sm:p-3.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-mono text-lg font-medium tabular-nums">
+            <p className="font-mono text-base font-bold tracking-tight tabular-nums sm:text-lg">
               {formatKes(listing.priceCents)}
               {listing.isNegotiable && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -93,19 +92,21 @@ export function ListingCard({
             </p>
           </div>
 
-          <h3 className="line-clamp-1 text-sm font-medium text-foreground/90">
+          <h3 className="line-clamp-1 line-clamp-2 min-h-10 text-[13px] font-medium leading-5 text-foreground/90 sm:text-sm">
             {listing.title}
           </h3>
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" aria-hidden />
               {listing.county}
             </span>
-            <span>{timeAgo(listing.postedAt)}</span>
+            <span className="text-border">·</span>
+            <Clock3 className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">{timeAgo(listing.postedAt)}</span>
           </div>
 
-          <div className="flex items-center justify-between border-t border-border pt-2 text-xs">
+          <div className="flex items-center justify-between border-t border-border pt-2.5 text-xs">
             <span className="text-muted-foreground">{listing.sellerName}</span>
             <Badge variant="default" className="text-[10px]">
               {CONDITION_LABEL[listing.condition]}

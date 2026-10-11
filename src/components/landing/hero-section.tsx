@@ -21,8 +21,7 @@ export function HeroSection() {
     offset: ["start start", "end start"],
   });
 
-  // Subtle parallax only — content drifts a little slower than the scroll,
-  // floating cards a little faster, nothing dramatic.
+  // Subtle parallax for the hero content only.
   const contentY = useTransform(scrollYProgress, [0, 1], [0, reduceMotion ? 0 : 60]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 

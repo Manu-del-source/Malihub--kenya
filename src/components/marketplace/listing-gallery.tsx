@@ -24,7 +24,7 @@ export function ListingGallery({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
+      <div className="relative aspect-[5/4] max-h-[420px] overflow-hidden rounded-2xl bg-muted">
         {images[active] && (
           <Image
             src={images[active].url}

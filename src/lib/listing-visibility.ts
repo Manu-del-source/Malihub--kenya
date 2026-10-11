@@ -6,9 +6,9 @@ import { isAdministratorRole } from "@/lib/auth";
  * (`/marketplace/[productId]` and `/products/[slug]`) and
  * `GET /api/products/[id]` so the pages and the API can never drift apart.
  *
- *  - `ACTIVE` and `SOLD` are public — anyone may read them.
- *  - every other status (DRAFT, PENDING_REVIEW, ARCHIVED, SUSPENDED, REMOVED)
- *    is visible ONLY to the listing's owner and to administrators. The rule
+ *  - `ACTIVE` and `SOLD` are public only when the seller is VERIFIED.
+ *  - every other status, and every listing from a non-verified seller, is
+ *    visible ONLY to the listing's owner and to administrators. The rule
  *    is enforced against the *session* viewer — nothing in the request
  *    decides it — so knowing a listing's UUID never exposes an unpublished
  *    product (or its seller) to the public.

@@ -50,7 +50,6 @@ function toCard(product: CardProduct, isFavorited = false): ListingCardData {
     isNegotiable: product.isNegotiable,
     imageUrl: product.images[0]?.url ?? "",
     county: product.county,
-    postedAt: (product.publishedAt ?? product.createdAt).toISOString(),
     isVerifiedSeller: product.seller.verificationStatus === "VERIFIED",
     sellerName: product.seller.businessName,
     favoriteCount: product.favoriteCount,

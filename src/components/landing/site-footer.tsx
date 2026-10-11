@@ -8,6 +8,9 @@ const FOOTER_LINKS = {
     { label: "Sell on MaliHub", href: "/register?role=seller" },
     { label: "How it works", href: "/#why-malihub" },
   ],
+  Help: [
+    { label: "Support & safety", href: "/support" },
+  ],
   Legal: [
     { label: "Terms of service", href: "/terms" },
     { label: "Privacy policy", href: "/privacy" },

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import {
-  ShieldCheck, BadgeCheck, Sparkles, Zap, MapPinned, Smartphone,
+  ShieldCheck, BadgeCheck, Sparkles, Zap, MapPinned, Smartphone, Search, ClipboardList, Camera, Heart, Search, ClipboardList, Camera, Heart,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/utils";

@@ -40,6 +40,7 @@ export async function MarketplaceBrowser({
 
   return (
     <div className="mx-auto max-w-[1440px]">
+      <MarketplaceBackButton />
       <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="grid gap-5 bg-gradient-to-br from-card via-card to-primary/10 p-5 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-center lg:p-8">
           <div>

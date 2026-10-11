@@ -8,22 +8,9 @@ const FOOTER_LINKS = {
     { label: "Sell on MaliHub", href: "/register?role=seller" },
     { label: "How it works", href: "/#why-malihub" },
   ],
-  Company: [
-    { label: "About us", href: "/about" },
-    { label: "Careers", href: "/careers" },
-    { label: "Blog", href: "/blog" },
-    { label: "Press", href: "/press" },
-  ],
-  Support: [
-    { label: "Help center", href: "/support" },
-    { label: "Safety tips", href: "/safety" },
-    { label: "Contact us", href: "/contact" },
-    { label: "Report a listing", href: "/report" },
-  ],
   Legal: [
     { label: "Terms of service", href: "/terms" },
     { label: "Privacy policy", href: "/privacy" },
-    { label: "Cookie policy", href: "/cookies" },
   ],
 };
 

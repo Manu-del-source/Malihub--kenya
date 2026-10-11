@@ -163,6 +163,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </form>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0 sm:gap-4">
+            <NotificationBell isSignedIn />
             <Link
               href="/account"
               className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-slate-700 transition hover:bg-orange-50 hover:text-orange-700 sm:flex"
@@ -197,7 +198,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
               <NavLinks items={account} />
               <div className="ml-auto flex shrink-0 items-center gap-2 pl-3">
-                <NotificationBell isSignedIn />
                 <form action={signOutAction}>
                   <button
                     type="submit"
@@ -212,6 +212,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
             <nav className="flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
               <NavLinks items={[...primary, ...account]} mobile />
+              <form action={signOutAction} className="shrink-0">
+                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-100 bg-white px-3.5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50">
+                  <LogOut className="h-4 w-4" aria-hidden />
+                  Sign out
+                </button>
+              </form>
             </nav>
           </Container>
         </div>

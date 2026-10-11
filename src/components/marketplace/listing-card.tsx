@@ -52,11 +52,9 @@ export function ListingCard({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className={cn("group relative min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg", className)}
     >
-      <Link
-        href={`/products/${listing.slug}`}
-        className="block overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
+      <div className="block overflow-hidden rounded-2xl">
         <div className="relative aspect-square overflow-hidden bg-muted">
+          <Link href={`/products/${listing.slug}`} aria-label={`View ${listing.title}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <Image
             src={listing.imageUrl}
             alt={listing.title}
@@ -65,6 +63,7 @@ export function ListingCard({
             priority={priority}
             className="object-cover transition-transform duration-500 ease-premium group-hover:scale-105"
           />
+          </Link>
 
           <FavoriteButton
             productId={listing.id}
@@ -95,6 +94,7 @@ export function ListingCard({
           <h3 className="line-clamp-1 line-clamp-2 min-h-10 text-[13px] font-medium leading-5 text-foreground/90 sm:text-sm">
             {listing.title}
           </h3>
+          </Link>
 
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
@@ -113,7 +113,7 @@ export function ListingCard({
             </Badge>
           </div>
         </div>
-      </Link>
+      </div>
     </motion.div>
   );
 }

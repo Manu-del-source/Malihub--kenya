@@ -91,7 +91,8 @@ export function ListingCard({
             </p>
           </div>
 
-          <h3 className="line-clamp-1 line-clamp-2 min-h-10 text-[13px] font-medium leading-5 text-foreground/90 sm:text-sm">
+          <Link href={`/products/${listing.slug}`} className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <h3 className="line-clamp-2 min-h-10 text-[13px] font-medium leading-5 text-foreground/90 sm:text-sm">
             {listing.title}
           </h3>
           </Link>

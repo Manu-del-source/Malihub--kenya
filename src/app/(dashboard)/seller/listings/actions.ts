@@ -79,6 +79,8 @@ export async function deleteListingAction(productId: string): Promise<ApiResult<
     const { userId } = await requireSeller();
     await deleteListing(productId, userId);
     revalidatePath("/seller/listings");
+    revalidatePath("/marketplace");
+    revalidatePath("/search");
     return null;
   });
 }

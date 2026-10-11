@@ -862,7 +862,7 @@ export async function deleteAdminListing(params: {
 
   await notifyUser({
     userId: product.ownerId,
-    type: "LISTING_REMOVED",
+    type: "LISTING_STATUS",
     title: "Your listing was removed",
     body: `“${product.title}” was removed from the MaliHub marketplace by an administrator.`,
     linkUrl: "/seller/listings",

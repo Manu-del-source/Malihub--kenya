@@ -18,12 +18,10 @@ export function CategoryCard({
   name,
   slug,
   iconName,
-  listingCount,
 }: {
   name: string;
   slug: string;
   iconName: string;
-  listingCount: number;
 }) {
   const Icon = ICONS[iconName] ?? Sparkles;
 
@@ -43,7 +41,7 @@ export function CategoryCard({
         <div>
           <h3 className="font-medium text-foreground">{name}</h3>
           <p className="text-xs text-muted-foreground">
-            {listingCount.toLocaleString()} listings
+            Explore category
           </p>
         </div>
       </Link>

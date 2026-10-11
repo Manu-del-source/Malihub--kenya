@@ -9,9 +9,7 @@ import { Container } from "@/components/ui/container";
 import { GradientMeshBackground } from "@/components/landing/gradient-mesh-background";
 import { HeroSearchBar } from "@/components/landing/hero-search-bar";
 import { PopularSearches } from "@/components/landing/popular-searches";
-import { FloatingListingCard } from "@/components/landing/floating-listing-card";
 import { ScrollIndicator } from "@/components/landing/scroll-indicator";
-import { FEATURED_LISTINGS } from "@/lib/landing-data";
 import { fadeUpLarge, staggerContainer } from "@/lib/motion";
 
 export function HeroSection() {
@@ -27,7 +25,6 @@ export function HeroSection() {
   // floating cards a little faster, nothing dramatic.
   const contentY = useTransform(scrollYProgress, [0, 1], [0, reduceMotion ? 0 : 60]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
-  const cardsY = useTransform(scrollYProgress, [0, 1], [0, reduceMotion ? 0 : -120]);
 
   return (
     <section
@@ -49,7 +46,7 @@ export function HeroSection() {
             className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary-400"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Now live in all 47 counties
+            A marketplace for Kenya
           </motion.span>
 
           <motion.h1
@@ -67,8 +64,7 @@ export function HeroSection() {
             variants={fadeUpLarge}
             className="text-balance max-w-xl text-base text-muted-foreground sm:text-lg"
           >
-            A premium marketplace with verified sellers, secure M-Pesa checkout,
-            and a search that actually understands what you&rsquo;re looking for.
+            Browse available listings, compare prices, and connect with sellers. Explore products across categories and find items that match your needs.
           </motion.p>
 
           <motion.div variants={fadeUpLarge} className="w-full">
@@ -92,40 +88,6 @@ export function HeroSection() {
           </motion.div>
         </motion.div>
 
-        {/* Floating glass listing cards — desktop only, purely atmospheric */}
-        <motion.div style={{ y: cardsY }} className="pointer-events-none hidden lg:block" aria-hidden>
-          <div className="absolute left-0 top-24 xl:left-8">
-            <FloatingListingCard
-              title={FEATURED_LISTINGS[1]!.title}
-              priceCents={FEATURED_LISTINGS[1]!.priceCents}
-              imageUrl={FEATURED_LISTINGS[1]!.imageUrl}
-              county={FEATURED_LISTINGS[1]!.county}
-              rotate={-6}
-              delay={0.5}
-            />
-          </div>
-          <div className="absolute right-0 top-8 xl:right-8">
-            <FloatingListingCard
-              title={FEATURED_LISTINGS[0]!.title}
-              priceCents={FEATURED_LISTINGS[0]!.priceCents}
-              imageUrl={FEATURED_LISTINGS[0]!.imageUrl}
-              county={FEATURED_LISTINGS[0]!.county}
-              rotate={5}
-              delay={0.7}
-            />
-          </div>
-          <div className="absolute bottom-8 right-16 xl:right-24">
-            <FloatingListingCard
-              title={FEATURED_LISTINGS[2]!.title}
-              priceCents={FEATURED_LISTINGS[2]!.priceCents}
-              imageUrl={FEATURED_LISTINGS[2]!.imageUrl}
-              county={FEATURED_LISTINGS[2]!.county}
-              rotate={-3}
-              delay={0.9}
-              className="w-44"
-            />
-          </div>
-        </motion.div>
       </Container>
 
       <ScrollIndicator />

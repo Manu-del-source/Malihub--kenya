@@ -143,8 +143,8 @@ export async function searchListings(
 }
 
 export async function getListingBySlug(slug: string) {
-  return prisma.product.findFirst({
-    where: { slug, status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
+  return prisma.product.findUnique({
+    where: { slug },
     include: PRODUCT_INCLUDE,
   });
 }
@@ -158,8 +158,8 @@ export async function getListingById(productId: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
     return null;
   }
-  return prisma.product.findFirst({
-    where: { id: productId, status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
+  return prisma.product.findUnique({
+    where: { id: productId },
     include: PRODUCT_INCLUDE,
   });
 }

@@ -50,10 +50,10 @@ export function ListingCard({
     <motion.div
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className={cn("group relative min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg", className)}
+      className={cn("group relative min-w-0 overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm shadow-orange-950/[0.03] transition-all duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl hover:shadow-orange-900/10", className)}
     >
       <div className="block overflow-hidden rounded-2xl">
-        <div className="relative aspect-square overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50">
           <Link href={`/products/${listing.slug}`} aria-label={`View ${listing.title}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <Image
             src={listing.imageUrl}
@@ -68,7 +68,7 @@ export function ListingCard({
           <FavoriteButton
             productId={listing.id}
             initialFavorited={listing.isFavorited ?? false}
-            className="absolute right-3 top-3"
+            className="absolute right-3 top-3 shadow-md"
           />
 
           {listing.isVerifiedSeller && (
@@ -81,7 +81,7 @@ export function ListingCard({
 
         <div className="flex min-w-0 flex-col gap-2.5 p-3 sm:p-3.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-mono text-base font-bold tracking-tight tabular-nums sm:text-lg">
+            <p className="font-mono text-base font-extrabold tracking-tight text-orange-700 tabular-nums sm:text-lg">
               {formatKes(listing.priceCents)}
               {listing.isNegotiable && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -97,7 +97,7 @@ export function ListingCard({
           </h3>
           </Link>
 
-          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" aria-hidden />
               {listing.county}
@@ -107,7 +107,7 @@ export function ListingCard({
             <span className="truncate">{timeAgo(listing.postedAt)}</span>
           </div>
 
-          <div className="flex items-center justify-between border-t border-border pt-2.5 text-xs">
+          <div className="flex items-center justify-between border-t border-orange-100 pt-2.5 text-xs">
             <span className="text-muted-foreground">{listing.sellerName}</span>
             <Badge variant="default" className="text-[10px]">
               {CONDITION_LABEL[listing.condition]}

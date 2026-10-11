@@ -10,6 +10,7 @@ const FOOTER_LINKS = {
   ],
   Help: [
     { label: "Support & safety", href: "/support" },
+    { label: "Email support", href: "mailto:hello@smartbiz365.site?subject=MaliHub%20Support" },
   ],
   Legal: [
     { label: "Terms of service", href: "/terms" },

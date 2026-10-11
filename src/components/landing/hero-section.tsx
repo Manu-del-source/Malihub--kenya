@@ -52,10 +52,10 @@ export function HeroSection() {
             variants={fadeUpLarge}
             className="text-balance font-display text-4xl font-medium leading-[1.05] sm:text-6xl md:text-7xl"
           >
-            Buy and sell anything,
+            Buy and sell across
             <br />
             <span className="bg-gradient-to-r from-primary-400 via-primary-500 to-secondary bg-clip-text text-transparent">
-              anywhere in Kenya.
+              Kenya.
             </span>
           </motion.h1>
 

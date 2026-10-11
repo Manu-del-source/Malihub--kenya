@@ -19,7 +19,6 @@ export function SearchResultsGrid({
   initialHasMore: boolean;
 }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
-
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useSearchListings(
     searchParamsString,
     { items: initialItems, nextCursor: initialNextCursor, hasMore: initialHasMore }
@@ -28,12 +27,9 @@ export function SearchResultsGrid({
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
       },
       { rootMargin: "400px" }
     );
@@ -47,9 +43,7 @@ export function SearchResultsGrid({
   const items = pages.flatMap((p) => p.items);
   const hasMore = data ? (hasNextPage ?? false) : initialHasMore;
 
-  if (isLoading && items.length === 0) {
-    return <ListingGridSkeleton />;
-  }
+  if (isLoading && items.length === 0) return <ListingGridSkeleton />;
 
   if (items.length === 0) {
     return (
@@ -63,14 +57,13 @@ export function SearchResultsGrid({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-5">
         {items.map((listing, i) => (
           <ListingCard key={listing.id} listing={listing} priority={i < 4} />
         ))}
       </div>
-
       {hasMore && (
-        <div ref={sentinelRef} className="flex justify-center py-10">
+        <div ref={sentinelRef} className="flex justify-center py-10" aria-label="Loading more listings">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
         </div>
       )}

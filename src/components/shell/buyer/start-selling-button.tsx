@@ -28,7 +28,7 @@ export function StartSellingButton() {
           ? "Your seller profile is already set up."
           : "You're all set to start selling."
       );
-      router.push("/seller");
+      router.push("/seller/onboarding");
       router.refresh();
     });
   }

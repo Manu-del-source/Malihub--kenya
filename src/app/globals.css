@@ -10,17 +10,17 @@
 @layer base {
   :root {
     /* Light theme — warm neutral canvas */
-    --background: 40 25% 97%;
+    --background: 34 38% 92%;
     --foreground: 222 30% 12%;
 
-    --card: 0 0% 100%;
+    --card: 36 35% 97%;
     --card-foreground: 222 30% 12%;
 
-    --muted: 40 15% 92%;
+    --muted: 34 28% 86%;
     --muted-foreground: 222 12% 40%;
 
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
+    --border: 30 20% 82%;
+    --input: 30 20% 82%;
     --ring: 32 78% 52%;
 
     /* Primary — copper horizon */

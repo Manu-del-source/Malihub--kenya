@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
-import { canViewListing, isPublicListingStatus } from "@/lib/listing-visibility";
+import { canViewListing } from "@/lib/listing-visibility";
 import { listingSchema } from "@/lib/validations/listing";
 import { updateListing, deleteListing, ListingServiceError } from "@/services/listing-service";
 
@@ -11,23 +11,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true },
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+      category: true,
+      seller: { select: { verificationStatus: true } },
+    },
   });
 
   if (!product) {
     return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
   }
 
-  // Drafts, archived, suspended and removed listings are only visible to
-  // their owner (and administrators) — same shared rule the detail pages
-  // apply (src/lib/listing-visibility.ts). Without this, knowing a listing's
-  // UUID would be enough to read a not-yet-published product — including its
-  // seller — straight out of the API.
-  if (!isPublicListingStatus(product.status)) {
-    const viewer = (await getCurrentUser())?.user;
-    if (!canViewListing(product, viewer)) {
-      return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
-    }
+  // Public statuses still require a verified seller. Drafts and other
+  // non-public statuses remain visible only to the owner or administrators.
+  const viewer = (await getCurrentUser())?.user;
+  if (!canViewListing(product, viewer)) {
+    return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
   }
 
   return NextResponse.json({ success: true, data: product });

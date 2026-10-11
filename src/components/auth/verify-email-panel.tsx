@@ -21,11 +21,8 @@ import {
 
 /** Email verification uses the 6-digit code sent to the user. */
 
-type Mode = "code";
-
 export function VerifyEmailPanel({ email }: { email: string }) {
   const router = useRouter();
-  const [mode] = useState<Mode>("code");
   const [cooldown, setCooldown] = useState(0);
   const [isSending, setIsSending] = useState(false);
 
@@ -54,7 +51,7 @@ export function VerifyEmailPanel({ email }: { email: string }) {
     toast.success(outcome.message);
   }
 
-  /** "Enter a code instead" / "Resend code" — a code operation, never a link. */
+  /** Resend the verification code. */
   async function requestCode() {
     setIsSending(true);
     const outcome = await runSendCode(sendVerificationCodeAction, email);
@@ -75,55 +72,54 @@ export function VerifyEmailPanel({ email }: { email: string }) {
   }
 
   return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-3 py-1">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-cyan">
-            <KeyRound className="h-6 w-6" aria-hidden />
-          </div>
-          <p className="text-center text-sm text-muted-foreground">
-            Enter the 6-digit code we sent to{" "}
-            <span className="font-medium text-foreground">{email}</span>.
-          </p>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col items-center gap-3 py-1">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-cyan">
+          <KeyRound className="h-6 w-6" aria-hidden />
         </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-          <FormField id="code" label="Verification code" error={errors.code?.message}>
-            <Input
-              id="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={8}
-              placeholder="123456"
-              // Centred, letter-spaced and monospaced: a one-time code is read
-              // digit by digit against an email in another window.
-              className="text-center font-mono text-lg tracking-[0.4em]"
-              invalid={!!errors.code}
-              {...register("code")}
-            />
-          </FormField>
-
-          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Verifying…" : "Verify email"}
-            {!isSubmitting && <ArrowRight className="h-4 w-4" aria-hidden />}
-          </Button>
-        </form>
-
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void requestCode()}
-            disabled={isSending || cooldown > 0}
-            className="w-full"
-          >
-            {cooldown > 0
-              ? `Resend available in ${cooldown}s`
-              : isSending
-                ? "Sending…"
-                : "Resend code"}
-          </Button>
-        </div>
+        <p className="text-center text-sm text-muted-foreground">
+          Enter the 6-digit code we sent to{" "}
+          <span className="font-medium text-foreground">{email}</span>.
+        </p>
       </div>
-    );
 
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        <FormField id="code" label="Verification code" error={errors.code?.message}>
+          <Input
+            id="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={8}
+            placeholder="123456"
+            // Centred, letter-spaced and monospaced: a one-time code is read
+            // digit by digit against an email in another window.
+            className="text-center font-mono text-lg tracking-[0.4em]"
+            invalid={!!errors.code}
+            {...register("code")}
+          />
+        </FormField>
+
+        <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? "Verifying…" : "Verify email"}
+          {!isSubmitting && <ArrowRight className="h-4 w-4" aria-hidden />}
+        </Button>
+      </form>
+
+      <div className="flex flex-col gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void requestCode()}
+          disabled={isSending || cooldown > 0}
+          className="w-full"
+        >
+          {cooldown > 0
+            ? `Resend available in ${cooldown}s`
+            : isSending
+              ? "Sending…"
+              : "Resend code"}
+        </Button>
+      </div>
+      </div>
+  );
 }

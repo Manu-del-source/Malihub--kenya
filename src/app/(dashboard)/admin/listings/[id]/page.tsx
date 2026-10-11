@@ -34,7 +34,7 @@ export default async function AdminListingDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdministrator();
+  const currentUser = await requireAdministrator();
 
   const { id } = await params;
   const detail = await getAdminListingDetail(id);
@@ -161,6 +161,7 @@ export default async function AdminListingDetailPage({
             productId={product.id}
             status={product.status}
             title={product.title}
+            isSuperAdmin={currentUser.user.role === "SUPER_ADMIN"}
           />
 
           <section aria-label="Seller" className="glass rounded-2xl p-6">

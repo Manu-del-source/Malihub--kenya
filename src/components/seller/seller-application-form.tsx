@@ -70,8 +70,8 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
       {application.verificationStatus === "PENDING" && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-          <Clock className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
           <div>
             <p className="font-semibold">Application submitted for review</p>
             <p className="mt-1 text-sm">You can update the details below and resubmit. Each submission returns the application to the review queue.</p>

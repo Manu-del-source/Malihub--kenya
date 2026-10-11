@@ -177,9 +177,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium sm:inline">Cart</span>
             </Link>
-            <div className="hidden sm:block">
-              <NotificationBell isSignedIn />
-            </div>
             <form action={signOutAction} className="hidden sm:block">
               <button
                 type="submit"
@@ -215,7 +212,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
             <nav className="flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
               <NavLinks items={[...primary, ...account]} mobile />
-              {isAdministratorRole(user.role) && null}
             </nav>
           </Container>
         </div>

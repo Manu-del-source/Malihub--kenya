@@ -15,7 +15,7 @@ const BENEFITS = [
   "Manage your listings from your account",
 ];
 
-/** Abstract "list → sell → get paid" composition — built entirely from
+/** Abstract listing composition — built entirely from
  * layered glass cards and icons, so the seller CTA doesn't depend on an
  * external illustration asset. */
 function SellerIllustration() {

@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Camera, Wallet, TrendingUp, Tag, ArrowRight, Check } from "lucide-react";
+import { Camera, Tag, ArrowRight, Check } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fadeUp, fadeIn, defaultViewport } from "@/lib/motion";
 
 const BENEFITS = [
-  "List in under two minutes, from your phone",
-  "Get paid instantly via M-Pesa — no waiting on transfers",
-  "Reach buyers in all 47 counties, not just your area",
-  "Verified badge builds trust before the first message",
+  "Create a listing with details and photos",
+  "Show buyers the price and condition of your item",
+  "Add location details to help buyers find your listing",
+  "Manage your listings from your account",
 ];
 
 /** Abstract "list → sell → get paid" composition — built entirely from
@@ -39,22 +39,9 @@ function SellerIllustration() {
         <Tag className="h-6 w-6 text-cyan" />
       </motion.div>
 
-      <motion.div
-        animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
-        className="glass absolute bottom-16 left-0 flex h-16 w-16 items-center justify-center rounded-xl sm:left-4"
-      >
-        <Wallet className="h-6 w-6 text-secondary" />
-      </motion.div>
-
-      <div className="glass absolute inset-x-10 bottom-4 flex items-center justify-between rounded-xl p-4 sm:inset-x-16">
-        <div>
-          <p className="text-xs text-muted-foreground">This month</p>
-          <p className="font-mono text-lg font-medium tabular-nums">KSh 84,200</p>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success/15 text-success">
-          <TrendingUp className="h-4 w-4" />
-        </div>
+      <div className="glass absolute bottom-10 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl p-4">
+        <Tag className="h-5 w-5 text-secondary" />
+        <span className="text-sm font-medium">Your listing, your price</span>
       </div>
     </div>
   );

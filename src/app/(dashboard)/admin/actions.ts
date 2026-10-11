@@ -178,6 +178,29 @@ export async function moderateListingAction(
 
 // ─── Categories ────────────────────────────────────────────────────────────
 
+/** Remove a listing from the marketplace. Only SUPER_ADMIN may invoke this. */
+export async function deleteAdminListingAction(
+  input: unknown
+): Promise<ApiResult<{ id: string; title: string }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.user.role !== "SUPER_ADMIN") {
+    return { success: false, error: "Only a super admin can delete listings." };
+  }
+
+  const parsed = adminListingDeleteSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Invalid request." };
+
+  return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
+    const result = await deleteAdminListing({ productId: parsed.data.productId, actor });
+    revalidateAdmin("/admin/listings", `/admin/listings/${result.id}`, `/products/${result.slug}`);
+    revalidatePath("/marketplace");
+    revalidatePath("/search");
+    revalidatePath("/seller/listings");
+    return { id: result.id, title: result.title };
+  });
+}
+
 export async function createCategoryAction(
   input: unknown
 ): Promise<ApiResult<{ id: string; name: string; slug: string }>> {

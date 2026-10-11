@@ -58,6 +58,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    // Publishing is gated by the seller's database-backed verification state,
+    // even when this REST route is called directly rather than through the UI.
+    if (parsed.data.status === "ACTIVE") {
+      const seller = await prisma.seller.findUnique({
+        where: { userId: user.id },
+        select: { verificationStatus: true },
+      });
+      if (seller?.verificationStatus !== "VERIFIED") {
+        return NextResponse.json(
+          { success: false, error: "Complete seller verification before publishing a listing." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Ownership is asserted inside updateListing against the *session* user —
     // the request never names a seller or owner.
     const product = await updateListing(id, user.id, parsed.data);

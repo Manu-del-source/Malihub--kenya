@@ -37,7 +37,7 @@ export function AddToCartButton({
 
   if (!isLoggedIn) {
     return (
-      <Button asChild className="w-full" size="md">
+      <Button asChild className="w-full" size="lg">
         <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}`}>
           <ShoppingCart className="h-4 w-4" aria-hidden />
           Sign in to buy
@@ -48,7 +48,7 @@ export function AddToCartButton({
 
   if (soldOut) {
     return (
-      <Button className="w-full" size="md" disabled>
+      <Button className="w-full" size="lg" disabled>
         {status === "SOLD" ? "Sold out" : "Unavailable"}
       </Button>
     );
@@ -85,7 +85,7 @@ export function AddToCartButton({
   }
 
   return (
-    <Button className="w-full" size="md" onClick={handleAdd} disabled={isPending}>
+    <Button className="w-full" size="lg" onClick={handleAdd} disabled={isPending}>
       {added ? (
         <>
           <Check className="h-4 w-4" aria-hidden />

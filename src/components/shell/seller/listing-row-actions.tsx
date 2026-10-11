@@ -22,6 +22,7 @@ export function ListingRowActions({ productId, status }: { productId: string; st
 
   function run(action: () => Promise<{ success: boolean; error?: string }>, successMessage: string) {
     setOpen(false);
+    setConfirmDelete(false);
     startTransition(async () => {
       const result = await action();
       if (!result.success) {

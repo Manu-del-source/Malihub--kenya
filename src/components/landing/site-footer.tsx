@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Facebook, Instagram, Twitter, Linkedin } from "lucide-react";
 import { Container } from "@/components/ui/container";
 
 const FOOTER_LINKS = {
@@ -7,33 +6,13 @@ const FOOTER_LINKS = {
     { label: "Explore listings", href: "/marketplace" },
     { label: "Categories", href: "/#categories" },
     { label: "Sell on MaliHub", href: "/register?role=seller" },
-    { label: "Verified sellers", href: "/#why-malihub" },
-  ],
-  Company: [
-    { label: "About us", href: "/about" },
-    { label: "Careers", href: "/careers" },
-    { label: "Blog", href: "/blog" },
-    { label: "Press", href: "/press" },
-  ],
-  Support: [
-    { label: "Help center", href: "/support" },
-    { label: "Safety tips", href: "/safety" },
-    { label: "Contact us", href: "/contact" },
-    { label: "Report a listing", href: "/report" },
+    { label: "How it works", href: "/#why-malihub" },
   ],
   Legal: [
     { label: "Terms of service", href: "/terms" },
     { label: "Privacy policy", href: "/privacy" },
-    { label: "Cookie policy", href: "/cookies" },
   ],
 };
-
-const SOCIALS = [
-  { label: "Facebook", href: "https://facebook.com", icon: Facebook },
-  { label: "Twitter", href: "https://twitter.com", icon: Twitter },
-  { label: "Instagram", href: "https://instagram.com", icon: Instagram },
-  { label: "LinkedIn", href: "https://linkedin.com", icon: Linkedin },
-];
 
 export function SiteFooter() {
   return (
@@ -51,23 +30,8 @@ export function SiteFooter() {
               MaliHub
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground">
-              A premium marketplace to buy and sell across all 47 Kenyan counties,
-              with secure M-Pesa payments and verified sellers.
+              Browse listings, compare item details, and connect with sellers through MaliHub.
             </p>
-            <div className="flex gap-2">
-              {SOCIALS.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={social.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary-400"
-                >
-                  <social.icon className="h-4 w-4" aria-hidden />
-                </a>
-              ))}
-            </div>
           </div>
 
           {Object.entries(FOOTER_LINKS).map(([heading, links]) => (

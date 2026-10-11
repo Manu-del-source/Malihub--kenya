@@ -5,7 +5,6 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Container } from "@/components/ui/container";
 import { CategoryCard } from "@/components/landing/category-card";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
-import { CATEGORY_LISTING_COUNTS } from "@/lib/landing-data";
 import { staggerContainer, defaultViewport } from "@/lib/motion";
 
 export function CategoriesSection() {
@@ -14,8 +13,8 @@ export function CategoriesSection() {
       <Container className="flex flex-col gap-14">
         <SectionHeading
           eyebrow="Browse"
-          title="Whatever you need, it's here"
-          subtitle="Every category Kenyans buy and sell every day — each one searchable down to the sub-county."
+          title="Browse marketplace categories"
+          subtitle="Browse categories to discover listings that are currently available on MaliHub."
         />
 
         <motion.div
@@ -31,7 +30,6 @@ export function CategoriesSection() {
               name={category.name}
               slug={category.slug}
               iconName={category.iconName}
-              listingCount={CATEGORY_LISTING_COUNTS[category.slug] ?? 0}
             />
           ))}
         </motion.div>

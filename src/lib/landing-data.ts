@@ -1,125 +1,14 @@
 import type { ListingCardData } from "@/components/marketplace/listing-card";
 
 /**
- * Everything in this file is marketing-placeholder content for the landing
- * page only. Phase 5 replaces `FEATURED_LISTINGS` with a real
- * `prisma.product.findMany(...)` call — the shape (`ListingCardData`) is
- * already the shape that query will be mapped into, so the component tree
- * doesn't change, only the data source.
+ * Landing-page content that is safe to show without implying live marketplace
+ * counts, real customer testimonials, or sample products are actual listings.
+ * Featured listings remain empty until they are populated from live data.
  */
 
-export const FEATURED_LISTINGS: ListingCardData[] = [
-  {
-    id: "f1",
-    slug: "toyota-probox-2015-nairobi",
-    title: "Toyota Probox 2015, well maintained, low mileage",
-    priceCents: 89000000,
-    isNegotiable: true,
-    imageUrl:
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80",
-    county: "Nairobi",
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    isVerifiedSeller: true,
-    sellerName: "Kilimani Motors",
-    favoriteCount: 34,
-    condition: "GOOD",
-  },
-  {
-    id: "f2",
-    slug: "iphone-13-pro-128gb-mombasa",
-    title: "iPhone 13 Pro, 128GB, Sierra Blue",
-    priceCents: 8500000,
-    isNegotiable: false,
-    imageUrl:
-      "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?w=800&q=80",
-    county: "Mombasa",
-    postedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    isVerifiedSeller: true,
-    sellerName: "Coast Gadgets",
-    favoriteCount: 61,
-    condition: "LIKE_NEW",
-  },
-  {
-    id: "f3",
-    slug: "3-bedroom-apartment-kilimani",
-    title: "3-Bedroom Apartment, Kilimani, gated compound",
-    priceCents: 12000000,
-    isNegotiable: true,
-    imageUrl:
-      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80",
-    county: "Nairobi",
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
-    isVerifiedSeller: true,
-    sellerName: "Zawadi Properties",
-    favoriteCount: 22,
-    condition: "GOOD",
-  },
-  {
-    id: "f4",
-    slug: "leather-sofa-set-6-seater-nakuru",
-    title: "6-Seater Leather Sofa Set, brand new",
-    priceCents: 4500000,
-    isNegotiable: true,
-    imageUrl:
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80",
-    county: "Nakuru",
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    isVerifiedSeller: false,
-    sellerName: "Nakuru Home Furnishings",
-    favoriteCount: 15,
-    condition: "NEW",
-  },
-  {
-    id: "f5",
-    slug: "macbook-air-m2-eldoret",
-    title: "MacBook Air M2, 256GB, barely used",
-    priceCents: 9800000,
-    isNegotiable: false,
-    imageUrl:
-      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80",
-    county: "Uasin Gishu",
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    isVerifiedSeller: true,
-    sellerName: "TechHub Eldoret",
-    favoriteCount: 47,
-    condition: "LIKE_NEW",
-  },
-  {
-    id: "f6",
-    slug: "nike-air-max-sneakers-kisumu",
-    title: "Nike Air Max, size 42, new in box",
-    priceCents: 650000,
-    isNegotiable: true,
-    imageUrl:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
-    county: "Kisumu",
-    postedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    isVerifiedSeller: false,
-    sellerName: "Lakeside Sneaker Store",
-    favoriteCount: 19,
-    condition: "NEW",
-  },
-];
+export const FEATURED_LISTINGS: ListingCardData[] = [];
 
-export const CATEGORY_LISTING_COUNTS: Record<string, number> = {
-  electronics: 27600,
-  phones: 41200,
-  fashion: 33800,
-  "shoes-footwear": 14600,
-  vehicles: 18400,
-  property: 9200,
-  furniture: 12100,
-  "home-appliances": 8700,
-  beauty: 8900,
-  agriculture: 6100,
-  jobs: 4700,
-  services: 11500,
-  sports: 5200,
-  books: 3100,
-  kids: 4400,
-  pets: 2600,
-  other: 3900,
-};
+export const CATEGORY_LISTING_COUNTS: Record<string, number> = {};
 
 export const POPULAR_SEARCHES = [
   "iPhone 13",
@@ -144,113 +33,68 @@ export const RECENT_SEARCHES_SAMPLE = [
   "Baby cot",
 ];
 
-export const STATS = [
-  { label: "Active buyers", value: 128400, suffix: "+" },
-  { label: "Active sellers", value: 21700, suffix: "+" },
-  { label: "Live listings", value: 342000, suffix: "+" },
-  { label: "Counties covered", value: 47, suffix: "" },
-];
+export const STATS: { label: string; value: number; suffix: string }[] = [];
 
 export const WHY_MALIHUB_FEATURES = [
   {
-    title: "Secure M-Pesa payments",
-    description:
-      "Checkout with STK Push and get paid instantly — no cash handoffs, no waiting on bank transfers.",
-    icon: "ShieldCheck",
+    title: "Browse by category",
+    description: "Explore the categories available on MaliHub and open listings for more details.",
+    icon: "Search",
     size: "lg",
   },
   {
-    title: "Verified sellers",
-    description: "ID-verified badges so you know exactly who you're buying from.",
-    icon: "BadgeCheck",
+    title: "Compare listing details",
+    description: "Review the listed price, item condition, photos, and location before contacting a seller.",
+    icon: "ClipboardList",
     size: "sm",
   },
   {
-    title: "AI-powered recommendations",
-    description: "Listings get smarter the more you browse — matched to what you actually want.",
-    icon: "Sparkles",
+    title: "Create a listing",
+    description: "Sellers can add product details and photos so potential buyers can learn about an item.",
+    icon: "Camera",
     size: "sm",
   },
   {
-    title: "Search that finds it fast",
-    description:
-      "Full-text search across titles, brands, and descriptions returns results instantly, not eventually.",
-    icon: "Zap",
+    title: "Save items",
+    description: "Use the available wishlist controls to keep track of listings you want to revisit.",
+    icon: "Heart",
     size: "sm",
   },
   {
-    title: "Nationwide, all 47 counties",
-    description:
-      "From Mombasa to Turkana — MaliHub connects buyers and sellers everywhere in Kenya.",
+    title: "Explore local listings",
+    description: "Use location information on listings to assess whether an item is relevant to you.",
     icon: "MapPinned",
     size: "lg",
   },
   {
-    title: "Built for mobile",
-    description: "Fast on any connection, designed first for the phone in your hand.",
+    title: "Mobile-friendly browsing",
+    description: "Browse the marketplace from a phone, tablet, or computer.",
     icon: "Smartphone",
     size: "sm",
   },
 ] as const;
 
-export const TESTIMONIALS = [
-  {
-    name: "Wanjiru Kamau",
-    role: "Sold 3 vehicles on MaliHub",
-    quote:
-      "I listed my Probox on a Friday evening and had a serious buyer by Sunday morning. The M-Pesa checkout meant I never had to worry about fake alerts.",
-    rating: 5,
-    initials: "WK",
-  },
-  {
-    name: "Brian Otieno",
-    role: "Electronics seller, Kisumu",
-    quote:
-      "The verified badge alone changed how fast my listings moved. Buyers message first, not the other way around.",
-    rating: 5,
-    initials: "BO",
-  },
-  {
-    name: "Amina Hassan",
-    role: "Buyer, Mombasa",
-    quote:
-      "Filtering by county saved me so much time — I only see what's actually near me, and the search just gets what I mean.",
-    rating: 4,
-    initials: "AH",
-  },
-  {
-    name: "Peter Mwangi",
-    role: "Furniture seller, Nakuru",
-    quote: "Set up my shop in an afternoon. Payouts land the same day a sale closes.",
-    rating: 5,
-    initials: "PM",
-  },
-];
+export const TESTIMONIALS: { name: string; role: string; quote: string; rating: number; initials: string }[] = [];
 
 export const FAQS = [
   {
-    question: "Is MaliHub Kenya free to use?",
-    answer:
-      "Browsing and buying is always free. Selling is free for your first few listings each month, with optional paid boosts to get more visibility.",
+    question: "How do I buy an item?",
+    answer: "Open a listing to review its details, price, condition, and seller information. Follow the contact or purchase options actually shown on that listing. Confirm important details with the seller before paying.",
   },
   {
-    question: "How do M-Pesa payments work on MaliHub?",
-    answer:
-      "When you check out, you'll get an STK Push prompt straight to your phone. Enter your M-Pesa PIN to confirm — funds are held securely until you confirm delivery.",
+    question: "How do I sell on MaliHub?",
+    answer: "Create an account, open the seller flow, and provide accurate information and photos for your item. Keep your listing and contact details up to date.",
   },
   {
-    question: "How does seller verification work?",
-    answer:
-      "Sellers submit a national ID and KRA PIN for review. Once approved, a verified badge appears on all of their listings so buyers can shop with confidence.",
+    question: "Are all sellers verified?",
+    answer: "Do not assume a seller has been independently verified. Treat any verification badge as meaningful only where the platform explicitly displays it, and review the listing and seller details carefully.",
   },
   {
-    question: "Which counties does MaliHub cover?",
-    answer:
-      "All 47 counties, from Mombasa to Turkana. You can filter every search by county and sub-county to see what's actually near you.",
+    question: "How are payments handled?",
+    answer: "Use only payment options that are explicitly available during your transaction. Do not rely on screenshots or messages as proof of payment; confirm payment through the relevant provider or your own account.",
   },
   {
-    question: "Can I negotiate prices with sellers?",
-    answer:
-      "Yes — any listing marked 'negotiable' opens a chat with the seller directly, so you can agree on a price before paying.",
+    question: "How can I stay safe?",
+    answer: "Check an item's condition and ownership, communicate through available platform tools where possible, and avoid sending money before you are satisfied with the seller and transaction. For in-person exchanges, choose a public place.",
   },
 ];

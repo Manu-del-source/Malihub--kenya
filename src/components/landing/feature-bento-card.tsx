@@ -2,14 +2,14 @@
 
 import { motion } from "framer-motion";
 import {
-  ShieldCheck, BadgeCheck, Sparkles, Zap, MapPinned, Smartphone, Search, ClipboardList, Camera, Heart, Search, ClipboardList, Camera, Heart,
+  MapPinned, Smartphone, Search, ClipboardList, Camera, Heart,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/utils";
 import { fadeUp } from "@/lib/motion";
 
 const ICONS: Record<string, LucideIcon> = {
-  ShieldCheck, BadgeCheck, Sparkles, Zap, MapPinned, Smartphone,
+  MapPinned, Smartphone, Search, ClipboardList, Camera, Heart,
 };
 
 export function FeatureBentoCard({
@@ -23,7 +23,7 @@ export function FeatureBentoCard({
   icon: string;
   size: "sm" | "lg";
 }) {
-  const Icon = ICONS[icon] ?? Sparkles;
+  const Icon = ICONS[icon] ?? Search;
 
   return (
     <motion.div

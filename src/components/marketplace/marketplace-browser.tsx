@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, BadgeCheck, PackageSearch, Search, ShieldCheck, Truck } from "lucide-react";
+import { BadgeCheck, PackageSearch, Search, ShieldCheck, Truck } from "lucide-react";
 import { SearchFiltersSidebar } from "@/components/marketplace/search-filters-sidebar";
 import { SearchResultsGrid } from "@/components/marketplace/search-results-grid";
 import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrapper";

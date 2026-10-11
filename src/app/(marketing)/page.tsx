@@ -4,7 +4,6 @@ import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
 import { FaqSection } from "@/components/landing/faq-section";
-import { NewsletterSection } from "@/components/landing/newsletter-section";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -51,7 +50,6 @@ export default function HomePage() {
       <WhyMaliHubSection />
       <SellerCtaSection />
       <FaqSection />
-      <NewsletterSection />
     </>
   );
 }

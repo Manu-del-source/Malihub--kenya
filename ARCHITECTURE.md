@@ -7,7 +7,8 @@ pieces fit together; every later phase implements against it.
 
 **Goals:** a premium, fast, accessible Kenyan marketplace (Apple/Airbnb/Stripe
 register, not Jiji's), with real mobile-money payments behind a
-provider-agnostic interface (PayHero first, direct Daraja reserved), three
+provider-agnostic interface (Paystack live, PayHero retired, direct Daraja
+reserved), three
 distinct dashboards (seller/buyer/admin), and a data model that scales past
 the MVP.
 
@@ -69,9 +70,10 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
 
              ┌───────────────────┐   ┌────────────────────────┐
              │  Cloudinary       │   │  Payment providers     │
-             │  (image storage + │   │  PayHero (Phase 9)     │
-             │   transforms)     │   │  Daraja (reserved)     │
-             └───────────────────┘   └────────────────────────┘
+             │  (image storage + │   │  Paystack (active)     │
+             │   transforms)     │   │  PayHero (retired)     │
+             └───────────────────┘   │  Daraja (reserved)     │
+                                     └────────────────────────┘
 ```
 
 **The Supabase boundary is no longer authentication.** Neon Managed Better Auth
@@ -165,8 +167,18 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 - **Authorization boundary = MaliHub's own Postgres rows**, read at the point of
   use by the guards in `src/lib/auth/session.ts` (`requireUser`,
   `requireOnboardedUser`, `requireSellerAccess`, `requireAdministrator`). Role is
-  never read from a token. RLS remains the backstop for anything that reaches
-  Postgres another way.
+  never read from a token. Where the application database is hosted on
+  **Supabase Postgres**, RLS is the backstop for anything that reaches Postgres
+  another way (direct anon/authenticated-role access). Where it runs on an
+  **independent PostgreSQL database — Neon, the current deployment** — that
+  backstop does not apply: the repository's RLS DDL
+  (`prisma/migrations/manual_rls_policies.sql`, `manual_phase6_rls_realtime.sql`,
+  `manual_phase7_security.sql`) is keyed on Supabase primitives (`auth.uid()`,
+  `auth.jwt()`, the `supabase_realtime` publication) and cannot be executed
+  against an independent Postgres as written, and the independent database has
+  no anon-key access path to begin with. The application-layer checks above are
+  therefore the data-layer control on Neon — they are the primary design
+  regardless of host (§6c), and cross-user access is refused and tested there.
 - **Middleware answers exactly one question: is there a valid session?**
   `src/middleware.ts` makes no database call and holds no authorization opinion.
   It fails *closed* — an unconfigured or unreachable auth service redirects
@@ -340,8 +352,14 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   `order_reviews`** (`manual_phase6_rls_realtime.sql`), on top of Phase
   4's user-data policies. Order/payment tables get *read* policies only —
   every write to those tables goes through Prisma Server Actions (checkout,
-  the M-Pesa callback) on the privileged connection, so there's nothing
+  the Paystack webhook) on the privileged connection, so there's nothing
   for the anon/authenticated roles to need insert/update access for.
+  **Scope caveat:** that file is runnable only against a Supabase-hosted
+  application database (it references `auth.uid()` and the
+  `supabase_realtime` publication — see its header). On the independent Neon
+  deployment it is inapplicable as-is, and chat/order authorization is
+  enforced in the application layer (§5); the `avatars` Storage-bucket
+  policies (`manual_storage_avatars.sql`) still apply to the Supabase project.
 
 ## 6c. Database portability & who owns the DDL (Phase 8)
 
@@ -391,11 +409,19 @@ writing to a column that does not exist.
 
 Phase 8 replaced the M-Pesa-Daraja-specific design in this section with a
 provider-agnostic one. The reason is not speculative flexibility: M-Pesa is a
-*rail*, Daraja and PayHero are *processors* on it, and the original schema
-conflated the two — `PaymentMethod.MPESA` named a processor where a channel
-belonged, and every column was prefixed `mpesa`. Adding a card processor to
-that schema is a migration and a rewrite; adding one to this schema is an
-adapter.
+*rail*, and processors (Paystack, historically PayHero, someday Daraja) sit on
+it — the original schema conflated the two, `PaymentMethod.MPESA` named a
+processor where a channel belonged, and every column was prefixed `mpesa`.
+Adding a card processor to that schema is a migration and a rewrite; adding one
+to this schema is an adapter.
+
+**Current state (Phase 10):** Paystack is the active provider, implemented in
+the **Next.js application** (`src/lib/payments/` + `src/services/payment-*.ts`
++ `/api/payments/paystack/*`). The FastAPI backend keeps the provider-agnostic
+contract and registry but registers **no** collection adapter and holds no
+provider credentials. PayHero — the provider that Phase 9 was about to build —
+has been removed from the repository; its enum value and historical rows are
+retained (§7a, and `docs/PAYMENTS-PAYHERO.md`).
 
 ### 7a. The model
 
@@ -404,17 +430,17 @@ channel the customer used*:
 
 | Field | Meaning |
 | --- | --- |
-| `provider` | `PAYHERO` · `DARAJA` (reserved) · `MANUAL` — the processor |
+| `provider` | `PAYSTACK` (active) · `PAYHERO` (retired, historical rows only) · `DARAJA` (reserved) · `MANUAL` — the processor. Default flipped to `PAYSTACK` in `manual_phase10_paystack_provider_default.sql` |
 | `method` | `MOBILE_MONEY` · `CARD` · `BANK_TRANSFER` · `CASH_ON_DELIVERY` — the channel |
 | `status` | `PENDING → PROCESSING → SUCCESS / FAILED / CANCELLED / REFUNDED` |
 | `amountCents` | Integer minor units. Never a float, never a provider-formatted string (§6) |
 | `currency` | ISO 4217, default `KES` |
-| `providerTransactionId` | The processor's own id (PayHero `transaction_id`, Daraja `CheckoutRequestID`). Unique — this is the idempotency key a retried callback is matched against |
-| `providerReference` | The settlement/receipt reference a customer can quote to their bank or operator. Unique |
-| `customerReference` | *Our* reference (the order number), echoed back in callbacks. Required — a Payment always comes from a known Order |
+| `providerTransactionId` | The processor's own id (for Paystack, the transaction `id`). Unique — this is the idempotency key a retried callback is matched against |
+| `providerReference` | The settlement/receipt reference a customer can quote (for Paystack, the transaction `reference` — what `GET /transaction/verify/{reference}` takes). Unique |
+| `customerReference` | *Our* unique `MH-…` reference handed to Paystack at initialization (kept distinct from the order number so a buyer can never steer a charge to another order by choosing the reference). Required — a Payment always comes from a known Order |
 | `payerReference` | Provider-reported payer handle, normalized (an MSISDN, a masked PAN). The one piece of payer PII on the row, kept because support and refunds genuinely need it, and never logged (§11) |
 | `metadata` | Opaque provider-specific detail as JSON. Not indexed, not queried |
-| `failureCode` / `failureReason` | Normalized failure signalling. `failureCode` is a string on purpose: Daraja reports integers (`0` accepted, `1032` cancelled), PayHero reports string statuses — a string column holds both without a lossy cast, and the adapter owns the translation |
+| `failureCode` / `failureReason` | Normalized failure signalling. `failureCode` is a string on purpose: processors disagree on the shape (Daraja reports integers, `1032` cancelled; Paystack reports gateway strings) — a string column holds both without a lossy cast, and the adapter owns the translation |
 | `rawCallbackPayload` | The verbatim callback body, kept for dispute resolution and replay. Raw, never re-serialized: the point is being able to re-verify the signature |
 | `retryCount` | Attempts against the same Order. A retry creates a **new** Payment row and bumps this counter rather than mutating a failed one, so every attempt stays auditable |
 
@@ -448,63 +474,83 @@ payment must not mark our order paid.
 
 Providers register in a registry (`registry.py`) keyed by `PaymentProvider`.
 Registering a name twice raises at startup rather than silently replacing an
-adapter. `DARAJA` and `MANUAL` are **reserved**: the enum values exist so
-adding them is a code change rather than a destructive enum migration, but no
-adapter is registered and requesting one returns an explanation, not a 500.
+adapter. **Today the registry is deliberately empty in this backend**: `PAYSTACK`
+is reserved with the reason "implemented in the Next.js application" (where the
+secret key lives), `PAYHERO` is reserved as *retired* (historical rows still
+carry it; no code path creates new ones), and `DARAJA`/`MANUAL` are reserved as
+before — enum values that exist so adding a provider is a code change rather
+than a destructive enum migration, each answering a 404 with an explanation
+instead of a 500.
 
-### 7c. What Phase 8 does *not* do
+### 7c. What the backend does *not* do — and why
 
 This is a deliberate boundary, and it is enforced by tests rather than by
 convention:
 
-- **No PayHero API calls.** `PayHeroProvider` is a typed stub. Every operation
-  raises `NotImplementedFeatureError` → HTTP 501. It reports
-  `available = false` even when credentials are present, because *configured*
-  and *working* are different claims and conflating them is how a half-built
-  integration reaches production.
-- **No STK Push, no Daraja, no Safaricom callbacks.** The Phase 7 Daraja route
-  handlers (`/api/mpesa/*`) are removed. No `MPESA_*` variable is read by
-  anything in this repository.
-- **No payment-mutating endpoint.** The only payment route in Phase 8 is
-  `GET /api/v1/payments/providers`, which reports registered and reserved
-  providers and exposes no credentials. There is no initiate endpoint and no
-  webhook route — a webhook route that cannot verify a signature is worse than
-  no webhook route.
-- **No production payment credentials**, real or placeholder-shaped.
-  `PAYHERO_ENABLED` defaults to `false` and every credential in
-  `.env.example` is empty.
+- **No payment-provider calls from this service.** Paystack collection —
+  hosted checkout initialization, the signed `charge.success` webhook, and
+  verification — is implemented in the Next.js application, which owns
+  `PAYSTACK_SECRET_KEY`. This service holds no provider credentials, so a
+  leaked backend deployment leaks nothing usable against Paystack.
+- **No PayHero, anywhere.** The Phase 9 PayHero integration has been removed
+  from this repository (client, routes, service, configuration, tests). No
+  code path in either application creates a new `PAYHERO` row, and there is no
+  PayHero fallback of any kind. Historical rows are read through the schema
+  only, for reconciliation.
+- **No payment-mutating endpoint and no webhook route.** `GET
+  /api/v1/payments/providers` is the only payment route, and it reports the
+  state above honestly. A webhook route that cannot verify a signature is worse
+  than no webhook route — the verifiable one lives at
+  `POST /api/payments/paystack/webhook` in the Next.js app.
+- **No production payment credentials**, real or placeholder-shaped. The only
+  payment variable this service knows is `PAYMENTS_DEFAULT_PROVIDER=MANUAL`,
+  and resolving that name still 404s with the honest reason (offline
+  settlement has no processor).
 - **No persistence in the service layer.** `PaymentService` orchestrates
-  providers and returns typed results; it does not write rows yet, because
-  there is no flow to write them from.
+  providers and returns typed results; it does not write rows, because there is
+  no flow here to write them from. Rows are written by the Next.js payment
+  services against the same schema.
 
-Phase 9 implements PayHero for real: sandbox credentials, STK Push, a
-signature-verifying webhook endpoint, idempotent callback processing, and the
-order/notifications side effects below.
-
-### 7d. The flow, once implemented (Phase 9)
+### 7d. The flow, as implemented (Phase 10, Next.js app)
 
 1. Buyer confirms order → `Order` (`PENDING`) and `Payment` (`PENDING`,
-   `provider = PAYHERO`, `method = MOBILE_MONEY`).
-2. The backend calls the provider's `initialize()` with the buyer's MSISDN
-   (normalized to `2547XXXXXXXX` by `toKenyanMsisdn()` in `src/utils`), the
-   amount in cents, and `customerReference` = order number.
-3. The provider responds with its transaction id, stored on the `Payment` row
-   **immediately** — the callback can arrive before the initiate response does,
-   a race the providers' own docs warn about.
-4. The provider posts a callback to the backend's webhook route. The handler
-   verifies the signature over the raw bytes, looks up the `Payment` by
-   `providerTransactionId`, stores `rawCallbackPayload`, and applies the
-   transition **idempotently**: a payment already in a terminal status
-   (`SUCCESS`, `FAILED`, `CANCELLED`, `REFUNDED`) is a no-op, because providers
-   retry callbacks and a retry must not settle twice or notify twice.
-5. On `SUCCESS`: `Order.status → PAID`, notifications for buyer and seller
-   (§8), and a receipt from `providerReference`.
-6. **Failed payment recovery:** the buyer sees "Retry Payment", which reuses the
-   same `Order` with a new `Payment` row and increments `retryCount`.
-7. A **reconciliation sweep** polls `check_status()` for any payment stuck in
-   `PENDING`/`PROCESSING` past a timeout — the case where the callback never
-   arrives. The `payments_provider_status_idx` index exists for exactly this
-   query, which is provider-scoped by nature.
+   `provider = PAYSTACK`, `method = MOBILE_MONEY`) with a unique `MH-…`
+   `customerReference`.
+2. `POST /api/payments/paystack/initialize` (server action behind auth + CSRF
+   + per-buyer rate limit) calls Paystack's `POST /transaction/initialize`
+   with the amount in **subunits** (KES cents × 100), the buyer's email,
+   `channels: ["mobile_money"]`, and our reference. The provider's
+   `reference` and `access_code` are stored on the attempt **immediately** —
+   the webhook can arrive before the initiation response does.
+3. Paystack's hosted checkout collects the M-Pesa payment. The buyer's browser
+   may land on `/checkout/payment-result`; that page is a navigation
+   convenience and is **not** a payment signal.
+4. Paystack posts `charge.success` to `POST /api/payments/paystack/webhook`.
+   The handler verifies `x-paystack-signature` — hex HMAC-SHA512 of the **raw
+   request bytes** keyed with `PAYSTACK_SECRET_KEY` (Paystack's documented
+   scheme; constant-time compare, no re-serialization) — then resolves the
+   reference to *our* payment row, checks exact integer amount and currency,
+   stores the redacted payload, and **re-verifies the transaction against
+   Paystack's authenticated API** before any claim runs. An unverifiable
+   delivery gets a 401 and writes nothing.
+5. Settlement is a conditional database claim: `(provider, providerEventId)`
+   dedup plus a status guard make a retried or replayed delivery a no-op, and
+   a payment already in a terminal state cannot be settled twice or notify
+   twice. On success: `Order.status → PAID` through the order-transition
+   service (with an ownership check), notifications, and `payment.success`
+   audit events.
+6. **Pull channel:** `POST /api/payments/paystack/verify` (same-origin,
+   per-buyer rate limited) lets a waiting buyer's screen ask the *server* to
+   re-verify the attempt with Paystack — the same conditional claims settle it.
+   The browser's claim of success has no power on its own; the server decides
+   by asking Paystack.
+7. **Failed payment recovery:** the buyer retries from the order page; the
+   attempt rules (max 5 per order, in-flight joins rather than duplicates)
+   decide whether a new attempt or the existing one answers. There is no PayHero
+   fallback and no manual "mark paid" for buyer-side claims.
+8. **Provider-unreachable failures** (verification endpoint down) never settle
+   and never fabricate a status — the attempt stays awaiting confirmation and
+   the next webhook retry or verify call settles it once the provider answers.
 
 ## 8. Notifications (implemented in Phase 6)
 
@@ -738,10 +784,12 @@ tipping into visual noise.
   - [x] Messaging (conversations, Realtime chat, typing/presence, image
         sharing, read receipts, edit/delete, archive/delete, block users,
         conversation search, rate limiting)
-  - [ ] Payments (deferred to Phase 9 — the Daraja route handlers were
-        removed in Phase 8 and replaced by the provider-agnostic
-        architecture in §7; PayHero is the first live integration)
-  - [ ] Orders (checkout flow, lifecycle, seller order management)
+  - [x] Payments — **Phase 10, implemented** (the Daraja route handlers were
+        removed in Phase 8 and replaced by the provider-agnostic architecture
+        in §7; Paystack is the live provider in the Next.js app, PayHero was
+        removed as retired — see §7c/§7d)
+  - [x] Orders (checkout flow, lifecycle, cancellation, seller order
+        management)
   - [ ] Reviews (post-order mutual rating, seller/buyer rating display)
   - [ ] Analytics (views-over-time, conversion rate, top listings)
   - [ ] Moderation (admin report queue, listing suspension, ban)
@@ -755,14 +803,17 @@ tipping into visual noise.
   - [x] Single error envelope; no stack traces or secrets in responses
   - [x] `/api/v1/health` liveness and `/api/v1/health/ready` readiness
   - [x] Provider-agnostic `Payment` model + migration (renames, not drops)
-  - [x] Typed `PaymentProvider` interface, registry, `PayHeroProvider` stub
+  - [x] Typed `PaymentProvider` interface + registry (no collection
+        adapters registered — see §7c)
   - [x] Storage abstraction (Cloudinary-shaped) with upload policy enforced
   - [x] Email abstraction (Resend adapter) that never fails the caller
   - [x] Supabase token verification abstraction — auth-only boundary (§5)
   - [x] SQLAlchemy mirror of the payments domain, Prisma still owns the DDL
   - [x] 362 backend tests; `prisma/schema.prisma` parsed and compared
-  - [ ] PayHero integration — **Phase 9** (real API calls, STK Push,
-        signature-verifying webhook, persistence, order side effects)
+  - [x] **Phase 10 — Paystack live, PayHero removed** (hosted checkout +
+        signed webhook + server verification in the Next.js app; the Phase 9
+        PayHero integration was retired and removed from the repository —
+        historical rows and the enum value are retained, §7a)
 
 ## 14. Backend service reference (Phase 8)
 
@@ -784,7 +835,7 @@ backend/
     schemas/           Pydantic request/response models
     services/          payment_service, email_service, rate_limit, health
     providers/
-      payments/        base (interface), payhero (stub), registry
+      payments/        base (interface), registry — no collection adapters (§7c)
       storage/         base (interface + shared policy), cloudinary
       email/           base (interface + templates), resend
   tests/               no network, no database, no credentials required
@@ -803,7 +854,7 @@ guard is innermost so it sees every failure the app raises.
 router beside it, never an edit in place: payment integrations are called by
 providers whose callback URLs cannot be updated atomically with a deploy.
 
-**Endpoints in Phase 8.**
+**Endpoints in the backend.**
 
 | Route | Auth | Purpose |
 | --- | --- | --- |

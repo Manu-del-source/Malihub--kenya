@@ -173,9 +173,10 @@ class ServiceUnavailableError(ApiError):
 class NotImplementedFeatureError(ApiError):
     """The code path exists but the integration behind it does not, yet.
 
-    Distinct from a 500 on purpose. Phase 8 ships typed stubs for PayHero and
-    Cloudinary: a 501 with a clear `code` tells an integrator "this is
-    scheduled work" instead of "this is broken".
+    Distinct from a 500 on purpose. A 501 with a clear `code` tells an
+    integrator "this is scheduled work" instead of "this is broken" — e.g.
+    the `PaymentProvider.refund()` default, which no adapter on this
+    deployment has implemented.
     """
 
     status_code = status.HTTP_501_NOT_IMPLEMENTED
@@ -187,7 +188,7 @@ class UpstreamProviderError(ApiError):
     """An external provider (payment, email, storage) failed or misbehaved.
 
     502, not 500: the fault is downstream, and that distinction is what makes
-    "are we broken or is PayHero broken?" answerable from metrics alone.
+    "are we broken or is the provider broken?" answerable from metrics alone.
     """
 
     status_code = status.HTTP_502_BAD_GATEWAY

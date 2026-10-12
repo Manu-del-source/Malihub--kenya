@@ -21,12 +21,14 @@ import type { OrderStatus, PaymentStatus } from "@prisma/client";
 export type BuyerPaymentAttempt = {
   id: string;
   status: PaymentStatus;
+  /** The processor that handled (or attempted) this payment. */
+  provider: string;
   amountCents: number;
   /** Our reference (order number, `-R{n}` on retries). Safe to display. */
   customerReference: string;
   /** Provider checkout id — not a secret, but only shown as a reference. */
   providerTransactionId: string | null;
-  /** M-Pesa receipt once collected. */
+  /** The settlement reference the buyer can quote (Paystack reference). */
   providerReference: string | null;
   retryCount: number;
   createdAt: string;
@@ -42,7 +44,7 @@ export type BuyerPaymentSnapshot = {
     status: OrderStatus;
     totalCents: number;
   };
-  /** The buyer's latest PayHero attempt for this order, or null. */
+  /** The buyer's latest payment attempt for this order, or null. */
   payment: BuyerPaymentAttempt | null;
   attempts: {
     used: number;
@@ -66,9 +68,12 @@ export type BuyerPaymentSnapshot = {
 export type PaymentVerification = {
   attempted: boolean;
   ok: boolean;
-  /** `verifyPayheroPaymentStatus` outcome, when the check completed. */
+  /** `verifyPaystackPaymentStatus` outcome, when the check completed. */
   outcome?: string;
-  /** A `PaymentServiceErrorCode` when the provider could not be reached. */
+  /**
+   * A `PaymentServiceErrorCode` when the provider could not be reached (or
+   * the attempt's provider is retired and cannot be asked at all).
+   */
   code?: string;
 };
 

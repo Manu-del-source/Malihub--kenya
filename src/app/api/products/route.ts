@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { listingSchema, searchParamsSchema } from "@/lib/validations/listing";
+import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { searchListings } from "@/services/search-service";
 import { createListing, ListingServiceError } from "@/services/listing-service";
 
@@ -31,6 +32,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: "Complete your seller setup before listing an item." },
       { status: 403 }
+    );
+  }
+
+  // Listing creation is the expensive write (validation, stock reservation,
+  // rows, search index); bound it per seller. The GET above stays unlimited —
+  // the public catalog is not what this protects against.
+  const limit = await rateLimit.listingCreate(seller.id);
+  if (!limit.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many listings created. Try again ${formatRetryAfter(limit.reset)}.`,
+        code: "rate_limited",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((limit.reset - Date.now()) / 1000)) },
+      }
     );
   }
 

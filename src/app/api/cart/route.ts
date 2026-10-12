@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
+import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { addToCart, updateCartItem, removeFromCart, getCart, CartError } from "@/services/cart-service";
 
 /**
@@ -43,6 +44,29 @@ function errorResponse(error: unknown, fallback: string, status = 400) {
   return NextResponse.json({ success: false, error: fallback }, { status: 500 });
 }
 
+/**
+ * Every cart mutation is a per-buyer write and none is self-limiting, so the
+ * three mutating methods share one per-buyer sliding window (rate-limit.ts
+ * documents the numbers). GET reads the cart and is deliberately unlimited.
+ */
+async function cartMutationLimit(user: { id: string }) {
+  const limit = await rateLimit.cartMutate(user.id);
+  if (!limit.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many cart updates. Try again ${formatRetryAfter(limit.reset)}.`,
+        code: "rate_limited",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((limit.reset - Date.now()) / 1000)) },
+      }
+    );
+  }
+  return null;
+}
+
 export async function GET() {
   const user = (await getCurrentUser())?.user;
   if (!user) {
@@ -65,6 +89,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
+
+  const limited = await cartMutationLimit(user);
+  if (limited) return limited;
 
   const parsed = addSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -90,6 +117,9 @@ export async function PATCH(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
+
+  const limited = await cartMutationLimit(user);
+  if (limited) return limited;
 
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -120,6 +150,9 @@ export async function DELETE(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
   }
+
+  const limited = await cartMutationLimit(user);
+  if (limited) return limited;
 
   const parsed = removeSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

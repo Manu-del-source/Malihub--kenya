@@ -1,19 +1,34 @@
 """Provider registry: how the rest of the app gets a `PaymentProvider`.
 
-Callers never import `PayHeroProvider`. They ask the registry for a provider by
-name (or accept the configured default) and use it through the
+Callers never import a concrete adapter. They ask the registry for a provider
+by name (or accept the configured default) and use it through the
 `PaymentProvider` interface. That indirection is the entire point of the
 architecture: adding Daraja in a future phase means writing one adapter and
 adding one line to `build_default_registry`, and no service, route, schema or
 client changes at all.
 
-Two providers are deliberately *not* registered:
+**This API registers NO collection adapters today, and that is deliberate.**
+Buyer payment collection (Paystack hosted checkout, the signed
+`charge.success` webhook, on-demand verification) is implemented in the
+NEXT.JS application, which owns `PAYSTACK_SECRET_KEY`. This FastAPI service
+holds no payment-provider credentials, makes no provider API calls, and mounts
+no webhook route — a public endpoint that could not verify a callback would
+just be an attack surface. What remains here is the contract, the registry,
+and the honest capability report, so a future provider is a code change
+rather than a migration.
 
+Provider names are deliberately *not* registered:
+
+* `PAYSTACK` — the active provider, but implemented in the Next.js app; see
+  above. Asking the registry for it produces a clear, honest error saying so.
+* `PAYHERO` — RETIRED. The Phase 9 integration has been removed from this
+  repository; historical `Payment` rows still carry the value, and
+  reconciliation reads them through the schema, never through a registered
+  adapter.
 * `DARAJA` — reserved in the Prisma enum and in `PaymentProviderName` so that
   adding it later is a code change rather than a destructive enum migration.
   There is no implementation and no request anywhere in this codebase makes a
-  Safaricom/Daraja API call. Asking the registry for it produces a clear,
-  honest error naming it as planned work.
+  Safaricom/Daraja API call.
 * `MANUAL` — cash on delivery and similar, settled by hand. There is no
   external processor to talk to, so there is nothing for an adapter to do;
   those payments are recorded directly against the `Payment` row by an
@@ -33,14 +48,14 @@ from app.providers.payments.base import (
     PaymentProviderName,
     ProviderCapability,
 )
-from app.providers.payments.payhero import PayHeroProvider
 
 logger = get_logger(__name__)
 
-#: Registered adapters. Add new providers here and nowhere else.
-_PROVIDERS: dict[PaymentProviderName, type[PaymentProvider]] = {
-    PaymentProviderName.PAYHERO: PayHeroProvider,
-}
+#: Registered adapters. Deliberately EMPTY today — see the module docstring:
+#: Paystack collection lives in the Next.js application and this service holds
+#: no provider credentials. When a provider adapter is added HERE, register it
+#: here and nowhere else.
+_PROVIDERS: dict[PaymentProviderName, type[PaymentProvider]] = {}
 
 #: Provider enum values that exist in the schema but have no adapter, with the
 #: reason. Public and surfaced by `GET /api/v1/payments/providers` so "unknown
@@ -48,6 +63,21 @@ _PROVIDERS: dict[PaymentProviderName, type[PaymentProvider]] = {
 #: different responses from whoever hits them. Reasons are static prose written
 #: for developers and contain no configuration state.
 RESERVED_PROVIDERS: dict[PaymentProviderName, str] = {
+    PaymentProviderName.PAYSTACK: (
+        "Paystack is the active provider, but its integration (hosted "
+        "checkout, the signed charge.success webhook and verification) is "
+        "implemented in the Next.js application, which owns the Paystack "
+        "secret key. This API holds no Paystack credentials and registers no "
+        "Paystack adapter; payment endpoints for buyers live at "
+        "/api/payments/paystack/* in that app."
+    ),
+    PaymentProviderName.PAYHERO: (
+        "PayHero is RETIRED. The Phase 9 integration has been removed from "
+        "this repository; historical Payment rows still carry the value and "
+        "reconciliation reads them through the schema. No new PAYHERO payment "
+        "can be created by any code in this repository, and no adapter is "
+        "registered under the name."
+    ),
     PaymentProviderName.DARAJA: (
         "Daraja (direct Safaricom M-Pesa) is a planned future provider. It is "
         "reserved in the schema but has no implementation, and no request in "

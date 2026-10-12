@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Script from "next/script";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ChevronLeft, MapPin, ShieldCheck } from "lucide-react";
@@ -9,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getBuyerOrder } from "@/services/order-service";
 import { readBuyerPaymentSnapshot } from "@/services/payment-status-service";
 import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button";
-import { MpesaPaySection } from "@/components/shell/buyer/mpesa-pay-section";
+import { PaystackPaySection } from "@/components/shell/buyer/paystack-pay-section";
 import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
@@ -132,17 +133,22 @@ export default async function BuyerOrderDetailPage({
 
         <aside className="flex flex-col gap-4">
           {order.status === "PENDING" && (
-            <MpesaPaySection
-              order={{
-                id: order.id,
-                orderNumber: order.orderNumber,
-                totalCents: order.totalCents,
-                sellerName: order.seller.businessName,
-              }}
-              defaultPhone={user.phone ?? ""}
-              initialSnapshot={paymentSnapshot}
-              refreshOnSuccess
-            />
+            <>
+              <Script
+                src="https://js.paystack.co/v2/inline.js"
+                strategy="afterInteractive"
+              />
+              <PaystackPaySection
+                order={{
+                  id: order.id,
+                  orderNumber: order.orderNumber,
+                  totalCents: order.totalCents,
+                  sellerName: order.seller.businessName,
+                }}
+                initialSnapshot={paymentSnapshot}
+                refreshOnSuccess
+              />
+            </>
           )}
 
           <div className="glass rounded-2xl p-5 text-sm">

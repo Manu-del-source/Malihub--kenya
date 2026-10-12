@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,37 +14,34 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useMpesaPayment, type MpesaPhase } from "@/hooks/use-mpesa-payment";
+import { usePaystackPayment, type PaystackPhase } from "@/hooks/use-paystack-payment";
 import { PAYMENT_METHODS, paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import type { BuyerPaymentSnapshot, BuyerPaymentStatusSnapshot } from "@/lib/payments/payment-snapshot";
 import { ORDER_STATUS_LABEL } from "@/lib/order-status";
 import { formatKes } from "@/utils";
 
 /**
- * The M-Pesa collection block for ONE order.
+ * The Paystack collection block for ONE order.
  *
  * Shared by the checkout screen (where it receives an order that was just
  * created) and the buyer's order page (where it receives a PENDING order that
- * already exists). It renders the phone field, the action button, and the
- * explicit state of the payment — queued, waiting, successful, failed or
- * awaiting a late confirmation — using the real backend statuses, never a
- * guess. It never reports success from the STK response itself.
+ * already exists). It renders the action button and the explicit state of the
+ * payment — awaiting, successful, failed or awaiting a late confirmation —
+ * using the real backend statuses, never a guess. It never reports success
+ * from the Paystack popup result itself; success requires the server's
+ * verification of the transaction.
  *
- * The component owns no business rules: validation is the shared Kenyan rule,
- * initiation/status calls go through `checkout-client`, and retry simply asks
- * the same order for another attempt (the service enforces the attempt cap and
- * joins an active attempt instead of pushing twice).
+ * The component owns no business rules: initiation/status calls go through
+ * `checkout-client`, and retry simply asks the same order for another attempt
+ * (the service enforces the attempt cap and joins an active attempt instead
+ * of initializing twice).
  */
 
-const MPESA = PAYMENT_METHODS[0]!;
+const PAYSTACK = PAYMENT_METHODS[0]!;
 
-export type MpesaPaySectionProps = {
+export type PaystackPaySectionProps = {
   order: { id: string; orderNumber: string; totalCents: number; sellerName?: string | null };
-  defaultPhone: string;
   initialSnapshot?: BuyerPaymentSnapshot | null;
-  /** Set by the checkout CTA so the first attempt starts without a second click. */
-  autoPayPhone?: string | null;
   /** Parent gating (e.g. another order in the same checkout is being paid). */
   disabled?: boolean;
   disabledReason?: string;
@@ -55,30 +52,21 @@ export type MpesaPaySectionProps = {
    * now-empty-cart state mid-flow.
    */
   refreshOnSuccess?: boolean;
-  onPhaseChange?: (phase: MpesaPhase) => void;
+  onPhaseChange?: (phase: PaystackPhase) => void;
   onSnapshot?: (snapshot: BuyerPaymentStatusSnapshot) => void;
 };
 
-export function MpesaPaySection({
+export function PaystackPaySection({
   order,
-  defaultPhone,
   initialSnapshot = null,
-  autoPayPhone = null,
   disabled = false,
   disabledReason,
   refreshOnSuccess = false,
   onPhaseChange,
   onSnapshot,
-}: MpesaPaySectionProps) {
+}: PaystackPaySectionProps) {
   const router = useRouter();
-  const [phone, setPhone] = useState(defaultPhone);
-  const payment = useMpesaPayment({
-    order,
-    initialSnapshot,
-    autoPayPhone,
-    onPhaseChange,
-    onSnapshot,
-  });
+  const payment = usePaystackPayment({ order, initialSnapshot, onPhaseChange, onSnapshot });
 
   const refreshedRef = useRef(false);
   useEffect(() => {
@@ -90,27 +78,30 @@ export function MpesaPaySection({
 
   const snapshot = payment.snapshot;
   const amountCents = snapshot?.payment?.amountCents ?? order.totalCents;
-  const reference = snapshot?.payment?.customerReference ?? payment.queued?.paymentReference ?? null;
-  const phoneLocked =
+  const reference = snapshot?.payment?.customerReference ?? null;
+  const payLocked =
     payment.phase === "initiating" || payment.phase === "awaiting" || payment.phase === "succeeded";
 
   function handleSubmit() {
     if (payment.phase === "failed" || payment.phase === "timed_out") {
-      void payment.retry(phone);
+      void payment.retry();
       return;
     }
-    void payment.pay(phone);
+    void payment.pay();
   }
 
   const buttonLabel = (() => {
-    if (payment.phase === "initiating") return "Sending M-Pesa request…";
-    if (payment.phase === "awaiting") return "Waiting for M-Pesa…";
-    if (payment.phase === "failed" || payment.phase === "timed_out") return "Try M-Pesa again";
-    return `Pay ${formatKes(amountCents)} with M-Pesa`;
+    if (payment.phase === "initiating") return "Opening Paystack…";
+    if (payment.phase === "awaiting") return "Waiting for Paystack…";
+    if (payment.phase === "failed" || payment.phase === "timed_out") return "Try Paystack again";
+    return `Pay ${formatKes(amountCents)} with M-Pesa (Paystack)`;
   })();
 
   return (
-    <section className="glass rounded-2xl p-5 sm:p-6" aria-label={`M-Pesa payment for order ${order.orderNumber}`}>
+    <section
+      className="glass rounded-2xl p-5 sm:p-6"
+      aria-label={`Paystack payment for order ${order.orderNumber}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Smartphone className="h-4 w-4 text-primary-400" aria-hidden />
@@ -123,7 +114,7 @@ export function MpesaPaySection({
 
       <p className="mt-1 text-xs text-muted-foreground">
         Order <span className="font-mono">{order.orderNumber}</span>
-        {order.sellerName ? ` · ${order.sellerName}` : ""} · {MPESA.label} via secure STK Push
+        {order.sellerName ? ` · ${order.sellerName}` : ""} · {PAYSTACK.label} secure checkout
       </p>
 
       {payment.phase === "succeeded" ? (
@@ -144,7 +135,7 @@ export function MpesaPaySection({
             </div>
             <div className="flex justify-between gap-4">
               <dt>Payment method</dt>
-              <dd className="text-foreground">{MPESA.label}</dd>
+              <dd className="text-foreground">{PAYSTACK.label}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>Order status</dt>
@@ -154,7 +145,7 @@ export function MpesaPaySection({
             </div>
             {snapshot?.payment?.providerReference && (
               <div className="flex justify-between gap-4">
-                <dt>M-Pesa receipt</dt>
+                <dt>Paystack receipt</dt>
                 <dd className="font-mono text-foreground">{snapshot.payment.providerReference}</dd>
               </div>
             )}
@@ -165,44 +156,15 @@ export function MpesaPaySection({
         </div>
       ) : (
         <>
-          <div className="mt-4">
-            <label htmlFor={`mpesa-phone-${order.id}`} className="text-sm font-medium">
-              M-Pesa phone number
-            </label>
-            <Input
-              id={`mpesa-phone-${order.id}`}
-              name="phoneNumber"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="0712345678"
-              className="mt-2"
-              value={phone}
-              invalid={Boolean(payment.phoneError)}
-              disabled={phoneLocked || disabled}
-              onChange={(event) => {
-                setPhone(event.target.value);
-                payment.clearPhoneError();
-              }}
-            />
-            {payment.phoneError && (
-              <p className="mt-1.5 text-xs text-destructive" role="alert">
-                {payment.phoneError}
-              </p>
-            )}
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              An STK Push is sent to this number. You can change it before paying.
-            </p>
-          </div>
-
           {payment.phase === "awaiting" && (
             <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <p className="flex items-center gap-2 text-sm font-medium">
                 <Loader2 className="h-4 w-4 animate-spin text-primary-400" aria-hidden />
-                STK Push sent
+                Awaiting payment
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Check your phone and enter your M-Pesa PIN to complete payment. This page updates
-                automatically once M-Pesa confirms.
+                Complete the payment in the Paystack window (M-Pesa). This page updates
+                automatically once Paystack confirms.
               </p>
               {reference && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -252,9 +214,9 @@ export function MpesaPaySection({
               type="button"
               className="w-full sm:w-auto"
               onClick={handleSubmit}
-              disabled={disabled || payment.isBusy || payment.phase === "awaiting"}
+              disabled={disabled || payment.isBusy || payLocked}
             >
-              {payment.isBusy || payment.phase === "awaiting" ? (
+              {payment.isBusy || payLocked ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : null}
               {buttonLabel}
@@ -267,7 +229,7 @@ export function MpesaPaySection({
                 onClick={() => void payment.checkNow()}
                 disabled={payment.isBusy}
               >
-                <RefreshCw className="h-4 w-4" aria-hidden />
+                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
                 Check status
               </Button>
             )}
@@ -282,8 +244,8 @@ export function MpesaPaySection({
       <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>
-          Your M-Pesa PIN is entered only on the official M-Pesa prompt. MaliHub never asks for
-          or stores your M-Pesa PIN.
+          Your M-Pesa PIN is entered only on the official Paystack/M-Pesa prompt. MaliHub never
+          asks for or stores your M-Pesa PIN.
         </span>
       </p>
     </section>

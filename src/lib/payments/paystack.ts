@@ -106,6 +106,25 @@ export type PaystackClient = {
   verifyTransaction(reference: string): Promise<PaystackVerifiedTransaction>;
 };
 
+/**
+ * The transaction object a webhook delivery carries in its top-level `data`
+ * field (Paystack documents the webhook body as `{ event, data }`, where
+ * `data` is the transaction — the same shape the verify endpoint returns).
+ * Typed to the fields the settlement pipeline reads; unknown fields are
+ * tolerated (providers add fields over time).
+ */
+export type PaystackWebhookData = {
+  id?: number;
+  reference?: string;
+  amount?: number;
+  currency?: string;
+  status?: string;
+  domain?: string;
+  channel?: string;
+  metadata?: unknown;
+  [key: string]: unknown;
+};
+
 export function createPaystackClient(config: PaystackConfig): PaystackClient {
   async function request<T>(path: string, init: RequestInit): Promise<T> {
     const controller = new AbortController();

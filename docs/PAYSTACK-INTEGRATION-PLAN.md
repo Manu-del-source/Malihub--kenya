@@ -1,11 +1,25 @@
 # Paystack integration plan — MaliHub Kenya
 
-## Status
+## Status — IMPLEMENTED (Phase 10)
 
-The server-only API client foundation lives in `src/lib/payments/paystack.ts`.
-It supports transaction initialization, server-side verification, strict checkout
-URL validation, timeouts, and HMAC-SHA512 verification of Paystack webhook
-signatures. It is not yet wired into checkout or the order settlement pipeline.
+Phases A, B and C of the rollout are done; Paystack is the active payment
+provider and the retired PayHero integration has been removed from the
+repository (see `docs/PAYMENTS-PAYHERO.md` for the retirement record).
+
+What exists today:
+
+| Layer | Where |
+| --- | --- |
+| Server-only Paystack client | `src/lib/payments/paystack.ts` — initialize, `GET /transaction/verify/{reference}`, config validation, timeouts, **HMAC-SHA512 webhook signature verification over the raw body** (constant-time) |
+| Settlement primitives | `src/services/payment-service.ts` — conditional claims, `(provider, providerEventId)` dedup, exact amount/currency gates, ownership checks, terminal-state guards |
+| Webhook ingestion | `POST /api/payments/paystack/webhook` (`src/services/payment-webhook-service.ts`) — signature gate → reference resolution → amount/currency gate → **server-to-server re-verification against Paystack** → conditional settlement. 401 + no write for anything unverifiable |
+| Server-authoritative status | `GET/POST /api/payments/paystack/verify` (`src/services/payment-verify-service.ts`) — the buyer's screens ask the *server*, which asks *Paystack*; the browser's success claim has no power |
+| Checkout initiation | `POST /api/payments/paystack/initialize` — auth + CSRF + per-buyer rate limit, attempt rules (max 5 per order, in-flight joins) |
+| Buyer landing page | `/checkout/payment-result` — where `PAYSTACK_CALLBACK_URL` points; renders server-verified state, never a browser claim |
+| Regression tests | `src/services/__tests__/payment-service.test.ts`, `payment-webhook-service.test.ts`, `payment-verify-service.test.ts`, `order-payment-lifecycle.test.ts` — forged callbacks, invalid/malformed signatures, wrong amount/currency, wrong ownership, duplicates, replays, ref mismatch, provider-verify failure, legitimate success |
+
+Remaining (rollout phases D–E below) is the marketplace/payout compliance work
+and the production cutover — not a code gap in the collection path.
 
 ## Required configuration
 
@@ -20,7 +34,11 @@ The webhook should be configured separately in Paystack Dashboard → Settings /
 API Keys & Webhooks to point at the MaliHub webhook endpoint once that endpoint
 is implemented and deployed.
 
-## Payment flow to implement
+## Payment flow (as implemented)
+
+The numbered flow below is what the code above does; it is listed unchanged
+from the plan so a reviewer can check each requirement against the
+implementation.
 
 1. Authenticate the buyer and confirm the order belongs to them and is payable.
 2. Read the amount and buyer email from trusted database records; never accept
@@ -52,11 +70,20 @@ return URL.
 
 ## Rollout sequence
 
-- Phase A: client foundation and configuration (current).
+- Phase A: client foundation and configuration — **done**.
 - Phase B: provider-neutral database enum/migration, initiation route, callback
-  route, status verification, checkout UI wiring, and unit tests.
+  route, status verification, checkout UI wiring, and unit tests — **done**
+  (default flipped in
+  `prisma/migrations/manual_phase10_paystack_provider_default.sql`).
 - Phase C: test-mode end-to-end tests for success, failure, duplicates,
-  amount mismatch, invalid signature, timeout, and concurrent attempts.
+  amount mismatch, invalid signature, timeout, and concurrent attempts —
+  **done** (service + lifecycle suites; run with `npm test`). Live test-mode
+  execution against Paystack's own API is still to be performed on a machine
+  with network access; the suites stub the provider client so they run
+  anywhere.
 - Phase D: seller ledger/payout workflow only after compliance approval; require
-  reconciliation and manual review for payout exceptions.
-- Phase E: production cutover with feature flag and a documented rollback path.
+  reconciliation and manual review for payout exceptions — **pending** (see the
+  marketplace boundary above).
+- Phase E: production cutover with feature flag and a documented rollback path
+  — **pending**. Set `PAYSTACK_SECRET_KEY` to a live key and the live webhook
+  URL in the Paystack dashboard; the code path is identical in both modes.

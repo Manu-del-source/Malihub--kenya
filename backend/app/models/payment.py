@@ -40,13 +40,16 @@ from app.models.base import Base
 # case-sensitive when quoted, and Prisma quotes them.
 
 PaymentProviderEnum = PG_ENUM(
+    "PAYSTACK",
     "PAYHERO",
     "DARAJA",
     "MANUAL",
     name="PaymentProvider",
     create_type=False,
 )
-"""Which processor moved the money. `DARAJA` is reserved and unimplemented."""
+"""Which processor moved the money. PAYSTACK is the active provider (collected
+in the Next.js application); PAYHERO is retired but retained for historical
+rows; `DARAJA` is reserved and unimplemented."""
 
 PaymentMethodEnum = PG_ENUM(
     "MOBILE_MONEY",
@@ -164,7 +167,7 @@ class Payment(Base):
         nullable=False,
     )
     provider: Mapped[str] = mapped_column(
-        PaymentProviderEnum, nullable=False, server_default=text("'PAYHERO'::\"PaymentProvider\"")
+        PaymentProviderEnum, nullable=False, server_default=text("'PAYSTACK'::\"PaymentProvider\"")
     )
     method: Mapped[str] = mapped_column(PaymentMethodEnum, nullable=False)
     status: Mapped[str] = mapped_column(

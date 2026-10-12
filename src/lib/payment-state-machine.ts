@@ -26,8 +26,8 @@ import type { PaymentStatus } from "@prisma/client";
  *
  * - `PENDING`     — the row was reserved; the provider may not have been
  *                   called yet (crash window). Resumable.
- * - `PROCESSING`  — the provider accepted the prompt (PayHero `QUEUED`).
- *                   It is NOT money: never settles anything.
+ * - `PROCESSING`  — the provider accepted the payment (an in-flight
+ *                   transaction). It is NOT money: never settles anything.
  * - `SUCCESS`     — the provider confirmed collection (callback or
  *                   transaction-status verification). Terminal.
  * - `FAILED`      — the provider reported a terminal non-collection.

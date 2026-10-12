@@ -1,4 +1,3 @@
-import { kenyanPhoneRegex } from "@/lib/validations/payment";
 import type {
   BuyerPaymentSnapshot,
   BuyerPaymentStatusSnapshot,
@@ -11,29 +10,32 @@ import type {
  * ─── What a request may carry ───────────────────────────────────────────────
  * Exactly what the existing route handlers accept and nothing else:
  *
- *   POST /api/orders                       → `{}` (the session is the payload)
- *   POST /api/payments/paystack/initialize         → `{ orderId, phoneNumber }`
+ *   POST /api/orders                        → `{}` (the session is the payload)
+ *   POST /api/payments/paystack/initialize  → `{ orderId }`
  *   GET  /api/payments/paystack/verify      → `?orderId=…`
  *   POST /api/payments/paystack/verify      → `{ orderId }`
  *
  * Amounts, prices, seller ids, buyer ids, provider/channel/callback details
  * and payment statuses are never sent — the server derives every one of them
  * from the order row, the session and server configuration, so there is
- * nothing here to tamper with. This module cannot move money by itself: it can
- * only ask the server to start a collection or to report one.
+ * nothing here to tamper with. This module cannot move money by itself: it
+ * can only ask the server to start a collection or to report one. A success
+ * response from the Paystack checkout widget is NOT treated as proof of
+ * payment anywhere in this module — only the server's own snapshot can
+ * produce the paid state.
  *
- * ─── Error copy ─────────────────────────────────────────────────────────────
+ * ─── Error copy ────────────────────────────────────────────────────────────
  * The backend already returns safe, specific messages for domain states
- * ("This order has already been paid."), so those are preferred verbatim. The
- * provider-level failures are the exception: the server's text there talks
- * about deployment configuration, which is not useful (and slightly leaky) in
- * a buyer's screen, so a short user-facing sentence replaces it. No message
- * ever contains a stack, a token or a provider payload.
+ * ("This order has already been paid."), so those are preferred verbatim.
+ * The provider-level failures are the exception: the server's text there
+ * talks about deployment configuration, which is not useful (and slightly
+ * leaky) in a buyer's screen, so a short user-facing sentence replaces it.
+ * No message ever contains a stack, a token or a provider payload.
  */
 
 export const CHECKOUT_PATH = "/checkout";
 export const ORDERS_ENDPOINT = "/api/orders";
-export const STK_ENDPOINT = "/api/payments/paystack/initialize";
+export const PAYSTACK_INITIALIZE_ENDPOINT = "/api/payments/paystack/initialize";
 export const PAYMENT_STATUS_ENDPOINT = "/api/payments/paystack/verify";
 
 /** How often the waiting screen asks the server, and for how long. */
@@ -43,11 +45,10 @@ export const PAYMENT_POLL_WINDOW_MS = 120_000;
 /**
  * The payment methods the checkout may offer.
  *
- * One entry today: Paystack-hosted checkout. It is a list, and the
- * payment-method section renders it as one, so adding a provider later is a
- * data change plus its own server route — not a checkout rewrite. Nothing
- * here claims a method MaliHub cannot actually collect (no card, bank
- * transfer or Airtel Money entry exists).
+ * One entry today: Paystack-hosted checkout (mobile money). It is a list,
+ * and the payment-method section renders it as one, so adding a provider
+ * later is a data change plus its own server route — not a checkout rewrite.
+ * Nothing here claims a method MaliHub cannot actually collect.
  */
 export type PaymentMethodOption = {
   id: "paystack";
@@ -56,8 +57,6 @@ export type PaymentMethodOption = {
   /** The channel behind this option, for display and diagnostics only. */
   provider: "PAYSTACK";
   method: "MOBILE_MONEY";
-  /** The option needs a phone number to prompt. */
-  requiresPhone: false;
   enabled: boolean;
 };
 
@@ -65,10 +64,9 @@ export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
     id: "paystack",
     label: "Paystack",
-    description: "Pay securely on Paystack using the payment methods available at checkout.",
+    description: "Pay securely with M-Pesa mobile money through Paystack's hosted checkout.",
     provider: "PAYSTACK",
     method: "MOBILE_MONEY",
-    requiresPhone: false,
     enabled: true,
   },
 ];
@@ -89,17 +87,6 @@ export type CheckoutOrder = {
 /** Paystack InlineJS transaction details returned by the server. */
 export type PaystackCheckoutResult = { accessCode: string; reference: string; reused: boolean };
 
-// Kept for the existing M-Pesa component/hook modules while they remain in the
-// codebase; the buyer checkout itself now uses Paystack-hosted checkout.
-export type StkQueuedResult = {
-  paymentReference: string;
-  checkoutRequestId: string | null;
-  paymentStatus: string;
-  amountCents: number;
-  alreadyInitiated: boolean;
-  providerStatus: "QUEUED";
-};
-
 export type ApiFailure = {
   ok: false;
   status: number;
@@ -116,11 +103,13 @@ export type ApiResult<T> = { ok: true; data: T } | ApiFailure;
  * could be.
  */
 const FRIENDLY_PROVIDER_ERRORS: Readonly<Record<string, string>> = {
-  provider_not_configured: "Mobile payments are temporarily unavailable. Please try again later.",
-  provider_unavailable: "We couldn't reach M-Pesa just now. Please try again in a moment.",
-  provider_rejected: "M-Pesa couldn't start this payment. Please try again.",
-  provider_invalid_response: "M-Pesa returned an unexpected response. Please try again.",
+  provider_not_configured: "Online payments are temporarily unavailable. Please try again later.",
+  provider_unavailable: "We couldn't reach the payment service just now. Please try again in a moment.",
+  provider_rejected: "The payment service couldn't process this payment. Please try again.",
+  provider_invalid_response: "The payment service returned an unexpected response. Please try again.",
+  provider_retired: "This payment needs to be checked by our support team. Please contact us with the order number.",
   attempt_limit: "Payment attempts for this order have reached the limit. Please try again later.",
+  payment_initializing: "This payment is still being set up. Please wait a moment and check again.",
 };
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
@@ -130,20 +119,6 @@ export function mapPaymentError(code: string | undefined, serverMessage?: string
   if (code && FRIENDLY_PROVIDER_ERRORS[code]) return FRIENDLY_PROVIDER_ERRORS[code]!;
   if (serverMessage && serverMessage.trim()) return serverMessage;
   return GENERIC_ERROR;
-}
-
-/**
- * The same Kenyan rule onboarding and the STK route enforce
- * (`src/lib/validations/payment.ts`) — imported, never re-declared, so the
- * client cannot drift from the server. Returns an error message or null.
- */
-export function validateMpesaPhone(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return "Enter the M-Pesa phone number to prompt.";
-  if (!kenyanPhoneRegex.test(trimmed)) {
-    return "Enter a valid Kenyan M-Pesa number, e.g. 0712345678.";
-  }
-  return null;
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown> | null> {
@@ -207,50 +182,18 @@ export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>
 }
 
 /**
- * `POST /api/payments/paystack/initialize` — initializes a Paystack transaction
- * for one of the caller's own PENDING orders.
+ * `POST /api/payments/paystack/initialize` — initializes a Paystack
+ * transaction for one of the caller's own PENDING orders.
  *
- * A 200 here means PayHero QUEUED the prompt. It is NOT a completed payment;
- * callers must wait for the status endpoint (or the callback) to confirm.
+ * A 200 here means the checkout was created — it is NOT a completed payment;
+ * callers must wait for the status endpoint (or the server's webhook) to
+ * confirm. The secret key stays on the server; the browser receives only an
+ * access code it hands to Paystack's hosted checkout.
  */
-export async function initiateStkPayment(
-  orderId: string,
-  phoneNumber: string
-): Promise<ApiResult<StkQueuedResult>> {
-  let response: Response;
-  try {
-    response = await fetch(STK_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // The exact two fields the route accepts. Everything else it needs it
-      // reads from the order row, the session and server configuration.
-      body: JSON.stringify({ orderId, phoneNumber }),
-    });
-  } catch {
-    return { ok: false, status: 0, message: "We couldn't reach the server. Please try again." };
-  }
-
-  const body = await readJson(response);
-  if (!response.ok || body?.success !== true) {
-    return failureFrom(response, body, "We couldn't start Paystack checkout. Please try again.");
-  }
-
-  const data = body.data as StkQueuedResult | undefined;
-  if (!data?.paymentReference) {
-    return {
-      ok: false,
-      status: response.status,
-      message: "We couldn't start the M-Pesa payment. Please try again.",
-    };
-  }
-  return { ok: true, data };
-}
-
-/** Start a Paystack-hosted checkout. The secret key stays on the server. */
 export async function initiatePaystackCheckout(orderId: string): Promise<ApiResult<PaystackCheckoutResult>> {
   let response: Response;
   try {
-    response = await fetch("/api/payments/paystack/initialize", {
+    response = await fetch(PAYSTACK_INITIALIZE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId }),
@@ -273,8 +216,8 @@ export async function initiatePaystackCheckout(orderId: string): Promise<ApiResu
  * The caller's own payment status.
  *
  * `verify: false` (GET) is a pure database read. `verify: true` (POST) asks
- * the server to reconcile a waiting attempt against PayHero first — the
- * recovery path when a callback is late — and is the one that may settle the
+ * the server to reconcile a waiting attempt against Paystack first — the
+ * recovery path when a webhook is late — and is the one that may settle the
  * payment. Both are ownership-scoped server-side; a foreign order id is 404.
  */
 export async function fetchPaymentStatus(
@@ -339,11 +282,11 @@ export function createSerializedTask<T>(task: () => Promise<T>): () => Promise<T
  * The payment phase implied by a server snapshot — the pure rule the payment
  * UI is built on, kept here so it can be tested without a DOM.
  *
- * The critical property: a QUEUED/PROCESSING attempt maps to "awaiting", never
- * to "succeeded". Success requires the server to say so (payment SUCCESS or a
- * paid order status) — the STK initiation response can never produce it.
+ * The critical property: an in-flight attempt maps to "awaiting", never to
+ * "succeeded". Success requires the server to say so (payment SUCCESS or a
+ * paid order status) — the checkout initiation response can never produce it.
  */
-export type PaymentPhase = "idle" | "awaiting" | "succeeded" | "failed";
+export type PaymentPhase = "idle" | "initiating" | "awaiting" | "succeeded" | "failed";
 
 export function paymentPhaseFromSnapshot(snapshot: BuyerPaymentSnapshot | null): PaymentPhase {
   if (!snapshot) return "idle";
@@ -363,10 +306,6 @@ export function paymentPhaseFromSnapshot(snapshot: BuyerPaymentSnapshot | null):
 /**
  * The next order in a multi-seller checkout that still needs paying, or null
  * when every order is settled (`succeeded`).
- *
- * The collection order is the order the server created them in (per seller),
- * one at a time — mirrors how the checkout screen sequences prompts so two
- * attempts are never in flight against one buyer at once.
  */
 export function firstUnpaidOrderId(
   orders: readonly { id: string }[],
@@ -382,7 +321,7 @@ export function paymentAttemptLabel(snapshot: BuyerPaymentSnapshot | null): stri
     case "PENDING":
       return "Starting";
     case "PROCESSING":
-      return "Awaiting M-Pesa confirmation";
+      return "Awaiting payment confirmation";
     case "SUCCESS":
       return "Paid";
     case "FAILED":

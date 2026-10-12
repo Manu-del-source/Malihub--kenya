@@ -169,13 +169,15 @@ and has already committed correctly.
 
 ## What Phase 9.1 deliberately does not do
 
-- **No payment collection.** `PENDING → PAID` exists as a service primitive
-  with a defined interface, and nothing calls it yet. PayHero integration,
-  webhook handling and the `Payment` record are **Phase 9.2**.
-- **No `Payment` rows.** Checkout still means cart → `Order(PENDING)`. A
-  payment is a separate financial event, and fabricating a `Payment` row to
-  make this phase look complete would put a lie in the one table the whole
-  financial system is reconciled against.
+- **No payment collection.** (Historical Phase 9.1 boundary — superseded.)
+  Payment collection now exists: Paystack is the active provider (Phase 10),
+  and `PENDING → PAID` is driven only by the provider-verified settlement in
+  §7d of ARCHITECTURE.md. The retired PayHero integration that this phase
+  anticipated was removed from the repository; see `docs/PAYMENTS-PAYHERO.md`.
+- **No `Payment` rows.** (Historical.) Checkout now means cart →
+  `Order(PENDING)` → `Payment(PENDING, provider=PAYSTACK)` at initiation. A
+  payment is still a separate financial event; the rule that forbids
+  fabricating a `Payment` row to make a phase look complete still stands.
 - **No refunds.** `REFUNDED` has no inbound transition (§ above).
 - **No settlements or payouts.** Those belong to later phases; a settlement is
   a *paid* order's concern and this phase only reaches `PENDING`.

@@ -1,5 +1,17 @@
 # PayHero M-Pesa collection (Phase 9.2-A + 9.3)
 
+> **RETIRED — removed from the repository (Phase 10).**
+> PayHero is no longer the active provider and the code this document
+> describes (`src/lib/payments/payhero.ts`, the `/api/payments/payhero/*`
+> routes, `PAYHERO_*` configuration) has been deleted. Paystack is the active
+> provider — see `docs/PAYSTACK-INTEGRATION-PLAN.md`, §7 of
+> `ARCHITECTURE.md`, and the route docs under
+> `src/app/api/payments/paystack/`. This document is retained as the
+> historical record of the Phase 9 work: `Payment` rows with
+> `provider = 'PAYHERO'` still exist in production databases and are read
+> through the schema for reconciliation. Do not restore any of it; there is
+> no PayHero fallback by design.
+
 Server-side M-Pesa STK Push collection for buyer checkout orders. A buyer
 pays for a PENDING order with M-Pesa, PayHero delivers the result to our
 callback, and the order becomes PAID — atomically, idempotently, and with a

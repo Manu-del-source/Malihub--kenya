@@ -65,7 +65,7 @@ export function timeAgo(date: Date | string): string {
  * format mobile-money rails expect.
  *
  * Named for the *format*, not for a provider: M-Pesa, Airtel Money and any
- * aggregator in front of them (PayHero today, Daraja directly in future) all
+ * aggregator in front of them (Paystack today, Daraja directly in future) all
  * want the same E.164-style Kenyan MSISDN, so this helper belongs to none of
  * them. It was `toMpesaMsisdn()` before Phase 8's payment generalization.
  */

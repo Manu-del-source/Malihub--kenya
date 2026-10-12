@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
+import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { checkoutCart, listBuyerOrders, OrderError } from "@/services/order-service";
 
 /**
@@ -37,6 +38,23 @@ export async function POST(request: NextRequest) {
   const user = (await getCurrentUser())?.user;
   if (!user) {
     return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
+  }
+
+  // Order-creation spam control: each creation reserves stock and writes
+  // rows, so an unbounded scripted buyer could churn orders. The server's
+  // single-use cart claim remains the real correctness guarantee; this is
+  // the per-buyer rate bound. Fail-open when Redis is not configured, like
+  // every other limiter in src/lib/rate-limit.ts.
+  const limit = await rateLimit.orderCreate(user.id);
+  if (!limit.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many orders. Try again ${formatRetryAfter(limit.reset)}.`,
+        code: "rate_limited",
+      },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((limit.reset - Date.now()) / 1000)) } }
+    );
   }
 
   try {

@@ -22,6 +22,11 @@ import {
  * Mutations additionally run behind the CSRF guard and require a session.
  */
 
+// Listing images are validated against the configured Cloudinary cloud
+// (isOwnCloudinaryImageUrl); the fixtures use cloud "demo", matching the
+// URL the in-app uploader would return for that deployment.
+process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME = "demo";
+
 const store: FakeMarketplaceStore = createFakeMarketplaceStore();
 
 type SessionUser = { id: string; email: string; role: string } | null;

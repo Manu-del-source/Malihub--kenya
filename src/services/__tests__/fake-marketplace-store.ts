@@ -379,6 +379,23 @@ function matchesPaymentWhere(row: PaymentRow, where: Args | undefined): boolean 
   if (where.providerTransactionId === null && row.providerTransactionId !== null) return false;
   if (typeof where.providerTransactionId === "string" && row.providerTransactionId !== where.providerTransactionId)
     return false;
+  // Prisma Json filter: `metadata: { path: ["paystack", "providerReference"], equals }`
+  // — the webhook pipeline's fallback lookup for a provider-regenerated reference.
+  if (where.metadata && typeof where.metadata === "object") {
+    const m = where.metadata as { path?: unknown; equals?: unknown };
+    if (Array.isArray(m.path)) {
+      let value: unknown = row.metadata;
+      for (const key of m.path) {
+        value =
+          value && typeof value === "object" && !Array.isArray(value)
+            ? (value as Record<string, unknown>)[String(key)]
+            : undefined;
+      }
+      if (m.equals !== undefined && value !== m.equals) return false;
+    } else if (m.equals !== undefined && row.metadata !== m.equals) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -1023,7 +1040,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         const row: PaymentRow = {
           id: randomUUID(),
           orderId: String(data.orderId),
-          provider: String(data.provider ?? "PAYHERO"),
+          provider: String(data.provider ?? "PAYSTACK"),
           method: String(data.method ?? "MOBILE_MONEY"),
           status: String(data.status ?? "PENDING"),
           amountCents: Number(data.amountCents ?? 0),
@@ -1641,7 +1658,7 @@ export function seedPayment(
   const row: PaymentRow = {
     id: overrides.id ?? randomUUID(),
     orderId: overrides.orderId,
-    provider: overrides.provider ?? "PAYHERO",
+    provider: overrides.provider ?? "PAYSTACK",
     method: overrides.method ?? "MOBILE_MONEY",
     status: overrides.status ?? "PROCESSING",
     amountCents: overrides.amountCents ?? 100_000,
@@ -1650,7 +1667,7 @@ export function seedPayment(
     providerReference: overrides.providerReference ?? null,
     customerReference: overrides.customerReference,
     payerReference: overrides.payerReference ?? "254712345678",
-    metadata: overrides.metadata ?? { payhero: { reference: "PH-REF-1" } },
+    metadata: overrides.metadata ?? { paystack: { initialization: "accepted" } },
     failureCode: overrides.failureCode ?? null,
     failureReason: overrides.failureReason ?? null,
     rawCallbackPayload: overrides.rawCallbackPayload ?? null,

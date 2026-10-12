@@ -27,13 +27,13 @@ import { cancelOrder, OrderTransitionError, type OrderTransitionErrorCode } from
  * A state conflict on the caller's *own* order is a 409, which reveals nothing
  * they could not already see on their own order page.
  *
- * ─── No rate limiting ───────────────────────────────────────────────────────
- * `rateLimit` exists in `src/lib/rate-limit.ts` but is not applied to any
- * route in the repository today, including `POST /api/orders` and every method
- * on `/api/cart`. Adding it here alone would be a new convention rather than
- * following one, so this route matches its sibling. Cancellation is already
- * self-limiting: a second call on a cancelled order is a 409 that writes
- * nothing.
+ * ─── No per-route rate limiting ─────────────────────────────────────────────
+ * This route deliberately carries no rate limiter of its own: cancellation is
+ * self-limiting — a second call on a cancelled order is a 409 that writes
+ * nothing, so the endpoint bounds itself without a sliding window. The
+ * expensive, non-self-limiting write routes (order creation, listing creation,
+ * payment initiation/status, cart mutations, webhook delivery) each carry
+ * their own limiter in `src/lib/rate-limit.ts`.
  */
 
 type RouteContext = { params: Promise<{ id: string }> };

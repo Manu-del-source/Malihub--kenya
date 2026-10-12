@@ -62,6 +62,14 @@ export type AuditAction =
   // retry is a legitimate new attempt.
   | "payment.cancelled"
   | "payment.amount_mismatch"
+  // The provider could NOT corroborate a claimed success (unreachable, or a
+  // verify answer that disagrees on status/amount/reference). Recorded so an
+  // "unsettled money" case is findable without re-reading provider logs.
+  | "payment.verification_failed"
+  // The buyer-initiated status check saw a provider success that did not line
+  // up with the authoritative row (reference/amount/currency). Audit-only —
+  // nothing is settled.
+  | "payment.verification_mismatch"
   | "payment.anomaly";
 
 export async function logAuditEvent(params: {

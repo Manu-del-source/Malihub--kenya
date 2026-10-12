@@ -1,0 +1,80 @@
+{
+  "$schema": "./validation-report.schema.json",
+  "generated": "2026-10-12",
+  "branch": "arena/8b21d47b-malihub-kenya",
+  "note": "Every gate below was executed and its real exit status recorded. `exit` is the literal process exit code. A non-zero exit is reported as-is, never masked — the pass/fail judgement lives in `interpretation`, and `overall` is derived from the gates, not asserted. Re-run any gate with scripts/audit-gates.mjs.",
+  "environment": {
+    "node": "22.22.3",
+    "python": "3.11.2",
+    "os": "linux (sandboxed workspace)",
+    "prisma": "client generated against prisma/schema.prisma; no live database reachable in this environment, so database-backed runtime behaviour is verified by the unit/lifecycle suites (fake store) rather than against Postgres",
+    "app_database": "independent PostgreSQL — Neon in production (repository architecture + user confirmation; identity via Neon Managed Better Auth, Supabase retained only for Storage/Realtime). No live Neon/Supabase access from this sandbox: live RLS state (the repo's RLS DDL is Supabase-keyed and not applicable as-is on Neon), Neon role/network settings, avatars-bucket policies, and Realtime publication configuration are production-state items NOT verified here — see .audit/threat-model.md T11"
+  },
+  "gates": [
+    {
+      "name": "nextjs-typecheck",
+      "command": "npx tsc --noEmit",
+      "exit": 0,
+      "result": "0 source errors",
+      "interpretation": "pass"
+    },
+    {
+      "name": "nextjs-lint",
+      "command": "npm run lint",
+      "exit": 0,
+      "result": "eslint clean, 0 errors / 0 warnings",
+      "interpretation": "pass"
+    },
+    {
+      "name": "nextjs-tests",
+      "command": "npm test",
+      "exit": 0,
+      "result": "640 tests, 640 pass, 0 fail",
+      "interpretation": "pass"
+    },
+    {
+      "name": "nextjs-build",
+      "command": "npm run build",
+      "exit": 0,
+      "result": "next build compiled successfully; full route tree including /api/payments/paystack/* and /checkout/payment-result",
+      "interpretation": "pass",
+      "note": "No binaries.prisma.sh access in this sandbox; scripts/audit-gates.mjs auto-provides stub Prisma engine binaries when the real engines are not cached (engines are externalised at build time and never executed) — client code unchanged. The build itself ran and exited 0."
+    },
+    {
+      "name": "nextjs-npm-audit",
+      "command": "npm audit",
+      "exit": 1,
+      "result": "10 advisories: 0 critical, 0 low, 2 moderate, 8 high",
+      "interpretation": "reviewed",
+      "note": "exit 1 is the real, expected status: npm audit exits non-zero whenever any advisory is present. The residual set is itemised under ASA-DEPS-001.residual — all dev/build-time-only or gated behind a major-version upgrade the engagement explicitly declined to make blindly. No criticals remain; the original critical (next 15.5.22) is closed."
+    },
+    {
+      "name": "backend-pytest",
+      "command": "cd backend && ./.venv/bin/python -m pytest",
+      "exit": 0,
+      "result": "467 passed",
+      "interpretation": "pass"
+    },
+    {
+      "name": "backend-ruff",
+      "command": "cd backend && ./.venv/bin/python -m ruff check app tests",
+      "exit": 0,
+      "result": "All checks passed (bandit S rules enabled)",
+      "interpretation": "pass"
+    },
+    {
+      "name": "backend-pip-audit",
+      "command": "cd backend && ./.venv/bin/pip-audit -r requirements.lock.txt",
+      "exit": 0,
+      "result": "No known vulnerabilities found",
+      "interpretation": "pass",
+      "note": "Audits the exact pinned set in the newly-created lockfile, not a live re-resolve"
+    }
+  ],
+  "overall": {
+    "pass": ["nextjs-typecheck", "nextjs-lint", "nextjs-tests", "nextjs-build", "backend-pytest", "backend-ruff", "backend-pip-audit"],
+    "reviewed": ["nextjs-npm-audit"],
+    "fail": [],
+    "summary": "All functional gates green. The single non-zero gate (npm audit) is a known, itemised, non-critical residual, not a regression — see ASA-DEPS-001."
+  }
+}

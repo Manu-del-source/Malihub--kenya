@@ -31,6 +31,7 @@ from app.core.identity import reset_identity_resolver
 from app.core.redis import reset_redis_gateway
 from app.core.security import reset_token_verifier
 from app.providers.payments.registry import reset_payment_registry
+from app.services.chat_realtime import reset_chat_realtime_hub
 from app.services.email_service import reset_email_service
 from app.services.payment_service import reset_payment_service
 from app.services.rate_limit import reset_rate_limiter
@@ -66,10 +67,6 @@ BASE_ENV: dict[str, str] = {
     "SUPABASE_JWT_SECRET": "",
     "RESEND_API_KEY": "",
     "CLOUDINARY_CLOUD_NAME": "",
-    "PAYHERO_ENABLED": "false",
-    "PAYHERO_API_USERNAME": "",
-    "PAYHERO_API_PASSWORD": "",
-    "PAYHERO_CHANNEL_ID": "",
 }
 
 
@@ -78,6 +75,7 @@ def reset_singletons() -> None:
     reset_database()
     reset_identity_resolver()
     reset_redis_gateway()
+    reset_chat_realtime_hub()
     reset_payment_registry()
     reset_payment_service()
     reset_storage_service()

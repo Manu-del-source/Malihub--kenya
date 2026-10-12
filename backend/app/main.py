@@ -65,6 +65,7 @@ from app.core.redis import get_redis_gateway, reset_redis_gateway
 from app.core.security import get_token_verifier, reset_token_verifier
 from app.providers.payments.registry import get_payment_registry, reset_payment_registry
 from app.schemas.common import ServiceInfo
+from app.services.chat_realtime import get_chat_realtime_hub, reset_chat_realtime_hub
 from app.services.email_service import reset_email_service
 from app.services.payment_service import reset_payment_service
 from app.services.rate_limit import reset_rate_limiter
@@ -166,6 +167,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     verifier = get_token_verifier(settings)
     registry = get_payment_registry()
 
+    # Start the chat realtime hub. With Redis configured it launches the
+    # pub/sub pump for cross-instance fan-out; without Redis it degrades to
+    # local-only delivery (a no-op here, and logged once). Must run here, in
+    # the lifespan's event loop, not at import time.
+    await get_chat_realtime_hub().start()
+
     logger.info(
         "application_startup",
         extra={
@@ -197,6 +204,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 async def _shutdown() -> None:
     """Release pooled resources. Best-effort: a shutdown failure must not mask
     whatever caused the shutdown in the first place."""
+    # Stop the chat realtime hub before its Redis connection closes — its
+    # pub/sub pump holds a subscription on that connection.
+    try:
+        await get_chat_realtime_hub().stop()
+    except Exception:  # pragma: no cover - shutdown path
+        logger.warning(
+            "shutdown_cleanup_failed",
+            extra={"event": "shutdown_cleanup_failed", "resource": "chat_realtime"},
+            exc_info=True,
+        )
     for label, coro in (
         ("database", get_database().dispose()),
         ("redis", get_redis_gateway().aclose()),
@@ -217,6 +234,7 @@ async def _shutdown() -> None:
     for reset in (
         reset_database,
         reset_redis_gateway,
+        reset_chat_realtime_hub,
         reset_payment_registry,
         reset_payment_service,
         reset_storage_service,
@@ -317,8 +335,10 @@ def _openapi_description(settings: Settings) -> str:
         "* **Redis** — cache, rate limiting, short-lived state. Never a datastore.\n"
         "* **Storage** — external provider (Cloudinary). Never Supabase Storage.\n"
         "* **Email** — Resend.\n"
-        "* **Payments** — provider-agnostic. PayHero is the first provider "
-        "(**stubbed in Phase 8; implemented in Phase 9**); Daraja is reserved.\n\n"
+        "* **Payments** — provider-agnostic contract and registry. This API "
+        "registers **no collection adapters**: buyer payment collection (Paystack "
+        "hosted checkout + signed webhooks) lives in the Next.js application. "
+        "PayHero is retired (historical rows retained); Daraja is reserved.\n\n"
         "## Errors\n\n"
         'Every non-2xx response has the shape `{"error": {code, message, details?, request_id}}`. '
         "`code` is stable and machine-readable. The `request_id` is also sent as the "

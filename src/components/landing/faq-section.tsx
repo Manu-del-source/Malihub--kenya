@@ -14,7 +14,7 @@ import { staggerContainer, fadeUp, defaultViewport } from "@/lib/motion";
 
 export function FaqSection() {
   return (
-    <section className="py-24 sm:py-32">
+    <section className="py-20 sm:py-28">
       <Container className="mx-auto flex max-w-3xl flex-col gap-14">
         <SectionHeading eyebrow="Questions" title="Frequently asked questions" />
 

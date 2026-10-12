@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, ArrowUpRight, Sofa, Home, Smartphone, Shirt, Sparkles, ShieldCheck,
+  ArrowRight, ArrowUpRight, Sofa, Smartphone, Shirt, Sparkles, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
@@ -15,7 +15,7 @@ const visualCategories = [
   { label: "Electronics", icon: Smartphone, className: "hero-tile-electronics" },
   { label: "Home essentials", icon: Sofa, className: "hero-tile-home" },
   { label: "Fashion", icon: Shirt, className: "hero-tile-fashion" },
-  { label: "Property", icon: Home, className: "hero-tile-home" },
+  { label: "Beauty", icon: Sparkles, className: "hero-tile-fashion" },
 ];
 
 export function HeroSection() {

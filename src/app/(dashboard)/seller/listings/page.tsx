@@ -5,8 +5,6 @@ import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 import { Plus, Package, Eye, Heart } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ListingStatusBadge } from "@/components/shell/seller/listing-status-badge";
 import { ListingRowActions } from "@/components/shell/seller/listing-row-actions";
 import { requireSellerAccess } from "@/lib/auth";
@@ -50,34 +48,44 @@ export default async function SellerListingsPage() {
   });
 
   return (
-    <Container className="py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-medium">My listings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-white/60">
             {listings.length} listing{listings.length === 1 ? "" : "s"}
           </p>
         </div>
-        <Button asChild>
-          <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
-            <Plus className="h-4 w-4" aria-hidden />
-            New listing
-          </Link>
-        </Button>
+        <Link
+          href={`${SELLER_DASHBOARD_PATH}/listings/new`}
+          className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8C42]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          Add new listing
+        </Link>
       </div>
 
       {listings.length === 0 ? (
-        <EmptyState
-          icon={Package}
-          title="No listings yet"
-          description="Create your first listing to start selling on MaliHub."
-          actionLabel="Create a listing"
-          actionHref={`${SELLER_DASHBOARD_PATH}/listings/new`}
-        />
+        <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] py-20 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#FF8C42]">
+            <Package className="h-6 w-6" aria-hidden />
+          </div>
+          <h2 className="mt-5 text-lg font-semibold text-white">Add your first product</h2>
+          <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-white/60">
+            Create your first listing to start selling on MaliHub.
+          </p>
+          <Link
+            href={`${SELLER_DASHBOARD_PATH}/listings/new`}
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add new listing
+          </Link>
+        </div>
       ) : (
-        <div className="glass rounded-2xl">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414]">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-white/50">
               <tr>
                 <th className="px-5 py-3 font-medium">Listing</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -94,22 +102,22 @@ export default async function SellerListingsPage() {
             </thead>
             <tbody>
               {listings.map((listing: ListingRow) => (
-                <tr key={listing.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                <tr key={listing.id} className="border-b border-white/10 last:border-0 hover:bg-white/[0.03]">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#1A1A1A]">
                         {listing.images[0] && (
                           <Image src={listing.images[0].url} alt="" fill sizes="48px" className="object-cover" />
                         )}
                       </div>
-                      <span className="line-clamp-1 font-medium text-foreground/90">{listing.title}</span>
+                      <span className="line-clamp-1 font-medium text-white">{listing.title}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3">
                     <ListingStatusBadge status={listing.status} />
                   </td>
-                  <td className="px-5 py-3 font-mono tabular-nums">{formatKes(listing.priceCents)}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{listing.viewCount}</td>
+                  <td className="px-5 py-3 font-mono tabular-nums text-white/90">{formatKes(listing.priceCents)}</td>
+                  <td className="px-5 py-3 text-white/60">{listing.viewCount}</td>
                   <td className="px-5 py-3 text-muted-foreground">{listing.favoriteCount}</td>
                   <td className="px-5 py-3 text-muted-foreground">{timeAgo(listing.updatedAt)}</td>
                   <td className="px-5 py-3 text-right">

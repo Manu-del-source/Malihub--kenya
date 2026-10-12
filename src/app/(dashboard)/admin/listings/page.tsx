@@ -90,7 +90,7 @@ export default async function AdminListingsPage({
             name="q"
             defaultValue={current.q}
             maxLength={120}
-            placeholder="e.g. Toyota Fielder"
+            placeholder="e.g. Samsung Galaxy"
             className="mt-1 w-56"
           />
         </label>

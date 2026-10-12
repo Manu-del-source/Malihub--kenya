@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     template: "%s | MaliHub Kenya",
   },
   description:
-    "MaliHub Kenya is a premium marketplace to buy and sell vehicles, property, electronics, fashion, and more — with secure M-Pesa payments and verified sellers across all 47 counties.",
+    "MaliHub Kenya is a marketplace to discover electronics, phones, fashion, property, home essentials, and services from sellers across all 47 counties.",
   keywords: [
     "Kenya marketplace",
     "buy and sell Kenya",

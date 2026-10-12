@@ -13,9 +13,12 @@ distinct dashboards (seller/buyer/admin), and a data model that scales past
 the MVP.
 
 **Non-goals for v1:** multi-currency, multi-country, native mobile apps,
-real-time video, and a custom-built chat infra (v1 messaging is DB-backed
-polling/subscriptions via Supabase Realtime, not a bespoke socket server —
-`socket.io-client` is in the dependency list for a later upgrade path only).
+real-time video, and a bespoke chat platform. Messaging is DB-backed, with
+Postgres as the source of truth and a light push layer on top: the FastAPI
+WebSocket fans out Redis notifications (Phase 3), and a lost socket degrades to
+plain HTTP with no data loss. (The Supabase Realtime subscription this replaced,
+and the unused `socket.io-client` that sat in the dependency list as a "later
+upgrade path", are both gone — Phase 4 of `docs/SUPABASE-REMOVAL-PLAN.md`.)
 
 ## 2. High-level system diagram
 
@@ -61,12 +64,12 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
              │  OAuth, JWT issuance  │
              └───────────────────────┘
 
-             ┌───────────────────────┐
-             │  Supabase — Storage   │
-             │  (avatars) + Realtime │
-             │  (chat) ONLY: not     │
-             │  auth, not the app DB │
-             └───────────────────────┘
+             ┌───────────────────────────────────┐
+             │  Supabase — RETIRED as a runtime  │
+             │  dependency (Phase 4). Serves     │
+             │  pre-migration avatar URLs only;  │
+             │  the auth rollback set is inert.  │
+             └───────────────────────────────────┘
 
              ┌───────────────────┐   ┌────────────────────────┐
              │  Cloudinary       │   │  Payment providers     │
@@ -76,11 +79,14 @@ polling/subscriptions via Supabase Realtime, not a bespoke socket server —
                                      └────────────────────────┘
 ```
 
-**The Supabase boundary is no longer authentication.** Neon Managed Better Auth
-issues and verifies user sessions (§5, and `docs/auth/ARCHITECTURE.md`);
-Supabase is retained for Storage and Realtime only. There is still no second
-auth system and no second password store anywhere in this repository.
-Concretely:
+**Supabase is no longer in the request path at all.** Neon Managed Better Auth
+issues and verifies user sessions (§5, and `docs/auth/ARCHITECTURE.md`); Storage
+moved to Cloudinary (Phase 2) and chat Realtime to the FastAPI WebSocket over
+Redis (Phase 3), and Phase 4 deleted the remaining Supabase client code, the
+Supabase SDK dependency and the Supabase origins from the CSP. There is still no
+second auth system and no second password store anywhere in this repository.
+What survives is deliberately inert — see
+`docs/SUPABASE-REMOVAL-PHASE4-REPORT.md` for the itemized list. Concretely:
 
 - **Supabase is not the application database.** Application data lives in an
   independent PostgreSQL instance, reached through Prisma from Next.js and
@@ -88,14 +94,15 @@ Concretely:
   remains possible, but nothing in the code depends on it: no Supabase-specific
   database feature is used, so any standard managed PostgreSQL 13+ (Neon, RDS,
   …) works unchanged. See §6c.
-- **Supabase is not the file store for anything new.** Marketplace images go to
-  Cloudinary, and the backend's `StorageProvider` abstraction (§14) is
-  Cloudinary-shaped for that reason — deliberately not a Supabase Storage
-  client. One Phase 4 exception survives: profile **avatars** use a Supabase
-  Storage bucket (`src/components/auth/avatar-upload.tsx`, created by
-  `manual_storage_avatars.sql`). It is working functionality and was left
-  alone; the rule is that nothing *new* is built on it, and a future phase may
-  consolidate avatars onto Cloudinary rather than grow the exception.
+- **Supabase is not the file store for anything, old or new.** Marketplace images
+  and profile **avatars** both go to Cloudinary — avatars since Phase 2, via an
+  authenticated server-side upload (`POST /api/avatar/upload`) that never exposes
+  a credential to the browser. The backend's `StorageProvider` abstraction (§14)
+  is Cloudinary-shaped for the same reason. The `*.supabase.co` entries that
+  remain in `next.config.ts` exist only so avatars uploaded *before* the cutover
+  keep rendering; they come out once
+  `scripts/migrate-avatars-to-cloudinary.mjs` has run and production verification
+  shows no row still pointing at Supabase (Phase 4 report → "still to do").
 - **Neon Auth tokens are consumed, never issued, by the backend** (§5) — and
   because the JWT `sub` is the *provider's* id, the backend must resolve
   `users.auth_user_id → users.id` before it queries anything. It does this in
@@ -140,8 +147,9 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 ## 5. Auth architecture
 
 > **Provider: Neon Managed Better Auth.** Supabase Auth is no longer the
-> identity provider; Supabase remains a dependency for Storage (avatars) and
-> Realtime (chat) only. The full design is in **`docs/auth/ARCHITECTURE.md`**
+> identity provider, and since Phase 4 nothing else in Supabase is a runtime
+> dependency either — the retained files under `src/lib/supabase/` are the
+> documented rollback target and are imported by nothing. The full design is in **`docs/auth/ARCHITECTURE.md`**
 > and the cutover/rollback plan in **`docs/auth/MIGRATION.md`**. This section is
 > the summary; those documents are authoritative for auth.
 
@@ -248,11 +256,15 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
   cookie (an unconfigured environment short-circuits first), so without the
   declaration a build run without the auth variables would prerender protected
   pages as static redirects to `/login`.
-- **Avatar photos still use Supabase Storage**, not Cloudinary — Storage is not
-  auth, and nothing about the migration changes it. Product images (Phase 5)
-  still use Cloudinary per the original stack.
-- **Manual SQL migrations**: `manual_rls_policies.sql` and
-  `manual_storage_avatars.sql` still apply to Supabase Postgres. The auth
+- **Avatar photos are Cloudinary now, not Supabase Storage** (Phase 2): the
+  uploader posts to the server-only `POST /api/avatar/upload`, so no anon key
+  reaches the browser. Legacy Supabase avatar URLs stay *readable and valid*
+  until the production migration is verified — that is the one thing keeping
+  `NEXT_PUBLIC_SUPABASE_URL` in the environment (see the Phase 4 report).
+- **Manual SQL migrations**: `manual_rls_policies.sql` still applies where the
+  application database is Supabase Postgres;
+  `manual_storage_avatars.sql` describes the legacy `avatars` bucket pre-Phase-2
+  avatars still live in and is unrelated to auth. The auth
   migration itself adds one Prisma migration
   (`20260925000000_add_auth_user_id_mapping`), which is additive and nullable —
   it locks nothing and breaks no existing row.
@@ -316,9 +328,11 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   `DRAFT → ACTIVE` — there's no moderation UI yet for anything to wait on,
   so gating publish behind a review state nothing processes would just be
   a dead end for sellers.
-- **Avatar photos: Supabase Storage (Phase 4). Listing photos: Cloudinary**
-  (`next-cloudinary`'s unsigned upload widget, `NEXT_PUBLIC_CLOUDINARY_
-  UPLOAD_PRESET`) — per the original stack choice, now actually wired up.
+- **Avatar photos: Cloudinary, server-side** (Phase 2 — `POST /api/avatar/upload`,
+  authenticated, magic-byte checked; pre-migration Supabase URLs still render).
+  **Listing photos: Cloudinary** (`next-cloudinary`'s unsigned upload widget,
+  `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`) — per the original stack choice, now
+  actually wired up.
 
 ## 6b. Communication & transactions implementation notes (Phase 6, in progress)
 
@@ -342,12 +356,13 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   application layer (not a DB constraint) enforcing that at least one is
   present — a text-only message needs no image, an image-only message
   needs no caption, but a message needs to carry *something*.
-- **Realtime is scoped to `chats`/`messages` only.** Everything else
-  (notifications, favorites, listing stats) uses polling or plain
-  request/response — adding Realtime to every table would multiply
-  client-side subscription overhead for features where a few seconds of
-  staleness is genuinely fine. Chat is the one place users perceive lag
-  directly, turn by turn, the way they would in any messaging app.
+- **Push delivery is scoped to chat only.** Everything else (notifications,
+  favorites, listing stats) uses polling or plain request/response — pushing
+  every table would multiply connection overhead for features where a few
+  seconds of staleness is genuinely fine. Chat is the one place users perceive
+  lag directly, turn by turn, the way they would in any messaging app. The
+  mechanism is the FastAPI WebSocket + Redis fan-out (§8a); the tables are
+  still read over HTTP, and the deliverable is a notification, not state.
 - **RLS now covers `chats`/`messages`/`orders`/`order_items`/`payments`/
   `order_reviews`** (`manual_phase6_rls_realtime.sql`), on top of Phase
   4's user-data policies. Order/payment tables get *read* policies only —
@@ -358,8 +373,11 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   application database (it references `auth.uid()` and the
   `supabase_realtime` publication — see its header). On the independent Neon
   deployment it is inapplicable as-is, and chat/order authorization is
-  enforced in the application layer (§5); the `avatars` Storage-bucket
-  policies (`manual_storage_avatars.sql`) still apply to the Supabase project.
+  enforced in the application layer (§5). Its Realtime half
+  (`alter publication supabase_realtime …`) is legacy since Phase 3 — no client
+  subscribes to that publication any more. The `avatars` Storage-bucket
+  policies (`manual_storage_avatars.sql`) likewise only describe the legacy
+  bucket that pre-Phase-2 avatars are still served from; nothing writes it.
 
 ## 6c. Database portability & who owns the DDL (Phase 8)
 
@@ -374,9 +392,10 @@ only appears in production.
 - JSON is `jsonb`, timestamps are `timestamptz`, enums are plain Postgres
   `CREATE TYPE … AS ENUM`. All standard.
 - Authorization in the application layer is explicit ownership checks in code,
-  not Row Level Security. RLS remains in place for the Supabase-client read
-  paths (§5), but no new feature depends on it — which is what allows the
-  backend to connect with an ordinary application role.
+  not Row Level Security. After Phase 4 there is no Supabase-client read path
+  left to back-stop (§5), so the policies are relevant only where the database
+  itself is Supabase-hosted — which is what allows the backend to connect with
+  an ordinary application role.
 - Full-text search uses the standard `tsvector`/GIN pattern already in place
   from Phase 5, not a Supabase extension.
 
@@ -580,12 +599,16 @@ convention:
 
 ## 8a. Messaging implementation notes (Phase 6)
 
-- **One Realtime channel per chat**, combining three concerns Supabase
-  usually shows as separate examples (`postgres_changes`, `broadcast`,
-  `presence`) — each channel is its own websocket subscription, so
-  opening three per conversation would triple the connection overhead
-  for no benefit. `useChatRealtime` (`hooks/use-chat-realtime.ts`) owns
-  all three.
+- **One WebSocket connection per tab, many chats.** The Supabase Realtime hook
+  (`useChatRealtime`, one channel per chat, combining `postgres_changes` +
+  `broadcast` + `presence`) was deleted in Phase 4 and replaced by
+  `useChatSocket` (`src/hooks/use-chat-socket.ts`) over
+  `src/lib/chat/ws-client.ts`: the client opens one FastAPI connection with a
+  one-shot Redis ticket from `POST /api/chat/ws-ticket` and `join`s/`leave`s
+  chats on it, so switching conversations never opens a second socket and
+  membership is re-authorized server-side on every join against Postgres.
+  Message history, sending, editing and read state all remain HTTP + Postgres —
+  Redis carries notifications, never messages.
 - **Rate limiting is DB-backed, not in-memory or Redis.** An in-memory
   counter doesn't work correctly on serverless (each invocation can hit a
   different instance, so limits reset constantly); Redis is scaffolded
@@ -680,9 +703,11 @@ tipping into visual noise.
 ### Next.js application
 
 - Service-role Supabase client (`createServiceRoleClient`) is isolated to
-  `src/lib/supabase/server.ts` and only ever imported by webhook handlers and
-  admin-only Server Actions — never by anything reachable from a Client
-  Component bundle.
+  `src/lib/supabase/server.ts` and, since Phase 4, is imported by nothing in the
+  request path at all — only by the unreferenced auth rollback module
+  (`src/lib/supabase/auth-legacy.ts`). Its service-role key stays out of every
+  client bundle by construction: no Client Component can reach it, and the
+  backend env template forbids the same key server-side.
 - Every Server Action re-validates input with the same Zod schema used on the
   client — client validation is UX, server validation is the actual boundary.
 - Uploads are validated by content, not by declared type:
@@ -817,9 +842,11 @@ tipping into visual noise.
 
 ## 14. Backend service reference (Phase 8)
 
-`backend/` is an independent FastAPI application. It shares the database, Redis
-and Supabase project with Next.js but has its own dependency list, its own
-environment file and its own deployment.
+`backend/` is an independent FastAPI application. It shares the database and the
+Upstash Redis instance with Next.js — Redis doubles as the chat realtime fan-out
+channel (`app/services/chat_realtime.py`) — but has its own dependency list, its
+own environment file and its own deployment. It makes no Supabase call: Neon Auth
+JWTs are verified against the provider's published JWKS.
 
 ```
 backend/

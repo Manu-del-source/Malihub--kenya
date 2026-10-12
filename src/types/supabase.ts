@@ -8,7 +8,10 @@
  *   npx supabase gen types typescript --linked > src/types/supabase.ts
  *
  * Until the first run, export a minimal shape so `createClient<Database>()`
- * in src/lib/supabase/{client,server}.ts still type-checks.
+ * in src/lib/supabase/server.ts — the retained auth rollback target, see
+ * docs/auth/MIGRATION.md §9 — still type-checks. Nothing in the live request
+ * path imports this file: the browser client that used it was deleted in
+ * Phase 4 (docs/SUPABASE-REMOVAL-PLAN.md §5).
  */
 export type Database = {
   public: {

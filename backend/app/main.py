@@ -262,9 +262,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title=resolved.app_name,
         version=resolved.app_version,
         summary=(
-            "MaliHub Kenya's independent backend API. Supabase remains the "
-            "identity provider; this service owns application data, payments "
-            "orchestration, storage and email."
+            "MaliHub Kenya's independent backend API. Neon Managed Better Auth "
+            "is the identity provider; this service owns application data, "
+            "payments orchestration, storage and email."
         ),
         description=_openapi_description(resolved),
         openapi_url=openapi_url,
@@ -330,9 +330,13 @@ def _openapi_description(settings: Settings) -> str:
         "* **Frontend** — Next.js 15 App Router (this repository's `src/`).\n"
         "* **Backend** — this service. Versioned under `/api/v1`.\n"
         "* **Database** — independent PostgreSQL. `prisma/schema.prisma` owns the DDL.\n"
-        "* **Authentication** — Supabase. This API *verifies* Supabase-issued JWTs; "
-        "it has no users, no passwords and no login endpoint.\n"
-        "* **Redis** — cache, rate limiting, short-lived state. Never a datastore.\n"
+        "* **Authentication** — Neon Managed Better Auth. This API *verifies* the "
+        "JWTs it issues, against the provider's published JWKS; it has no users, "
+        "no passwords and no login endpoint. (A Supabase-token verifier is "
+        "retained behind `AUTH_PROVIDER=supabase-legacy`, unselected by "
+        "default.)\n"
+        "* **Redis** — cache, rate limiting, short-lived state, and the chat "
+        "realtime fan-out channel. Never a datastore.\n"
         "* **Storage** — external provider (Cloudinary). Never Supabase Storage.\n"
         "* **Email** — Resend.\n"
         "* **Payments** — provider-agnostic contract and registry. This API "
@@ -344,7 +348,7 @@ def _openapi_description(settings: Settings) -> str:
         "`code` is stable and machine-readable. The `request_id` is also sent as the "
         "`X-Request-ID` response header and is what to quote when reporting a problem.\n\n"
         "## Authentication\n\n"
-        "Send the Supabase access token the frontend already holds: "
+        "Send the access token the frontend already holds — a Neon Auth JWT: "
         "`Authorization: Bearer <token>`. Cookies, query-string tokens and custom "
         "headers are not accepted.\n"
     )

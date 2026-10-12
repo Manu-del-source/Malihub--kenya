@@ -1,42 +1,73 @@
-"""Payment architecture: the contract, the registry, and the PayHero stub.
+"""Payment architecture: the contract and the (deliberately empty) registry.
 
-The most important assertions in this file are negative ones. Phase 8 must not
-make a payment call, must not expose a payment endpoint that can only fail, and
-must not advertise a capability it doesn't have. Those are the properties that
-make "Phase 9 implements PayHero" a real plan rather than a hope.
+The most important assertions in this file are negative ones. This API must
+not make a provider call, must not mount a webhook route it cannot verify, and
+must not advertise a capability it doesn't have. Buyer payment collection
+(Paystack) lives in the Next.js application; what this service keeps is the
+provider-agnostic contract, the registry, and an honest capability report.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.errors import NotFoundError, NotImplementedFeatureError
+from app.core.errors import NotFoundError
 from app.providers.payments import (
     Payer,
-    PayHeroProvider,
+    PaymentEventType,
     PaymentInitiationRequest,
+    PaymentInitiationResult,
     PaymentMethod,
     PaymentProvider,
     PaymentProviderName,
     PaymentStatus,
     PaymentStatusRequest,
-    RefundRequest,
+    PaymentStatusResult,
+    PaymentVerificationResult,
+    ProviderCapability,
     WebhookEnvelope,
+    WebhookEvent,
     build_default_registry,
     get_payment_registry,
 )
-from app.services.payment_service import PaymentService, get_payment_service
+from app.services.payment_service import PaymentService
 from tests.conftest import build_settings
 
 # ─── Registry ────────────────────────────────────────────────────────────────
 
 
-def test_only_payhero_is_registered() -> None:
+def test_no_collection_provider_is_registered_here() -> None:
+    """Paystack collection lives in the Next.js app; this service holds no
+    provider credentials, so there is nothing to register."""
     registry = build_default_registry(build_settings())
-    assert registry.registered == (PaymentProviderName.PAYHERO,)
+    assert registry.registered == ()
+    assert registry.capabilities() == []
+
+
+def test_paystack_is_reserved_with_an_honest_reason() -> None:
+    registry = build_default_registry(build_settings())
+    assert registry.get(PaymentProviderName.PAYSTACK) is None
+    with pytest.raises(NotFoundError) as excinfo:
+        registry.resolve("PAYSTACK")
+    reason = (excinfo.value.details or {}).get("reason", "")
+    assert "Next.js" in reason
+    assert "active provider" in reason
+
+
+def test_payhero_is_reserved_as_retired() -> None:
+    """The integration is gone; the name still answers 404 and says why, so a
+    legacy client (or an operator) can distinguish retired from unknown."""
+    registry = build_default_registry(build_settings())
+    assert registry.get(PaymentProviderName.PAYHERO) is None
+    with pytest.raises(NotFoundError) as excinfo:
+        registry.resolve("payhero")  # case-insensitive
+    reason = (excinfo.value.details or {}).get("reason", "")
+    assert "RETIRED" in reason
+    assert "historical" in reason
 
 
 def test_daraja_is_reserved_but_not_registered() -> None:
@@ -47,10 +78,7 @@ def test_daraja_is_reserved_but_not_registered() -> None:
 
     with pytest.raises(NotFoundError) as excinfo:
         registry.resolve("DARAJA")
-    # The message stays short and generic; the *reason* is structured detail,
-    # which is what tells an integrator "planned" apart from "you typo'd".
-    assert excinfo.value.details is not None
-    reason = excinfo.value.details["reason"]
+    reason = (excinfo.value.details or {}).get("reason", "")
     assert "planned future provider" in reason
     assert "no implementation" in reason
     assert "Safaricom" in reason
@@ -68,155 +96,65 @@ def test_unknown_provider_is_a_404_that_lists_what_exists() -> None:
     registry = build_default_registry(build_settings())
     with pytest.raises(NotFoundError) as excinfo:
         registry.resolve("STRIPE")
-    assert excinfo.value.details is not None
-    assert "PAYHERO" in excinfo.value.details["registered"]
-    assert "DARAJA" in excinfo.value.details["reserved"]
+    details = excinfo.value.details or {}
+    assert details["registered"] == []
+    assert "PAYSTACK" in details["reserved"]
+    assert "PAYHERO" in details["reserved"]
+    assert "DARAJA" in details["reserved"]
 
 
-def test_provider_names_are_case_insensitive() -> None:
-    """URLs say `payhero`, the database says `PAYHERO`; both must resolve."""
+def test_default_provider_is_manual_and_still_unresolvable() -> None:
+    """MANUAL is the only valid configured default (it needs no adapter), but
+    resolving it through the registry must still 404 — the registry only
+    hands out real processors."""
     registry = build_default_registry(build_settings())
-    assert registry.resolve("payhero").name is PaymentProviderName.PAYHERO
-    assert registry.resolve("PayHero").name is PaymentProviderName.PAYHERO
-    assert registry.resolve(PaymentProviderName.PAYHERO).name is PaymentProviderName.PAYHERO
-
-
-def test_default_provider_comes_from_configuration() -> None:
-    settings = build_settings(payments_default_provider="MANUAL")
-    registry = build_default_registry(settings)
-    with pytest.raises(NotFoundError):
-        registry.resolve(None, settings=settings)
+    assert build_settings().payments_default_provider == "MANUAL"
+    with pytest.raises(NotFoundError) as excinfo:
+        registry.resolve(None, settings=build_settings())
+    assert "MANUAL" in (excinfo.value.details or {}).get("reason", "")
 
 
 def test_duplicate_registration_is_refused() -> None:
     from app.providers.payments.registry import PaymentProviderRegistry
 
-    first = PayHeroProvider(build_settings())
+    class _Placeholder(PaymentProvider):
+        name = PaymentProviderName.DARAJA
+        display_name = "Placeholder"
+        supported_methods = frozenset()
+        sandbox = False
+
+        async def initialize(self, request: PaymentInitiationRequest) -> PaymentInitiationResult:
+            raise NotImplementedError
+
+        async def check_status(self, request: PaymentStatusRequest) -> PaymentStatusResult:
+            raise NotImplementedError
+
+        async def handle_webhook(self, envelope: WebhookEnvelope) -> WebhookEvent:
+            raise NotImplementedError
+
+        async def verify_payment(self, *, provider_reference: str) -> PaymentVerificationResult:
+            raise NotImplementedError
+
+        def capability(self) -> ProviderCapability:
+            return ProviderCapability(name=PaymentProviderName.DARAJA, display_name="Placeholder")
+
+        def webhook_path(self) -> str:
+            return "payments/webhooks/placeholder"
+
+    first = _Placeholder()
     with pytest.raises(ValueError, match="Duplicate payment provider"):
         PaymentProviderRegistry([first, first])
 
 
-# ─── PayHero stub ────────────────────────────────────────────────────────────
-
-
-@pytest.fixture
-def payhero() -> PayHeroProvider:
-    return PayHeroProvider(
-        build_settings(
-            payhero_enabled=True,
-            payhero_api_username="test-username",
-            payhero_api_password="test-password",
-            payhero_channel_id="133",
-        )
-    )
-
-
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda provider: provider.initialize(
-            PaymentInitiationRequest(
-                amount_cents=150_000,
-                currency="KES",
-                method=PaymentMethod.MOBILE_MONEY,
-                customer_reference="MH-TEST-1",
-                payer=Payer(phone_number="0712345678"),
-            )
-        ),
-        lambda provider: provider.check_status(PaymentStatusRequest(customer_reference="MH-TEST-1")),
-        lambda provider: provider.handle_webhook(
-            WebhookEnvelope(provider=PaymentProviderName.PAYHERO, raw_body=b'{"status":"success"}')
-        ),
-        lambda provider: provider.verify_payment(provider_reference="QGH83HD72S"),
-        lambda provider: provider.refund(
-            RefundRequest(provider_reference="QGH83HD72S", amount_cents=150_000)
-        ),
-    ],
-    ids=["initialize", "check_status", "handle_webhook", "verify_payment", "refund"],
-)
-def test_every_payhero_operation_is_a_stub_that_raises_501(payhero: PayHeroProvider, call: Any) -> None:
-    """No operation reaches the network; each names the Phase 9 work item."""
-    import asyncio
-
-    with pytest.raises(NotImplementedFeatureError) as excinfo:
-        asyncio.run(call(payhero))
-    assert excinfo.value.status_code == 501
-    assert excinfo.value.code == "not_implemented"
-    assert "Phase 9" in excinfo.value.message
-
-
-def test_payhero_makes_no_network_call(payhero: PayHeroProvider, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The strongest form of the guarantee above: httpx cannot even be reached."""
-    import asyncio
-
-    import httpx
-
-    def _explode(*args: Any, **kwargs: Any) -> Any:
-        raise AssertionError("PayHero stub attempted an outbound HTTP request")
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", _explode)
-    monkeypatch.setattr(httpx.AsyncClient, "get", _explode)
-    monkeypatch.setattr(httpx.AsyncClient, "request", _explode)
-
-    with pytest.raises(NotImplementedFeatureError):
-        asyncio.run(
-            payhero.initialize(
-                PaymentInitiationRequest(
-                    amount_cents=100,
-                    method=PaymentMethod.MOBILE_MONEY,
-                    customer_reference="MH-TEST-2",
-                )
-            )
-        )
-
-
-def test_payhero_capability_is_honest_about_availability(payhero: PayHeroProvider) -> None:
-    """Configured ≠ available. A checkout UI must be able to tell them apart."""
-    capability = payhero.capability()
-    assert capability.name is PaymentProviderName.PAYHERO
-    assert capability.configured is True  # credentials + channel id present
-    assert capability.available is False  # but the adapter is not implemented
-    assert capability.unavailable_reason is not None
-    assert "Phase 9" in capability.unavailable_reason
-    assert PaymentMethod.MOBILE_MONEY in capability.supported_methods
-
-
-def test_payhero_capability_reports_unconfigured_state() -> None:
-    provider = PayHeroProvider(build_settings())  # PAYHERO_ENABLED=false
-    capability = provider.capability()
-    assert capability.configured is False
-    assert capability.available is False
-    assert "PAYHERO_ENABLED is false" in (capability.unavailable_reason or "")
-
-
-def test_payhero_capability_exposes_no_secrets(payhero: PayHeroProvider) -> None:
-    serialized = str(payhero.capability().safe_dump())
-    for forbidden in ("test-username", "test-password", "133", "backend.payhero.co.ke"):
-        assert forbidden not in serialized
-
-
-def test_unsupported_method_is_refused_before_any_provider_call(payhero: PayHeroProvider) -> None:
-    """Card is not in PayHero's declared support, so `ensure_supports` fires
-    first — a clear 422 rather than a 501 from an unimplemented call."""
-    from app.core.errors import ValidationError
-
-    with pytest.raises(ValidationError) as excinfo:
-        payhero.ensure_supports(PaymentMethod.CARD)
-    assert excinfo.value.details is not None
-    assert "MOBILE_MONEY" in excinfo.value.details["supported"]
-
-
-def test_webhook_path_is_provider_specific(payhero: PayHeroProvider) -> None:
-    """A shared webhook path would have to guess the provider from an
-    unverified payload in order to choose the adapter that verifies it."""
-    assert payhero.webhook_path() == "payments/webhooks/payhero"
+# ─── Mounted surface ─────────────────────────────────────────────────────────
 
 
 def test_no_payment_or_webhook_route_is_mounted() -> None:
-    """Phase 8 mounts exactly one payment route, and it is read-only.
+    """This API mounts exactly one payment route, and it is read-only.
 
-    A public webhook endpoint that can only return 501 would advertise that
-    MaliHub accepts payment callbacks when it cannot verify one.
+    A public webhook endpoint that cannot verify a signature would advertise
+    that MaliHub accepts payment callbacks when it cannot — that surface is
+    removed, for PayHero and for any future name.
     """
     from app.main import create_app
 
@@ -225,6 +163,7 @@ def test_no_payment_or_webhook_route_is_mounted() -> None:
         assert client.get("/api/v1/payments/providers").status_code == 200
         for method in ("post", "put", "patch", "delete"):
             assert getattr(client, method)("/api/v1/payments").status_code in (404, 405)
+        assert client.post("/api/v1/payments/webhooks/paystack", json={}).status_code == 404
         assert client.post("/api/v1/payments/webhooks/payhero", json={}).status_code == 404
         assert client.get("/api/v1/payments/some-id").status_code == 404
 
@@ -237,14 +176,15 @@ def test_providers_endpoint_reports_the_truth(client: Any) -> None:
     assert response.status_code == 200
     body = response.json()
 
-    assert body["default_provider"] == "PAYHERO"
-    payhero = next(item for item in body["providers"] if item["name"] == "PAYHERO")
-    assert payhero["available"] is False
-    assert payhero["supported_methods"] == ["MOBILE_MONEY"]
+    assert body["default_provider"] == "MANUAL"
+    assert body["providers"] == []
 
     reserved = {item["provider"]: item["reason"] for item in body["reserved"]}
-    assert "DARAJA" in reserved and "MANUAL" in reserved
+    assert set(reserved) == {"PAYSTACK", "PAYHERO", "DARAJA", "MANUAL"}
+    assert "Next.js" in reserved["PAYSTACK"]
+    assert "RETIRED" in reserved["PAYHERO"]
     assert "Safaricom" in reserved["DARAJA"]
+    assert "settled offline" in reserved["MANUAL"]
 
 
 def test_providers_endpoint_needs_no_authentication(client: Any) -> None:
@@ -253,18 +193,16 @@ def test_providers_endpoint_needs_no_authentication(client: Any) -> None:
     assert client.get("/api/v1/payments/providers").status_code == 200
 
 
-def test_providers_endpoint_reflects_configuration(make_app: Any) -> None:
-    app = make_app(
-        payhero_enabled=True,
-        payhero_api_username="u",
-        payhero_api_password="p",
-        payhero_channel_id="133",
-    )
-    with TestClient(app) as configured_client:
-        body = configured_client.get("/api/v1/payments/providers").json()
-    payhero = next(item for item in body["providers"] if item["name"] == "PAYHERO")
-    assert payhero["configured"] is True
-    assert payhero["available"] is False
+def test_providers_endpoint_carries_no_secrets(client: Any) -> None:
+    """Whatever the environment holds, the capability report never leaks it."""
+    import os
+
+    response = client.get("/api/v1/payments/providers")
+    serialized = response.text
+    for key in ("PAYSTACK_SECRET_KEY", "PAYHERO_API_USERNAME", "PAYHERO_API_PASSWORD"):
+        value = os.environ.get(key)
+        if value:
+            assert value not in serialized
 
 
 # ─── Contract types ──────────────────────────────────────────────────────────
@@ -272,7 +210,12 @@ def test_providers_endpoint_reflects_configuration(make_app: Any) -> None:
 
 def test_enum_values_match_the_prisma_schema_exactly() -> None:
     """Character-for-character: no translation table between API and database."""
-    assert [member.value for member in PaymentProviderName] == ["PAYHERO", "DARAJA", "MANUAL"]
+    assert [member.value for member in PaymentProviderName] == [
+        "PAYSTACK",
+        "PAYHERO",
+        "DARAJA",
+        "MANUAL",
+    ]
     assert [member.value for member in PaymentMethod] == [
         "MOBILE_MONEY",
         "CARD",
@@ -366,73 +309,46 @@ def test_safe_dump_strips_payer_pii_and_raw_payloads() -> None:
 # ─── Service ─────────────────────────────────────────────────────────────────
 
 
-def test_service_resolves_the_configured_default() -> None:
+def test_service_resolves_nothing_by_default() -> None:
+    """No adapters registered → the configured default (MANUAL) still 404s
+    through the registry; the service must not invent a processor."""
     service = PaymentService(build_default_registry(build_settings()), build_settings())
-    assert isinstance(service.provider(), PaymentProvider)
-    assert service.provider().name is PaymentProviderName.PAYHERO
+    assert service.default_provider_name is PaymentProviderName.MANUAL
+    with pytest.raises(NotFoundError):
+        service.provider()
+    with pytest.raises(NotFoundError):
+        service.provider("paystack")
 
 
-def test_service_delegates_and_reports_a_501() -> None:
-    """The orchestration seam works; the adapter behind it is honest."""
-    import asyncio
-
-    service = get_payment_service()
-    with pytest.raises(NotImplementedFeatureError):
-        asyncio.run(
-            service.initiate_payment(
-                PaymentInitiationRequest(
-                    amount_cents=150_000,
-                    method=PaymentMethod.MOBILE_MONEY,
-                    customer_reference="MH-TEST-3",
-                )
-            )
-        )
-
-
-def test_service_rejects_an_unsupported_method_before_calling_the_provider() -> None:
-    import asyncio
-
-    from app.core.errors import ValidationError
-
-    service = get_payment_service()
-    with pytest.raises(ValidationError):
-        asyncio.run(
-            service.initiate_payment(
-                PaymentInitiationRequest(
-                    amount_cents=150_000,
-                    method=PaymentMethod.CARD,
-                    customer_reference="MH-TEST-4",
-                )
-            )
-        )
-
-
-def test_service_finds_a_provider_by_channel() -> None:
-    """A checkout UI offers channels ("Pay with M-Pesa"), not processors."""
-    service = get_payment_service()
-    assert service.find_provider_for_method(PaymentMethod.MOBILE_MONEY) is not None
+def test_service_finds_no_provider_by_channel() -> None:
+    """A checkout UI offers channels ("Pay with M-Pesa"), not processors; with
+    no registered adapters the honest answer is None for every channel."""
+    service = PaymentService(build_default_registry(build_settings()), build_settings())
+    assert service.find_provider_for_method(PaymentMethod.MOBILE_MONEY) is None
     assert service.find_provider_for_method(PaymentMethod.CARD) is None
 
 
-def test_service_refuses_a_webhook_envelope_for_the_wrong_provider() -> None:
-    """Defence in depth against a routing bug: verifying a PayHero payload with
-    another provider's scheme would be worse than not verifying it."""
+def test_service_refuses_a_webhook_envelope_for_any_provider() -> None:
+    """There is no verifiable webhook surface in this API — not for Paystack,
+    not for the retired PayHero. A routing bug that delivers a payload here
+    must fail, not guess."""
     import asyncio
 
-    service = get_payment_service()
-    with pytest.raises(NotFoundError):
-        asyncio.run(
-            service.process_webhook(
-                "PAYHERO",
-                WebhookEnvelope(provider=PaymentProviderName.DARAJA, raw_body=b"{}"),
+    service = PaymentService(build_default_registry(build_settings()), build_settings())
+    for name in ("PAYSTACK", "PAYHERO"):
+        with pytest.raises(NotFoundError):
+            asyncio.run(
+                service.process_webhook(
+                    name,
+                    WebhookEnvelope(provider=PaymentProviderName.PAYSTACK, raw_body=b"{}"),
+                )
             )
-        )
 
 
 def test_status_lookup_requires_an_identifier() -> None:
     import asyncio
 
-    service = get_payment_service()
+    service = PaymentService(build_default_registry(build_settings()), build_settings())
     with pytest.raises(NotFoundError):
         asyncio.run(service.get_payment_status(PaymentStatusRequest()))
 

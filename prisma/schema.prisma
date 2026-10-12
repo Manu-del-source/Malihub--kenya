@@ -115,12 +115,18 @@ enum PaymentMethod {
 
 /// The *processor* that moves the money. One row per integration.
 ///
-/// - `PAYHERO` — the first live provider (implemented in Phase 9).
+/// - `PAYSTACK` — the ACTIVE provider (Paystack-hosted mobile-money checkout;
+///                Phase 10). Every new `Payment` this repository creates uses
+///                this value.
+/// - `PAYHERO` — the RETIRED first provider (Phase 9). The integration code is
+///               gone; the value is retained because historical rows still
+///               carry it and reconciliation reads them. No code path in this
+///               repository creates a new `PAYHERO` row, and none may.
 /// - `DARAJA`  — reserved for a future direct Safaricom integration. The enum
 ///               value exists so adding that provider later is a code change,
 ///               not a destructive enum migration. **No implementation exists
-///               and none is planned for Phase 8** — a `Payment` must never be
-///               created with this value until `DarajaProvider` ships.
+///               and none is planned** — a `Payment` must never be created
+///               with this value until `DarajaProvider` ships.
 /// - `MANUAL`  — offline/settled-by-hand money (e.g. cash on delivery recorded
 ///               by an admin). No external processor is involved.
 enum PaymentProvider {
@@ -561,20 +567,25 @@ model OrderItem {
 model Payment {
   id       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orderId  String          @map("order_id") @db.Uuid
-  provider PaymentProvider @default(PAYHERO)
+  /// Default flipped from PAYHERO to PAYSTACK in Phase 10 (see
+  /// manual_phase10_paystack_provider_default.sql). Historical PAYHERO rows
+  /// are untouched; only the default for NEW rows changes.
+  provider PaymentProvider @default(PAYSTACK)
   method   PaymentMethod
   status   PaymentStatus   @default(PENDING)
   /// Integer minor units (KES cents), per the money convention in §6 of
   /// ARCHITECTURE.md — never a float, never a provider-formatted string.
   amountCents Int    @map("amount_cents")
   currency    String @default("KES")
-  /// The processor's own transaction identifier (PayHero `transaction_id`,
-  /// Daraja `CheckoutRequestID`). Unique so a retried/duplicated provider
-  /// callback can be matched to exactly one row and processed idempotently.
+  /// The processor's own transaction identifier (Paystack transaction `id`;
+  /// historically PayHero `CheckoutRequestID`). Unique so a retried/duplicated
+  /// provider callback can be matched to exactly one row and processed
+  /// idempotently.
   providerTransactionId String? @unique @map("provider_transaction_id")
   /// The processor's settlement/receipt reference a customer can quote to
-  /// their bank or operator (PayHero/Daraja M-Pesa receipt number, a card
-  /// network reference). Unique for the same idempotency reason.
+  /// their bank or operator (for Paystack, the transaction `reference`;
+  /// historically a PayHero/Daraja M-Pesa receipt number, a card network
+  /// reference). Unique for the same idempotency reason.
   providerReference String? @unique @map("provider_reference")
   /// *Our* reference handed to the provider when initiating the charge
   /// (the order number). Providers echo it back in callbacks and

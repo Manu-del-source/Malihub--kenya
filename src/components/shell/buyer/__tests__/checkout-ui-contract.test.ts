@@ -39,7 +39,7 @@ function walk(dir: string, out: string[] = []): string[] {
 const CART_VIEW = "src/components/shell/buyer/cart-view.tsx";
 const CHECKOUT_PAGE = "src/app/(dashboard)/checkout/page.tsx";
 const ORDER_PAGE = "src/app/(dashboard)/buyer/orders/[id]/page.tsx";
-const PAY_SECTION = "src/components/shell/buyer/mpesa-pay-section.tsx";
+const PAY_SECTION = "src/components/shell/buyer/paystack-pay-section.tsx";
 const CHECKOUT_VIEW = "src/components/shell/buyer/checkout-view.tsx";
 
 const CLIENT_ROOTS = [
@@ -77,7 +77,7 @@ describe("checkout UI — routing and order creation", () => {
 
   it("the order page retries against the existing order, never a new one", () => {
     const source = read(ORDER_PAGE);
-    assert.match(source, /MpesaPaySection/, "a PENDING order must offer the pay/retry UI");
+    assert.match(source, /PaystackPaySection/, "a PENDING order must offer the pay/retry UI");
     assert.match(source, /initialSnapshot=\{paymentSnapshot\}/, "retry starts from the real state");
     assert.equal(
       source.includes("createCheckoutOrders"),
@@ -88,27 +88,34 @@ describe("checkout UI — routing and order creation", () => {
 });
 
 describe("checkout UI — payment states and copy", () => {
-  it("never presents a queued STK push as success", () => {
+  it("never presents an opened Paystack checkout as success", () => {
     const source = read(PAY_SECTION);
-    assert.match(source, /STK Push sent/, "the queued state is named explicitly");
-    assert.match(source, /Check your phone and enter your M-Pesa PIN/);
+    assert.match(source, /Awaiting payment/, "the waiting state is named explicitly");
+    assert.match(source, /Complete the payment in the Paystack window/);
     assert.match(source, /Payment successful/, "success copy exists for the confirmed state");
     assert.match(source, /Payment was not completed/, "failure copy exists for the failed state");
-    assert.match(source, /Your M-Pesa PIN is entered only on the official M-Pesa prompt/);
+    assert.match(source, /Your M-Pesa PIN is entered only on the official Paystack\/M-Pesa prompt/);
+    assert.match(source, /This page updates\s+automatically/, "the buyer is told the server confirms");
   });
 
   it("gates the checkout CTA on server data and blocks an unavailable cart", () => {
     const source = read(CHECKOUT_VIEW);
-    assert.match(source, /Pay \{formatKes\(summary\.totalCents\)\} with M-Pesa/);
+    assert.match(source, /Pay securely · \$\{formatKes\(summary\.totalCents\)\}/);
     assert.match(source, /blockedByStock/, "unavailable items must block payment");
     assert.match(source, /PAYMENT_METHODS\.map/, "payment methods render from the extensible list");
     assert.match(source, /createSerializedTask\(createCheckoutOrders\)/, "creation is single-flighted");
+    assert.match(
+      source,
+      /resumePaystackTransaction/,
+      "the popup opens with the server-issued access code, not a browser-built charge"
+    );
   });
 });
 
 describe("checkout UI — credentials never reach the browser", () => {
-  it("no client file references PayHero configuration or process.env", () => {
+  it("no client file references payment provider secrets (Paystack or retired PayHero)", () => {
     const forbidden = [
+      "PAYSTACK_SECRET_KEY",
       "PAYHERO_AUTH_TOKEN",
       "PAYHERO_CHANNEL_ID",
       "PAYHERO_CALLBACK_URL",
@@ -136,7 +143,8 @@ describe("checkout UI — credentials never reach the browser", () => {
     for (const relative of [
       CHECKOUT_VIEW,
       PAY_SECTION,
-      "src/hooks/use-mpesa-payment.ts",
+      "src/hooks/use-paystack-payment.ts",
+      "src/lib/payments/paystack-popup.ts",
       "src/lib/payments/checkout-client.ts",
       "src/lib/payments/checkout-summary.ts",
       "src/lib/payments/payment-snapshot.ts",
@@ -151,7 +159,7 @@ describe("checkout UI — credentials never reach the browser", () => {
 
   it("the browser sends only the fields the routes accept", () => {
     const source = read("src/lib/payments/checkout-client.ts");
-    assert.match(source, /JSON\.stringify\(\{ orderId, phoneNumber \}\)/);
+    assert.match(source, /JSON\.stringify\(\{ orderId \}\)/, "payment calls send only the order id");
     assert.match(source, /body: JSON\.stringify\(\{\}\)/, "order creation sends an empty body");
     assert.equal(
       source.includes("amountCents:") && source.includes("body: JSON.stringify({ amountCents"),

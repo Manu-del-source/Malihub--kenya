@@ -33,6 +33,11 @@ import {
  * `profiles` row, and the write must create them inside its own transaction.
  */
 
+// The avatar URL is validated against the configured Supabase project
+// (isOwnSupabaseStorageUrl); the in-app uploader only ever returns URLs from
+// this project, so the fixtures below mirror that.
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://malihub-test.supabase.co";
+
 const store: FakeStore = createFakeAccountStore();
 const provider: ProviderFixture = installAuthActionMocks(store);
 
@@ -289,13 +294,12 @@ describe("completeProfileAction — validation and conflicts", () => {
   it("accepts an avatar URL and stores it on the profile", async () => {
     const { completeProfileAction } = await loadAction();
 
-    await completeProfileAction({
-      ...VALID_INPUT,
-      avatarUrl: "https://cdn.example.com/avatar.png",
-    });
+    const avatarUrl =
+      "https://malihub-test.supabase.co/storage/v1/object/public/avatars/avatar.png";
+    await completeProfileAction({ ...VALID_INPUT, avatarUrl });
 
     const profile = [...store.tables.profiles.values()][0]!;
-    assert.equal(profile.avatarUrl, "https://cdn.example.com/avatar.png");
+    assert.equal(profile.avatarUrl, avatarUrl);
   });
 
   it("stores an empty avatar as null rather than an empty string", async () => {

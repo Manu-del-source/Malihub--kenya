@@ -28,7 +28,7 @@ LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
 StorageProviderName = Literal["cloudinary", "none"]
 EmailProviderName = Literal["resend", "none"]
-PaymentProviderChoice = Literal["PAYHERO", "MANUAL"]
+PaymentProviderChoice = Literal["MANUAL"]
 
 #: Whose tokens this backend accepts. `"neon"` is the migrated default.
 #: `"supabase-legacy"` exists only so a rollback is a configuration change
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     #: production rather than binding to a public interface directly.
     host: str = "0.0.0.0"  # noqa: S104 — see docstring above.
     port: int = 8000
-    #: Absolute public URL of this backend. Providers that call back (PayHero's
+    #: Absolute public URL of this backend. Callbacks from providers (if any
     #: `callback_url`) need a publicly reachable address, and it cannot be
     #: derived from a request behind a proxy.
     backend_public_url: str = "http://localhost:8000"
@@ -145,6 +145,24 @@ class Settings(BaseSettings):
     #: to "no rate limiting" rather than "every request 500s". Set false to
     #: fail closed instead.
     rate_limit_fail_open: bool = True
+
+    # ─── Chat WebSocket realtime ────────────────────────────────────────────
+    #: Max size of one client→server text frame (UTF-8 bytes). A legitimate
+    #: chat frame is a few hundred bytes; this bounds what a ticketed socket
+    #: can push per message. Violation closes the socket with 4009.
+    chat_ws_max_frame_bytes: int = Field(default=262_144, ge=1024, le=1_048_576)
+    #: Max chats one socket may have joined at once. Mirrors
+    #: `MAX_JOINED_CHATS` in `src/lib/chat/protocol.ts`. The shipped client
+    #: joins exactly one chat at a time; the cap exists for the server.
+    chat_ws_max_chats_per_connection: int = Field(default=10, ge=1, le=50)
+    #: Per-socket, per-chat typing broadcast window (sliding). The client
+    #: already self-throttles to 1.5s; this is the server-side bound on how
+    #: many typing events one socket can cause to fan out per window.
+    chat_ws_typing_window_seconds: float = Field(default=1.5, ge=0.1, le=10)
+    #: Max seconds between inbound frames before the socket is treated as
+    #: stale and closed (code 4000), releasing its rooms and presence. The
+    #: client pings every 25s, so 60s tolerates two missed heartbeats.
+    chat_ws_watchdog_seconds: float = Field(default=60.0, gt=5, le=300)
 
     # ─── CORS ───────────────────────────────────────────────────────────────
     #: Comma-separated list of exact browser origins allowed to call this API.
@@ -258,36 +276,15 @@ class Settings(BaseSettings):
     storage_max_upload_bytes: int = Field(default=8 * 1024 * 1024, ge=1, le=100 * 1024 * 1024)
 
     # ─── Payments ───────────────────────────────────────────────────────────
-    #: Provider used when a caller doesn't name one. `DARAJA` is deliberately
-    #: NOT a valid choice here: it exists in the Prisma enum as a reserved
-    #: value for a future provider and has no implementation.
-    payments_default_provider: PaymentProviderChoice = "PAYHERO"
-
-    # PayHero — first payment provider. Placeholders only in Phase 8: no
-    # PayHero request is made anywhere in this codebase yet (see
-    # providers/payments/payhero.py). Real credentials belong in Phase 9.
-    payhero_enabled: bool = False
-    payhero_api_username: SecretStr | None = None
-    payhero_api_password: SecretStr | None = None
-    #: PayHero v2 API root, per https://docs.payhero.co.ke. Phase 9 must
-    #: confirm the sandbox/testing host against PayHero's current docs before
-    #: pointing this at a test account.
-    payhero_base_url: str = "https://backend.payhero.co.ke/api/v2"
-    #: PayHero's registered payment channel ID (Dashboard → Payment Channels).
-    #: An integer on PayHero's side; kept as a string here so an unset value is
-    #: unambiguous and nothing tries to do arithmetic on it.
-    payhero_channel_id: str | None = None
-    #: PayHero's own `provider` request field — the rail *within* PayHero
-    #: (e.g. `m-pesa`). Not the same concept as our `PaymentProvider` enum,
-    #: which identifies the processor. Easy to conflate; hence the name.
-    payhero_default_channel_provider: str = "m-pesa"
-    #: Optional: use our own Daraja credentials through PayHero instead of
-    #: theirs. Leave unset unless that's a deliberate decision in Phase 9.
-    payhero_credential_id: str | None = None
-    payhero_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
-    #: Shared secret PayHero signs callbacks with, if/when enabled on the
-    #: account. Phase 9 must refuse an unsigned or unverifiable callback.
-    payhero_webhook_secret: SecretStr | None = None
+    #: Provider used when a caller doesn't name one. This API registers NO
+    #: collection adapters: buyer payment collection (Paystack hosted checkout
+    #: + signed webhooks) lives in the Next.js application, which owns the
+    #: PAYSTACK_SECRET_KEY. `MANUAL` (offline, settled by hand) is the only
+    #: valid default here because it needs no adapter — resolving it still
+    #: 404s with the honest reason that there is no processor to talk to.
+    #: `PAYHERO` is RETIRED and `DARAJA` RESERVED (see
+    #: app/providers/payments/registry.py); neither is constructable here.
+    payments_default_provider: PaymentProviderChoice = "MANUAL"
 
     # ─── Derived helpers ────────────────────────────────────────────────────
 
@@ -494,10 +491,6 @@ class Settings(BaseSettings):
         joined = ":".join(part.strip(":") for part in parts if part)
         return f"{self.redis_key_prefix}:{joined}"
 
-    def payhero_callback_url(self, path: str) -> str:
-        """Absolute callback URL handed to a payment provider."""
-        return f"{self.backend_public_url.rstrip('/')}/{path.lstrip('/')}"
-
     def validate_for_environment(self) -> list[str]:
         """Check config against the target environment. Returns warnings.
 
@@ -559,12 +552,6 @@ class Settings(BaseSettings):
                 "NEON_AUTH_BASE_URL is not an https:// URL. The auth service publishes "
                 "JWKS over TLS and tokens are bearer credentials; a plaintext base URL "
                 "means a plaintext key fetch."
-            )
-        if self.payhero_enabled and not (self.payhero_api_username and self.payhero_api_password):
-            raise ConfigurationError(
-                "PAYHERO_ENABLED=true requires PAYHERO_API_USERNAME and "
-                "PAYHERO_API_PASSWORD. Note that Phase 8 does not implement the "
-                "PayHero client — enabling it produces 501s, not payments."
             )
         if not self.resend_api_key:
             warnings.append("RESEND_API_KEY is not set — transactional email is disabled.")

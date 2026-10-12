@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.schema import CreateTable
 
-from app.models import Base, Order, Payment, Profile, Seller, User
+from app.models import Base, Chat, Order, Payment, Profile, Seller, User
 from app.models.payment import (
     OrderStatusEnum,
     PaymentMethodEnum,
@@ -46,6 +46,7 @@ BACKEND_APP = Path(__file__).resolve().parents[1] / "app"
 #: `app_metadata` claim. `profiles` and `sellers` are mapped for one column and
 #: for existence respectively — no more than the authorization rule needs.
 MIRRORED = {
+    "chats": Chat,
     "orders": Order,
     "payments": Payment,
     "profiles": Profile,
@@ -58,6 +59,7 @@ MIRRORED = {
 #: first irregular name — `users`→`User` happens to work, `profiles`→`Profile`
 #: does not survive a name like `addresses`.
 PRISMA_MODEL = {
+    "chats": "Chat",
     "orders": "Order",
     "payments": "Payment",
     "profiles": "Profile",

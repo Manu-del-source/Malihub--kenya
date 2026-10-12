@@ -1,0 +1,86 @@
+{
+  "$schema": "./coverage-ledger.schema.json",
+  "generated": "2026-10-12",
+  "branch": "arena/8b21d47b-malihub-kenya",
+  "note": "Maps each payment-security-relevant change to the test that would fail if the behaviour regressed. 'covers' lists test files; 'case' names the specific regression case. Gaps are stated explicitly rather than implied away.",
+  "entries": [
+    {
+      "area": "Webhook signature verification",
+      "changed": ["src/lib/payments/paystack.ts", "src/services/payment-webhook-service.ts", "src/app/api/payments/paystack/webhook/route.ts"],
+      "covers": ["src/services/__tests__/payment-webhook-service.test.ts"],
+      "case": "wrong-key signature → invalid_signature (no settlement); short/malformed signature refused; 128-hex enforcement; delivery with valid signature but unknown reference writes no settlement"
+    },
+    {
+      "area": "Amount + currency gate",
+      "changed": ["src/services/payment-webhook-service.ts"],
+      "covers": ["src/services/__tests__/payment-webhook-service.test.ts"],
+      "case": "under/over amount and wrong currency each produce a mismatch anomaly and NO settlement, even with a valid signature"
+    },
+    {
+      "area": "Idempotency / duplicate / replay",
+      "changed": ["src/services/payment-service.ts", "src/services/payment-webhook-service.ts"],
+      "covers": ["src/services/__tests__/payment-service.test.ts", "src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "same (provider, providerEventId) settled exactly once; a second delivery (and a replayed signed body) is a no-op; terminal-state guard refuses re-settlement"
+    },
+    {
+      "area": "Ownership (payment → customer + order)",
+      "changed": ["src/services/payment-verify-service.ts", "src/services/payment-status-service.ts"],
+      "covers": ["src/services/__tests__/payment-verify-service.test.ts", "src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "another buyer's order answers exactly like a nonexistent one (no existence oracle); verify gate enforces ownership before any provider round-trip"
+    },
+    {
+      "area": "Provider re-verification before settlement",
+      "changed": ["src/services/payment-webhook-service.ts", "src/services/payment-verify-service.ts"],
+      "covers": ["src/services/__tests__/payment-webhook-service.test.ts", "src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "a signed webhook whose reference the (stub) provider says is not success settles NOTHING; a legitimate provider success settles"
+    },
+    {
+      "area": "Browser claim has no settlement power",
+      "changed": ["src/app/api/payments/paystack/verify/route.ts", "src/services/payment-status-service.ts", "src/lib/payments/checkout-client.ts", "src/hooks/use-paystack-payment.ts"],
+      "covers": ["src/services/__tests__/order-payment-lifecycle.test.ts", "src/lib/payments/__tests__/checkout-client.test.ts"],
+      "case": "checkout client returns server snapshots only; the popup onSuccess path resolves to a server verify, and no client code path writes a payment status"
+    },
+    {
+      "area": "No-fork between webhook and verify",
+      "changed": ["src/services/payment-webhook-service.ts", "src/services/payment-verify-service.ts", "src/services/payment-service.ts"],
+      "covers": ["src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "webhook-then-verify and verify-then-webhook both settle exactly once; the in-flight claim serialises the two channels"
+    },
+    {
+      "area": "Attempt limits / in-flight join",
+      "changed": ["src/services/payment-service.ts", "src/app/api/payments/paystack/initialize/route.ts"],
+      "covers": ["src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "attempt cap (5) enforced; a concurrent initiation joins the in-flight attempt instead of forking a second transaction"
+    },
+    {
+      "area": "PayHero removal (no residual behaviour)",
+      "changed": ["(frontend payhero routes/client/services deleted)", "(backend payhero provider + config + tests deleted)", ".env.example", "backend/.env.example", "prisma/schema.prisma", "prisma/migrations/manual_phase10_paystack_provider_default.sql"],
+      "covers": ["src/services/__tests__/order-payment-lifecycle.test.ts", "backend/tests/test_payments.py", "backend/tests/test_config.py"],
+      "case": "a PAYHERO payment row is visible but verifies as provider_retired with ZERO provider calls; backend registry answers 404 with 'retired' for PAYHERO and mounts no payhero webhook route; no PAYHERO_* config field remains"
+    },
+    {
+      "area": "Provider default flip (PAYHERO → PAYSTACK)",
+      "changed": ["prisma/schema.prisma", "backend/app/models/payment.py", "prisma/migrations/manual_phase10_paystack_provider_default.sql"],
+      "covers": ["backend/tests/test_payments.py", "backend/tests/test_models.py"],
+      "case": "Prisma model default is PAYSTACK; the SQLAlchemy mirror matches (test_models compares the parsed schema); the manual migration is additive (SET DEFAULT only)"
+    },
+    {
+      "area": "Upload URL server-side gating (ASA-FILE-001)",
+      "changed": ["src/lib/validations/upload-security.ts", "src/lib/validations/listing.ts", "src/lib/validations/chat.ts", "src/lib/validations/auth.ts"],
+      "covers": ["src/lib/validations/__tests__/upload-security.test.ts"],
+      "case": "other-tenant Cloudinary, /raw/ and /video/ deliveries, external URLs, and cross-project Supabase all refused; own image/storage URLs accepted; fail-closed when env unconfigured"
+    },
+    {
+      "area": "Rate limiting on previously-unbounded routes",
+      "changed": ["src/lib/rate-limit.ts", "src/app/api/products/route.ts", "src/app/api/cart/route.ts"],
+      "covers": ["src/services/__tests__/order-payment-lifecycle.test.ts"],
+      "case": "limiter wiring verified via the shared rate-limit module (fail-open without Redis, 429 shape covered where Redis is faked); the payment routes' limits were already pinned by the lifecycle suite"
+    },
+    {
+      "area": "Security headers (CSP/HSTS) + image allowlist",
+      "changed": ["next.config.ts"],
+      "covers": [],
+      "case": "GAP: headers are emitted by the framework from next.config.ts and are exercised implicitly by the passing production build, but no automated assertion inspects the response headers in this environment. Recommended: a route test asserting Content-Security-Policy / Strict-Transport-Security on a 200 response (left as a noted gap, not claimed covered)."
+    }
+  ]
+}

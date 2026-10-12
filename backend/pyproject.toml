@@ -17,11 +17,11 @@ build-backend = "setuptools.build_meta"
 #     provider signs JWTs; this service verifies them with PyJWT against the
 #     published JWKS and never calls the auth API. Adding a vendor SDK to make
 #     zero vendor calls is dependency weight with a supply-chain cost.
-#   * No `payhero` SDK, no `cloudinary`, no `resend` client library. PayHero and
-#     server-side Cloudinary transfer are stubs in Phase 8 (see
-#     app/providers/), and Resend is a single POST that `httpx` already covers.
-#     Adding three vendor SDKs to make zero vendor calls is dependency weight
-#     with a supply-chain cost and no benefit.
+#   * No payment-provider SDK, no `cloudinary`, no `resend` client library.
+#     Buyer payment collection (Paystack) lives in the Next.js application, so
+#     this service makes no provider calls and has no provider SDK; Resend is a
+#     single POST that `httpx` already covers. Adding vendor SDKs to make zero
+#     vendor calls is dependency weight with a supply-chain cost and no benefit.
 #   * No ORM migrations tool (Alembic). Prisma owns the DDL — see
 #     app/models/base.py.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,8 +44,9 @@ dependencies = [
     "pydantic>=2.9,<3.0",
     "pydantic-settings>=2.6,<3.0",
 
-    # Outbound HTTP: Resend today, PayHero and Cloudinary in Phase 9.
-    # Also what starlette's TestClient runs on, so it is needed for tests too.
+    # Outbound HTTP: Resend. This service makes no payment-provider calls —
+    # Paystack collection is the Next.js app's job. Also what starlette's
+    # TestClient runs on, so it is needed for tests too.
     "httpx>=0.27,<1.0",
 
     # JWT verification. Neon Managed Better Auth publishes signing keys as JWKS

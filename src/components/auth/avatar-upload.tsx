@@ -3,18 +3,41 @@
 import { useRef, useState } from "react";
 import { Camera, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/utils";
 
 const MAX_SIZE_BYTES = 3 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+/**
+ * The file goes to `POST /api/avatar/upload` — a server-side, session-
+ * authenticated Cloudinary upload (no Supabase, no browser-held credentials).
+ * The client-side checks below are UX only; the route re-validates size and
+ * magic bytes authoritatively and generates the storage path itself.
+ */
+async function uploadAvatar(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const response = await fetch("/api/avatar/upload", { method: "POST", body: formData });
+  const payload = (await response.json().catch(() => null)) as
+    | { success: boolean; error?: string; data?: { url: string } }
+    | null;
+
+  if (!response.ok || !payload?.success || !payload.data?.url) {
+    throw new Error(payload?.error ?? `Upload failed (${response.status})`);
+  }
+  return payload.data.url;
+}
+
+/**
+ * `userId` is deliberately NOT a prop any more: the upload route derives the
+ * owner from the verified session, so the client never tells the server whose
+ * avatar folder to write to.
+ */
 export function AvatarUpload({
-  userId,
   value,
   onChange,
 }: {
-  userId: string;
   value: string;
   onChange: (url: string) => void;
 }) {
@@ -40,21 +63,19 @@ export function AvatarUpload({
     setIsUploading(true);
 
     try {
-      const supabase = createClient();
-      const ext = file.name.split(".").pop();
-      const path = `${userId}/avatar-${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, { upsert: true, cacheControl: "3600" });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      onChange(data.publicUrl);
+      const url = await uploadAvatar(file);
+      onChange(url);
+      if (inputRef.current) inputRef.current.value = "";
     } catch (error) {
       console.error(error);
-      toast.error("Couldn't upload that photo — please try again.");
+      // A `TypeError` is a network failure (fetch couldn't complete) — show
+      // the friendly copy. Anything else is the server's own message
+      // (validation, rate limit, storage hiccup), safe to surface as-is.
+      toast.error(
+        error instanceof Error && !(error instanceof TypeError)
+          ? error.message
+          : "Couldn't upload that photo — please try again."
+      );
       setPreviewUrl(value || null);
     } finally {
       setIsUploading(false);

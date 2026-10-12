@@ -1,5 +1,59 @@
 import type { NextConfig } from "next";
 
+/**
+ * Security response headers.
+ *
+ * ─── CSP ────────────────────────────────────────────────────────────────────
+ * Allowlist, built from what the app ACTUALLY loads (audited, not guessed):
+ *
+ *  - scripts: our own bundles, Next.js inline flight/style tags (App Router
+ *    requires 'unsafe-inline' for RSC script tags — a known residual, see
+ *    .audit/), Paystack InlineJS (checkout), and the Cloudinary upload
+ *    widget's loader (the only third-party script on any page).
+ *  - connect: Paystack API + checkout host, Cloudinary's upload endpoint and
+ *    CDN (the upload widget XHRs there), and Supabase (storage + realtime
+ *    websocket).
+ *  - images: our own, data/blob (picker previews), Cloudinary, Supabase
+ *    storage and Google profile avatars — exactly the `images.remotePatterns`
+ *    set below.
+ *  - frames: same-origin only, plus Paystack's checkout host. The Cloudinary
+ *    upload widget opens its UI in a POPUP window (its own origin, outside
+ *    our CSP's frame-src), so no Cloudinary frame entry is needed.
+ *
+ * ─── HSTS ───────────────────────────────────────────────────────────────────
+ * Browsers ignore HSTS on plain HTTP and localhost, so this is a no-op in
+ * dev and takes effect behind the HTTPS deployment. One year, subdomains.
+ */
+const SECURITY_HEADERS: { key: string; value: string }[] = [
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://js.paystack.co https://upload-widget.cloudinary.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com https://*.supabase.co wss://*.supabase.co",
+      "frame-src 'self' https://checkout.paystack.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests",
+    ].join("; "),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains",
+  },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(self)",
+  },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   experimental: {
@@ -13,6 +67,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    // Every entry is a host the app actually serves from. `next/image`
+    // refuses anything outside this list at runtime, so the allowlist is
+    // enforced, not advisory.
     remotePatterns: [
       {
         protocol: "https",
@@ -28,26 +85,13 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
       },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-        pathname: "/**",
-      },
     ],
   },
   async headers() {
     return [
       {
         source: "/:path*",
-        headers: [
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(self)",
-          },
-        ],
+        headers: SECURITY_HEADERS,
       },
     ];
   },

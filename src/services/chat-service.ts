@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/services/notification-service";
+import { publishChatEvent, toMessageRow } from "@/services/chat-realtime-events";
 import type { Prisma } from "@prisma/client";
 
 export class ChatServiceError extends Error {}
@@ -129,6 +130,10 @@ export async function sendMessage(params: {
     linkUrl: `/messages/${params.chatId}`,
   }).catch((error) => console.error("Failed to send NEW_MESSAGE notification", error));
 
+  // Realtime fan-out AFTER the write committed. The database is the source of
+  // truth — this is a notification and is dropped (not fatal) if Redis is down.
+  publishChatEvent({ type: "message", chatId: params.chatId, message: toMessageRow(message) });
+
   return message;
 }
 
@@ -144,10 +149,12 @@ export async function editMessage(messageId: string, senderId: string, content: 
     throw new ChatServiceError("Can't edit a deleted message.");
   }
 
-  return prisma.message.update({
+  const updated = await prisma.message.update({
     where: { id: messageId },
     data: { content, editedAt: new Date() },
   });
+  publishChatEvent({ type: "message_update", chatId: updated.chatId, message: toMessageRow(updated) });
+  return updated;
 }
 
 export async function deleteMessage(messageId: string, senderId: string) {
@@ -159,17 +166,35 @@ export async function deleteMessage(messageId: string, senderId: string) {
     throw new ChatServiceError("Message not found or you don't have access to it.");
   }
 
-  await prisma.message.update({
+  const updated = await prisma.message.update({
     where: { id: messageId },
     data: { content: null, imageUrl: null, deletedAt: new Date() },
   });
+  publishChatEvent({ type: "message_update", chatId: updated.chatId, message: toMessageRow(updated) });
 }
 
 export async function markChatRead(chatId: string, userId: string) {
   const chat = await assertParticipant(chatId, userId);
+  const readAt = new Date();
+  // Collect the ids BEFORE the update so the realtime event can name them;
+  // also skips the (and the event) when there is nothing to mark — no-op
+  // writes churn nothing but would still publish a noisy empty event.
+  const unread = await prisma.message.findMany({
+    where: { chatId, senderId: { not: userId }, readAt: null },
+    select: { id: true },
+  });
+  if (unread.length === 0) return chat;
+
   await prisma.message.updateMany({
     where: { chatId, senderId: { not: userId }, readAt: null },
-    data: { readAt: new Date() },
+    data: { readAt },
+  });
+  publishChatEvent({
+    type: "messages_read",
+    chatId,
+    readBy: userId,
+    readAt: readAt.toISOString(),
+    messageIds: unread.map((m) => m.id),
   });
   return chat;
 }

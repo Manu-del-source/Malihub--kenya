@@ -51,11 +51,6 @@ export default async function CompleteProfilePage() {
       subtitle="A few quick details so buyers and sellers know who they're dealing with."
     >
       <CompleteProfileForm
-        // Used only as the Supabase Storage folder for the avatar upload. The
-        // application id is preferred, but an account whose rows have not been
-        // provisioned yet still needs a stable per-person prefix — the auth
-        // identity provides one. It is never used for authorization.
-        userId={user?.id ?? identity.authUserId}
         // Display name and photo now come from the auth identity (`user.name` /
         // `user.image`) rather than the previous provider's `user_metadata`,
         // which Managed Better Auth does not have.

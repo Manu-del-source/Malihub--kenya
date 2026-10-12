@@ -347,6 +347,7 @@ describe("the admin action surface is exactly what it should be — and no more"
 
     assert.deepEqual(exported, [
       "createCategoryAction",
+      "deleteAdminListingAction",
       "deleteCategoryAction",
       "moderateListingAction",
       "rejectSellerAction",

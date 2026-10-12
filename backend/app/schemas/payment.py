@@ -29,8 +29,8 @@ class PaymentProviderCapabilityResponse(BaseModel):
     """One provider, as the checkout UI should see it.
 
     `available` is the field to render from, not `configured`: a provider can
-    hold valid credentials and still not be implemented (which is exactly
-    PayHero's state in Phase 8). `unavailable_reason` is human-readable and
+    hold valid credentials and still not be implemented on this deployment.
+    `unavailable_reason` is human-readable and
     safe to show in an admin surface, but should never be shown to a buyer.
     """
 

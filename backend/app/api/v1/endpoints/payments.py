@@ -1,24 +1,24 @@
 """Payment endpoints.
 
 ╔══════════════════════════════════════════════════════════════════════════╗
-║  Phase 8 exposes ONE route, and it is read-only.                         ║
+║  This API exposes ONE route, and it is read-only.                         ║
 ║                                                                          ║
 ║  There is deliberately no POST /payments, no /payments/{id}/status, and   ║
-║  no /payments/webhooks/{provider}. The only registered adapter is a stub,  ║
-║  so every one of those would return 501 — a public, unauthenticated       ║
-║  endpoint whose only behaviour is to fail is exactly the "fake production  ║
-║  payment endpoint" Phase 8 exists to avoid. Worse, a webhook route would   ║
-║  advertise to a provider (and to anyone scanning) that MaliHub accepts     ║
-║  payment callbacks, when it cannot verify one.                           ║
+║  no /payments/webhooks/{provider}. This service registers no collection   ║
+║  adapters and holds no payment-provider credentials — a public,           ║
+║  unauthenticated endpoint whose only behaviour would be to fail is exactly ║
+║  the "fake production payment endpoint" this API refuses to be, and a     ║
+║  webhook route would advertise a callback surface that cannot verify one. ║
 ║                                                                          ║
-║  Phase 9 mounts them, in this order: the webhook route first (so a         ║
-║  provider can be pointed at a verifiable URL), then initiation.           ║
+║  Buyer payment collection (Paystack hosted checkout, the signed          ║
+║  charge.success webhook, verification) lives in the NEXT.JS application   ║
+║  at /api/payments/paystack/* — that is where the PAYSTACK_SECRET_KEY      ║
+║  lives and where a verifiable webhook URL exists.                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 
-What is here is genuinely useful today: `GET /payments/providers` is what a
-checkout UI renders its options from, and it reports the truth — PayHero shows
-`configured` from real environment values and `available: false` with the
-reason, because being configured is not the same as being implemented.
+What is here is genuinely useful: `GET /payments/providers` reports the truth
+— which provider names exist in the schema, which are registered on this
+deployment (none, today), and why each unregistered name answers 404.
 
 Unauthenticated on purpose. The response contains no credentials, no account
 identifiers and no internal URLs; it is the same information a pricing page
@@ -45,10 +45,10 @@ router = APIRouter(prefix="/payments", tags=["payments"])
     response_model=PaymentProvidersResponse,
     summary="List payment providers and whether they can be used",
     description=(
-        "Provider-agnostic capability metadata. `available` is the field to "
-        "render from: `configured` means credentials are present, `available` "
-        "means a payment can actually be taken. In Phase 8 no provider is "
-        "available — PayHero integration lands in Phase 9."
+        "Provider-agnostic capability metadata. `providers` lists the "
+        "adapters registered on this deployment (none today — Paystack "
+        "collection lives in the Next.js application), and `reserved` lists "
+        "schema values with the reason each answers 404 here."
     ),
     responses={200: {"description": "The providers registered on this deployment."}},
 )

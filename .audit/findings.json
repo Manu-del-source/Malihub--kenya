@@ -1,0 +1,65 @@
+{
+  "$schema": "./findings.schema.json",
+  "generated": "2026-10-12",
+  "branch": "arena/8b21d47b-malihub-kenya",
+  "note": "Audit findings for the MaliHub Kenya payment-security engagement. Statuses are evidence-based: 'fixed' means the fix is in this tree AND covered by a test that would fail without it; 'confirmed' means re-verified against current code with no change needed; 'residual' items are explicit remaining limitations, not suppressed findings.",
+  "findings": [
+    {
+      "id": "ASA-WEBHOOK-001",
+      "title": "Unsigned provider callback accepted as a settlement signal",
+      "severity": "high",
+      "status": "fixed",
+      "original_description": "The payment callback surface accepted provider success callbacks without cryptographic verification, so a forged callback could drive a payment to PAID.",
+      "resolution": "The PayHero callback surface is removed entirely (its unsigned endpoint no longer exists — the forgery surface is gone, not patched). The Paystack settlement path requires, in order: (1) x-paystack-signature verified as hex HMAC-SHA512 of the EXACT raw request bytes keyed with PAYSTACK_SECRET_KEY, constant-time compare, fail-closed 401 with no write when unverifiable; (2) the reference must resolve to a payment row this deployment created; (3) exact integer amount AND currency match against that row; (4) re-verification of the transaction against Paystack's authenticated API before any claim runs; (5) a conditional database claim with (provider, providerEventId) dedup and terminal-state guards so retries/replays are no-ops. A browser claim of success can only trigger a server→Paystack re-verification; it can never settle by itself.",
+      "evidence": [
+        { "file": "src/lib/payments/paystack.ts", "lines": "219-228", "what": "verifyPaystackWebhookSignature — createHmac('sha512', secretKey).update(rawBody) + timingSafeEqual, over the raw body bytes" },
+        { "file": "src/services/payment-webhook-service.ts", "lines": "204-210", "what": "unverifiable signature → { kind: 'invalid_signature' } before any lookup or write" },
+        { "file": "src/services/payment-webhook-service.ts", "lines": "355-370", "what": "amount/currency gate: Number.isSafeInteger(data.amount) && data.amount === payment.amountCents and currency equality, with an anomaly event on mismatch" },
+        { "file": "src/app/api/payments/paystack/webhook/route.ts", "lines": "85-92", "what": "route maps invalid_signature → HTTP 401; raw body read via request.text() so verification runs over wire bytes" },
+        { "file": "src/services/__tests__/payment-webhook-service.test.ts", "lines": "1-60", "what": "forged callback (wrong key) → invalid_signature, zero settlement; malformed envelopes refused; duplicates settle exactly once" },
+        { "file": "src/services/__tests__/order-payment-lifecycle.test.ts", "lines": "1-60", "what": "end-to-end: signed webhook settles exactly once (1 payment.success + 1 order.paid); webhook/verify no-fork in both directions; provider-verify failure never settles" }
+      ],
+      "verification": "Unit + lifecycle suites run with the provider client stubbed, so signature gates are exercised with a real HMAC key and a real (stub) provider answer. Live delivery from Paystack's infrastructure is NOT performed in this environment (no network access to Paystack); the signature scheme is Paystack's documented one (hex HMAC-SHA512 of the raw body keyed with the secret key)."
+    },
+    {
+      "id": "ASA-DEPS-001",
+      "title": "Vulnerable dependency set: next 15.5.22 (critical), sharp/libvips CVEs, loose image remotePatterns",
+      "severity": "medium",
+      "status": "fixed",
+      "original_description": "next 15.5.22 carried a critical advisory; sharp's bundled libvips/libheif/librsvg carried high CVEs; images.remotePatterns allowed a host the app never uses; the backend had no lockfile at all.",
+      "resolution": "next 15.5.22 → 15.5.27 (patch within the line; eslint-config-next bumped in lockstep). sharp CVEs closed by an npm override pinning sharp 0.35.5 — inside the range Next itself declares (\"^0.34.3 || ^0.35.4\"), not a blind jump. The nested postcss 8.4.31 under Next (4 advisories incl. XSS-via-</style> and sourceMappingURL path traversal) and its nested nanoid 3.3.16 closed by overriding postcss to 8.5.29 (the version the app already declares directly); the production build passes with the override, proving Next tolerates it. images.unsplash.com removed from remotePatterns (zero usages in src). Direct deps also patched same-major: cloudinary 2.5.1→2.11.0, nanoid 5.0.9→5.1.16, tailwindcss 3.4.17→3.4.19, postcss 8.4.49→8.5.29, @supabase/supabase-js 2.47.10→2.117.3, eslint 9.17.0→9.39.5, tsx 4.19.2→4.23.15. Backend lockfile created (backend/requirements.lock.txt) and audited: pip-audit reports no known vulnerabilities.",
+      "evidence": [
+        { "file": "package.json", "lines": "7-11", "what": "overrides: sharp 0.35.5, postcss 8.5.29" },
+        { "file": "package.json", "lines": "53-53", "what": "\"next\": \"15.5.27\"" },
+        { "file": "next.config.ts", "lines": "66-90", "what": "remotePatterns no longer include images.unsplash.com; only res.cloudinary.com, *.supabase.co (public storage path), lh3.googleusercontent.com" },
+        { "file": "package-lock.json", "lines": "1-1", "what": "lockfile records next 15.5.27, sharp 0.35.5 (overridden), postcss 8.5.29 (overridden), cloudinary 2.11.0, nanoid 5.1.16" },
+        { "file": "backend/requirements.lock.txt", "lines": "1-60", "what": "pinned backend dependency set (41 pins) with regeneration + audit instructions in the header" }
+      ],
+      "residual": [
+        "npm audit still reports 10 advisories (0 critical; 8 high, 2 moderate). Every one is either (a) dev/build-time-only (eslint-config-next + @next/eslint-plugin-next — an upstream advisory whose 'fixed' range does not include any 15.x; braces/brace-expansion/chokidar/fast-glob/micromatch — glob internals of dev tooling, braces has no published fix; postcss-nested/postcss-selector-parser — tailwind 3.x build toolchain whose fixes require major bumps the toolchain's parent does not accept), or (b) bound by a major-version upgrade this change deliberately does not make blindly: next 15.5.27's remaining moderate advisory is only fixed in the 16.x line, and tailwindcss 3.4.19's advisory is only fixed in tailwind 4.x (a breaking engine change). Forcing those majors is out of scope per the engagement's 'no blind breaking upgrades' constraint and is reported here rather than papered over."
+      ],
+      "verification": "npm audit (exit 1 = advisories present, expected and itemized above), npm test 640/640, npx tsc --noEmit exit 0, npm run build exit 0 (build re-compiled the full route tree against the overridden sharp/postcss). pip-audit -r backend/requirements.lock.txt: no known vulnerabilities."
+    },
+    {
+      "id": "ASA-FILE-001",
+      "title": "Cloudinary unsigned upload preset — storeable URL surface unchecked at the server",
+      "severity": "low",
+      "status": "fixed",
+      "original_description": "The marketplace accepts image URLs from the client (listings, chat attachments, profile avatar). The unsigned Cloudinary preset and the public Supabase anon key mean a client can upload to — or point these fields at — files it should not be able to use; the server-side schemas validated only 'is a URL' and the own-cloud validators existed but were never called.",
+      "resolution": "Server-side gates added at every URL write path: listingImageSchema.url, chat sendMessage/editMessage imageUrl, and completeProfile avatarUrl now require (a) our own Cloudinary cloud (path must start with /<our-cloud>/ on res.cloudinary.com — another tenant's CDN on the same hostname is refused) AND (b) an /image/ delivery type — /raw/ and /video/ deliveries of arbitrary content are refused even if the dashboard preset is misconfigured; avatars require our own Supabase project's public storage path. All checks fail closed when the cloud/project env is unconfigured. Regression suite: 30 cases in src/lib/validations/__tests__/upload-security.test.ts.",
+      "evidence": [
+        { "file": "src/lib/validations/upload-security.ts", "lines": "21-50", "what": "isOwnCloudinaryUrl / isOwnCloudinaryImageUrl — own-cloud path check plus /image/ resource-type gate, fail-closed when unconfigured" },
+        { "file": "src/lib/validations/upload-security.ts", "lines": "52-64", "what": "isOwnSupabaseStorageUrl — own project hostname + /storage/v1/object/public/ prefix" },
+        { "file": "src/lib/validations/listing.ts", "lines": "22-30", "what": "listingImageSchema.url refined with isOwnCloudinaryImageUrl; cloudinaryId bounded to 300 chars" },
+        { "file": "src/lib/validations/chat.ts", "lines": "30-38", "what": "sendMessageSchema.imageUrl refined the same way" },
+        { "file": "src/lib/validations/auth.ts", "lines": "100-110", "what": "completeProfileSchema.avatarUrl refined with isOwnSupabaseStorageUrl (empty still allowed)" },
+        { "file": "src/lib/validations/__tests__/upload-security.test.ts", "lines": "1-300", "what": "30 regression tests: other-tenant refused, raw/video refused, external refused, fail-closed when env missing, own URLs accepted" }
+      ],
+      "residual": [
+        "What the repository can and cannot prove: the repo proves the PRESET NAME is public by design (NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) and that server-side storage of URLs is now gated. It CANNOT prove how the preset itself is configured in the Cloudinary dashboard — allowed resource types, max file size, folder restrictions, write permissions, and any abuse history — because that requires Cloudinary dashboard/account access which this engagement does not have. Recommended dashboard hardening (to be confirmed there, not claimed here): restrict the unsigned preset to the `image` resource type, cap it at the app's 8MB limit (STORAGE_MAX_UPLOAD_BYTES), scope it to a dedicated folder, and review account usage/bandwidth. Similarly, the RLS policies of the Supabase `avatars` bucket are outside this repository and unverified here. Database-provider note (re-audit 2026-10-12): the application database is independent PostgreSQL (Neon in production) and the identity provider is Neon Managed Better Auth — NOT Supabase; Supabase remains a live dependency only for Storage (avatars bucket) and Realtime (chat). The repository's application-DB RLS DDL (manual_rls_policies.sql, manual_phase6_rls_realtime.sql, manual_phase7_security.sql) is keyed on Supabase primitives (auth.uid(), auth.jwt(), the supabase_realtime publication) and cannot be applied as-is to the Neon database; on the Neon deployment, application-layer authorization (src/lib/auth/session.ts guards + per-route ownership resolution) is the data-layer control — a documented design (ARCHITECTURE.md §6/§6c), with cross-user access refused and 404/403 cases tested. What this engagement CANNOT verify without live access: (a) whether any adapted RLS was applied to the production Neon database; (b) Neon project settings (DB role privileges, network/IP restrictions, credentials); (c) the live avatars-bucket policies in the Supabase project; (d) the Realtime publication/connection configuration that live chat depends on.",
+        "Content uploaded to the account before these gates (already-present raw files, malicious images) is not retroactively cleaned by this change; a one-time purge of the unsigned preset's folder is a dashboard operation, recommended in the rollout notes."
+      ],
+      "verification": "npm test 640/640 including the 30 new validation cases; npx tsc --noEmit exit 0; production build exit 0. Dashboard configuration NOT verified (no access) — stated as a residual, not a pass."
+    }
+  ]
+}

@@ -41,11 +41,9 @@ const INTENT_OPTIONS: { value: AccountIntent; label: string; description: string
 ];
 
 export function CompleteProfileForm({
-  userId,
   defaultFullName,
   defaultAvatarUrl,
 }: {
-  userId: string;
   defaultFullName?: string;
   defaultAvatarUrl?: string;
 }) {
@@ -85,7 +83,6 @@ export function CompleteProfileForm({
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
       <FormField id="avatar" label="Profile photo">
         <AvatarUpload
-          userId={userId}
           value={avatarUrl}
           onChange={(url) => setValue("avatarUrl", url, { shouldValidate: true })}
         />

@@ -1,6 +1,6 @@
 """PaymentService — the only payment entry point the rest of the app uses.
 
-    API route  ──▶  PaymentService  ──▶  PaymentProviderRegistry  ──▶  PayHeroProvider
+    API route  ──▶  PaymentService  ──▶  PaymentProviderRegistry  ──▶  (no adapters today)
                                                                       (DarajaProvider, later)
 
 A route or a job never imports a provider. It calls this service, names a
@@ -14,10 +14,12 @@ that would otherwise need updating is behind this seam.
 ╚══════════════════════════════════════════════════════════════════════════╝
 
 The service currently does three things: resolve a provider, expose its
-capabilities, and forward the four contract operations. Because the only
-registered adapter is a stub, forwarding produces an honest 501 — which is the
-correct Phase 8 behaviour, and the reason there is no `/payments/charge` route
-pretending otherwise.
+capabilities, and forward the four contract operations. Because NO adapter is
+registered on this deployment today (Paystack collection lives in the Next.js
+application), resolving any provider name produces an honest 404 naming the
+reason — which is the behaviour that keeps this API from pretending to take
+payments it cannot process, and the reason there is no `/payments/charge`
+route.
 
 What Phase 9 adds *here*, and why it belongs in the service rather than in the
 provider or the route:

@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pinned Python dependency lockfile for the FastAPI backend.
+#
+# This repository previously shipped NO lockfile for the backend, so deploys
+# resolved fresh versions from PyPI on every install. This file pins the exact
+# resolution of pyproject.toml's `dependencies` + `[dev]` extras so:
+#
+#   * deploys are reproducible, and
+#   * `pip-audit -r requirements.lock.txt` audits the ACTUAL deployed set.
+#
+# Regenerate after changing pyproject.toml (in a clean venv):
+#
+#     python3 -m venv /tmp/lock && /tmp/lock/bin/pip install .[dev]
+#     /tmp/lock/bin/pip freeze | grep -v malihub-backend > requirements.lock.txt
+#
+# Verify no known vulnerabilities in the pinned set:
+#
+#     pip-audit -r requirements.lock.txt
+#
+# Generated: 2026-10-12 (all pins satisfy the pyproject.toml ranges;
+# pip-audit: no known vulnerabilities).
+# ─────────────────────────────────────────────────────────────────────────────

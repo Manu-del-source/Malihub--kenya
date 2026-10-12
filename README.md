@@ -43,8 +43,14 @@ npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 > The file names say which phase introduced them, not the order to run them.
 > The list below **is** the order to run them.
 
-Then, against your Supabase project's SQL editor (or `supabase db push`),
-run these files **in order**:
+Then run these files **in order**, each against the database it targets: the
+RLS files (2, 5, 7) only where the application database is **hosted on
+Supabase Postgres** — they reference Supabase primitives (`auth.uid()`,
+`auth.jwt()`, the `supabase_realtime` publication) and cannot be executed as
+written against an independent Neon/RDS database, where the application-layer
+authorization in `src/lib/auth/session.ts` is the data-layer control. The
+storage file (3) runs against your **Supabase project** (the avatars bucket
+lives there). The rest run against the application database itself.
 
 1. `prisma/migrations/manual_auth_trigger.sql` — mirrors `auth.users` into
    `public.users`/`profiles` on signup. **Only relevant when the application
@@ -138,17 +144,18 @@ npm run backend:lint     # ruff check
 npm run backend:format   # ruff format
 ```
 
-> **Phase 8 ships architecture, not a working payment integration.**
-> `PAYHERO_ENABLED` defaults to `false`, every `PAYHERO_*` credential in
-> `.env.example` is empty, and `PayHeroProvider` is a typed stub that returns
-> **HTTP 501** for every operation. There is no STK Push, no Daraja call, no
-> webhook route and no payment-mutating endpoint — `GET
-> /api/v1/payments/providers` is the only payment route, and it exposes no
-> credentials. Real PayHero integration (sandbox credentials, STK Push, a
-> signature-verifying webhook, persistence) is **Phase 9**. See §7c of
-> ARCHITECTURE.md for the full boundary.
+> **This backend takes no payments.** Buyer payment collection — Paystack
+> hosted checkout, the signed `charge.success` webhook, and on-demand
+> verification — is implemented in the **Next.js application**
+> (`/api/payments/paystack/*`), which owns `PAYSTACK_SECRET_KEY`. This FastAPI
+> service holds no payment-provider credentials, registers no collection
+> adapters, and mounts no webhook route; `GET /api/v1/payments/providers` is
+> the only payment route and it reports that state honestly. The retired PayHero
+> integration (Phase 9) has been removed from this repository; historical
+> `Payment` rows with `provider='PAYHERO'` are still read through the schema
+> for reconciliation. See §7 of ARCHITECTURE.md for the full boundary.
 
-> **Security note:** this project pins `next@15.5.22`. Do not downgrade to
+> **Security note:** this project pins `next@15.5.27`. Do not downgrade to
 > `15.1.x` — those versions are vulnerable to CVE-2025-66478, a critical
 > (CVSS 10.0) unauthenticated RCE in the App Router's RSC protocol. If you
 > ever bump Next.js yourself, check https://nextjs.org/blog/CVE-2025-66478
@@ -188,8 +195,9 @@ backend/
                   never creates them; Prisma still owns every DDL change
     schemas/      Pydantic request/response models
     services/     payment, email, rate-limit, health
-    providers/    payments/ (interface + PayHero stub + registry),
-                  storage/ (Cloudinary-shaped), email/ (Resend)
+    providers/    payments/ (interface + registry; no collection adapters —
+                  Paystack lives in the Next.js app), storage/ (Cloudinary-shaped),
+                  email/ (Resend)
   tests/          the suite — no network, no database, no credentials needed
   pyproject.toml  Dependencies plus pytest and ruff configuration
   .env.example    Every variable, commented; all values are safe placeholders
@@ -213,44 +221,35 @@ parses `prisma/schema.prisma` and compares it against the SQLAlchemy mirror, so
 a schema change the backend was not told about fails the suite instead of
 writing to a column that does not exist; `tests/test_logging.py` asserts on
 secrets that must *not* appear rather than fields that must, because the failure
-mode there is silent; and `tests/test_payments.py` pins the Phase 8 boundary
-(the PayHero stub returns 501, makes no network call, and reports itself
-unavailable even when configured).
+mode there is silent; and `tests/test_payments.py` pins the payment boundary
+(no collection adapter is registered on this service; every provider name
+answers a 404 with an honest reason — Paystack "lives in the Next.js app",
+PayHero "retired" — and no payment or webhook route is mounted).
 
-As of Phase 8:
+As of Phase 10 (verified on 2026-10-12; `npm test`, `npx tsc --noEmit`,
+`npm run lint`, `npm run build` all run in this environment and recorded in
+`.audit/validation-report.json`):
 
+- **`npm test`: 640/640 pass, 0 fail** — including the Paystack payment
+  service suites (forged callbacks, invalid signatures, amount/currency
+  mismatch, ownership, duplicates, replay, provider-verify failure) and the
+  upload-URL validation suite.
+- **`npx tsc --noEmit`: clean** (source; `.next/types` is regenerated by the
+  build).
 - **`npm run lint` (eslint): clean**, no warnings.
-- **`npx tsc --noEmit`: cannot be evaluated in a network-restricted sandbox**,
-  and the reason is worth being precise about. All 53 errors it reports are
-  `Module '"@prisma/client"' has no exported member …` (model and enum type
-  re-exports in `src/types/index.ts`) plus `Property 'sql'/'raw'/'join' does
-  not exist on type 'typeof Prisma'` in `src/services/search-service.ts`.
-  Every one is a consequence of the generated client being absent —
-  `node_modules/.prisma/client` contains only its placeholder stubs — and none
-  is in a file Phase 8 touched. `prisma generate` and `prisma validate` both
-  fail in this sandbox with a TLS error reaching `binaries.prisma.sh`, so the
-  client cannot be produced here. On a machine with normal outbound access,
-  run `npm run prisma:generate` first and `tsc --noEmit` is expected clean;
-  that is the gate to trust, not the sandbox result.
-- **`npm run build`**: the `next build` compilation step itself succeeds
-  (webpack bundles the full route tree with no errors); the build script's
-  leading `prisma generate` step requires network access to
-  `binaries.prisma.sh` to download the query engine. In network-restricted
-  environments (locked-down CI, some sandboxes) that step fails and the build
-  script exits before reaching `next build` at all — an environment/network
-  condition, not a code defect. If you hit this: confirm outbound access to
-  `binaries.prisma.sh`, or set `PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1` if
-  you are intentionally offline.
-- **Backend: 362 tests passing, `ruff check` clean** (with bandit's `S` rules
-  enabled) and `ruff format --check` clean. None of it needs a database, a
-  network connection or a credential.
-- **`prisma/schema.prisma`**: since the Prisma CLI cannot run here, the schema
-  was validated structurally instead — brace balance across all 41 blocks,
-  every field line in all 23 models and 16 enums parses, no duplicate model or
-  `@@map` names, every `@relation` targets a model that exists, and the
-  `Payment` model contains no surviving `mpesa*`/`resultCode`/`resultDesc`
-  field. `backend/tests/test_models.py` goes further and compares the mirror
-  against the parsed schema on every run.
+- **`npm run build`: exit 0** — full route tree compiles, including
+  `/api/payments/paystack/*` and `/checkout/payment-result`.
+- **`npm audit`: 10 known advisories remain** (0 critical; 8 high, 2
+  moderate) — all in dev-only toolchain or nested build-time dependencies, or
+  requiring a major bump (Next 16, Tailwind 4) that this change deliberately
+  does not make. `next` itself was patched 15.5.22 → 15.5.27 and the
+  sharp/libvips/libheif/librsvg CVEs were closed via a `sharp@0.35.5`
+  override inside the range Next itself declares. See ASA-DEPS-001 in
+  `.audit/findings.json`.
+- **Backend: 467 tests passing, `ruff check` clean** (bandit's `S` rules
+  enabled), and `pip-audit -r requirements.lock.txt` reports no known
+  vulnerabilities. A pinned lockfile now exists (`backend/requirements.lock.txt`)
+  — the repository previously shipped none for the backend.
 
 A note on `@react-email/components` (and the `react-email` package
 itself): npm currently flags **every** version — including the actively-
@@ -281,20 +280,31 @@ theme-init hardening.
 
 **Phase 8 (production architecture) complete** — the independent FastAPI
 backend in `backend/`, the provider-agnostic `Payment` model and its
-data-preserving migration, the typed `PaymentProvider` interface with a PayHero
-stub and provider registry, storage and email abstractions, token verification
-on the auth-only boundary (Supabase-issued when Phase 8 landed, **since
-re-pointed at Neon Auth's JWKS**, with the provider's `sub` resolved to
-`users.id` and the application role read from Postgres — see
-`docs/auth/MIGRATION.md` §7), structured logging with redaction, a
-single error envelope, health/readiness endpoints, and production startup
-validation. The Next.js app was **not** rewritten — Phase 7's security files and
-every working feature are untouched, and the only removals are the Daraja route
-handlers that the provider-agnostic design replaces.
+data-preserving migration, the typed `PaymentProvider` interface and provider
+registry, storage and email abstractions, token verification on the auth-only
+boundary (Supabase-issued when Phase 8 landed, **since re-pointed at Neon
+Auth's JWKS**, with the provider's `sub` resolved to `users.id` and the
+application role read from Postgres — see `docs/auth/MIGRATION.md` §7),
+structured logging with redaction, a single error envelope, health/readiness
+endpoints, and production startup validation. The Next.js app was **not**
+rewritten — Phase 7's security files and every working feature are untouched,
+and the only removals are the Daraja route handlers that the provider-agnostic
+design replaces.
 
-**Phase 9 (next): PayHero integration** — real API calls, STK Push, a
-signature-verifying webhook endpoint, idempotent callback processing,
-persistence, and the order/notification side effects described in §7d of
-ARCHITECTURE.md.
+**Phase 9 → PayHero (retired, removed).** PayHero was the first provider, but
+its integration has since been removed from this repository. No code path
+creates a new `PAYHERO` row; the enum value, migrations and historical `Payment`
+rows are retained for reconciliation. See `docs/PAYMENTS-PAYHERO.md` for the
+retirement record.
+
+**Phase 10 (payments, live) — Paystack is the active provider.** Buyer
+collection is implemented in the Next.js app: `POST
+/api/payments/paystack/initialize` (hosted checkout), `POST
+/api/payments/paystack/webhook` (signed `charge.success` settlement — HMAC-SHA512
+over the raw body, verified against `PAYSTACK_SECRET_KEY`), and `GET/POST
+/api/payments/paystack/verify` (server-authoritative status the buyer's screens
+poll). Settlement is idempotent and concurrency-safe: a payment becomes `PAID`
+only after a provider-verified claim passes ownership, exact amount/currency,
+and duplicate/replay gates. There is no PayHero fallback.
 
 See the checklist in `ARCHITECTURE.md` §13.

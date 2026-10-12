@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { KENYA_COUNTIES } from "@/lib/constants";
+import { isOwnCloudinaryAvatarUrl, isOwnSupabaseStorageUrl } from "@/lib/validations/upload-security";
 
 /**
  * Kenyan phone numbers, accepted in any of the common local formats
@@ -94,7 +95,22 @@ export const completeProfileSchema = z.object({
     errorMap: () => ({ message: "Select your county" }),
   }),
   accountIntent: accountIntentSchema,
-  avatarUrl: z.string().url().optional().or(z.literal("")),
+  // Profile photos upload through OUR server-side Cloudinary route
+  // (POST /api/avatar/upload) — a bare url() would let a client point the
+  // avatar at an arbitrary external (or another project's) file.
+  //
+  // Both own-cloud shapes are accepted on purpose: Cloudinary avatars are
+  // canonical now, but Supabase Storage avatars remain valid until
+  // scripts/migrate-avatars-to-cloudinary.mjs has run and been verified in
+  // production. Drop the isOwnSupabaseStorageUrl branch only after that.
+  avatarUrl: z
+    .string()
+    .url()
+    .refine((url) => isOwnCloudinaryAvatarUrl(url) || isOwnSupabaseStorageUrl(url), {
+      message: "Profile photo must be uploaded with the in-app uploader",
+    })
+    .optional()
+    .or(z.literal("")),
 });
 
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;

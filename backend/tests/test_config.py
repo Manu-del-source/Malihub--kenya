@@ -210,12 +210,6 @@ def test_redis_keys_share_the_frontend_namespace() -> None:
     assert settings.redis_key("api", "ratelimit", "v1", "login") == "malihub:api:ratelimit:v1:login"
 
 
-def test_payhero_callback_url_is_absolute() -> None:
-    settings = build_settings(backend_public_url="https://api.malihub.co.ke/")
-    assert (
-        settings.payhero_callback_url("api/v1/payments/webhooks/payhero")
-        == "https://api.malihub.co.ke/api/v1/payments/webhooks/payhero"
-    )
 
 
 # ─── Production boot gate ────────────────────────────────────────────────────
@@ -271,11 +265,6 @@ def test_production_refuses_to_boot_with_a_control_disabled(override: dict, matc
         settings.validate_for_environment()
 
 
-def test_payhero_enabled_without_credentials_is_fatal() -> None:
-    """Enabling a provider with no credentials must fail loudly, not 501 later."""
-    settings = build_settings(payhero_enabled=True)
-    with pytest.raises(ConfigurationError, match="PAYHERO_ENABLED=true requires"):
-        settings.validate_for_environment()
 
 
 def test_missing_optional_services_warn_rather_than_fail() -> None:

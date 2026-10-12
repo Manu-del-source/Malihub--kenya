@@ -123,7 +123,7 @@ _JWT_PATTERN = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-
 # straight through. Every prefix here is published by its issuer.
 _KNOWN_SECRET_PATTERN = re.compile(
     r"\b(?:"
-    r"sk_live_[A-Za-z0-9]{8,}"  # Stripe-style secret key (Resend, PayHero test keys)
+    r"sk_live_[A-Za-z0-9]{8,}"  # Stripe-style / Paystack-style secret key (Resend, Paystack test keys)
     r"|sk_test_[A-Za-z0-9]{8,}"
     r"|rk_live_[A-Za-z0-9]{8,}"
     r"|re_[A-Za-z0-9_]{16,}"  # Resend API key

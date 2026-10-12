@@ -15,14 +15,12 @@
 This is deliberately a SEPARATE contract from `PaymentProvider` in `base.py`,
 not an extension of it. A processor that can collect a buyer's M-Pesa payment
 (`PaymentProvider`) is not automatically one that can onboard a seller as a
-payee and pay them out (`MarketplaceProvider`) — PayHero is the proof: it
-implements payment collection but has no sub-merchant/payee concept at all
-(see `docs/payments/provider-comparison.md`). A single class (e.g. Paystack)
-may implement both contracts; PayHero implements only the first; a future
-provider could plausibly implement only the second (a payouts-only rail
-layered on top of PayHero for collection). Forcing every `PaymentProvider` to
-also carry marketplace methods would mean every adapter — including PayHero's
-already-shipped one — grows abstract methods it cannot honestly implement.
+payee and pay them out (`MarketplaceProvider`) — collection-only processors
+have no sub-merchant/payee concept at all. A single class (e.g. Paystack)
+may implement both contracts; a future provider could plausibly implement
+only the second (a payouts-only rail). Forcing every `PaymentProvider` to
+also carry marketplace methods would mean every adapter grows abstract
+methods it cannot honestly implement.
 
 Five operations, matching the seller-payout-account lifecycle in
 `prisma/schema.prisma` (`SellerPayoutAccount`, `Payout`):
@@ -167,8 +165,8 @@ class SellerOnboardingRequest(_MarketplaceModel):
     email: str | None = None
     #: MaliHub's own callback used once the provider's onboarding flow
     #: completes (e.g. a hosted KYC redirect). Never accepted from a client
-    #: request — built server-side from configuration, same rule as
-    #: `PayHeroProvider`'s `callback_url` in the Phase 9 checklist.
+    #: request — built server-side from configuration, the same rule that
+    #: governs any provider `callback_url` (never client input).
     return_url: str | None = None
 
 

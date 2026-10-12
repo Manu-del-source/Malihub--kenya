@@ -1,5 +1,13 @@
 # Buyer checkout & M-Pesa payment frontend — Phase 18 report
 
+> **SUPERSEDED (Phase 10).** This report documents the checkout frontend
+> built against the PayHero backend. That backend has since been removed and
+> replaced by Paystack — the checkout UI was re-wired to the Paystack
+> services (see `docs/PAYSTACK-INTEGRATION-PLAN.md` and
+> `src/components/shell/buyer/paystack-pay-section.tsx`), and the contract
+> tests were rewritten for the new routes. Retained as the historical record
+> of the Phase 18 work; do not follow its route names.
+
 Branch: `arena/01a0f841-malihub-kenya` · base commit `b30699f` · PR #22 · date 2026-10-01
 
 The buyer payment layer is implemented on top of the **existing** PayHero

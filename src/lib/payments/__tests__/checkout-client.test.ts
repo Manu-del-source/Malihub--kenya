@@ -7,15 +7,14 @@ import {
   createSerializedTask,
   fetchPaymentStatus,
   firstUnpaidOrderId,
-  initiateStkPayment,
+  initiatePaystackCheckout,
   mapPaymentError,
-  MPESA_METHOD,
   ORDERS_ENDPOINT,
   PAYMENT_METHODS,
+  PAYSTACK_INITIALIZE_ENDPOINT,
+  PAYSTACK_METHOD,
   PAYMENT_STATUS_ENDPOINT,
   paymentPhaseFromSnapshot,
-  STK_ENDPOINT,
-  validateMpesaPhone,
 } from "@/lib/payments/checkout-client";
 import type { BuyerPaymentSnapshot } from "@/lib/payments/payment-snapshot";
 
@@ -26,11 +25,12 @@ import type { BuyerPaymentSnapshot } from "@/lib/payments/payment-snapshot";
  * (`checkout-client.ts`); this suite pins the two things that matter most:
  *
  *  1. **Request shape** — the browser sends exactly what the existing route
- *     handlers accept (`{}` to create orders, `{ orderId, phoneNumber }` to
- *     start an STK push) and nothing else. No amount, no price, no buyer or
- *     seller id, no provider settings.
- *  2. **State honesty** — a QUEUED STK response is never treated as success;
- *     only the server's own snapshot can produce the paid state.
+ *     handlers accept (`{}` to create orders, `{ orderId }` to start a
+ *     Paystack checkout) and nothing else. No amount, no price, no buyer or
+ *     seller id, no phone number, no provider settings.
+ *  2. **State honesty** — a Paystack initiation response (or its popup
+ *     result) is never treated as success; only the server's own snapshot can
+ *     produce the paid state.
  */
 
 type FetchCall = { url: string; init: RequestInit };
@@ -64,8 +64,6 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-const BUYER_PHONE = "0712345678";
-
 function snapshot(overrides: Partial<BuyerPaymentSnapshot> = {}): BuyerPaymentSnapshot {
   return {
     order: { id: "order-1", orderNumber: "MH-ABC12345", status: "PENDING", totalCents: 200_000 },
@@ -79,15 +77,14 @@ function snapshot(overrides: Partial<BuyerPaymentSnapshot> = {}): BuyerPaymentSn
 }
 
 describe("payment methods — only what the backend can actually collect", () => {
-  it("offers M-Pesa through PayHero and nothing else", () => {
+  it("offers M-Pesa through Paystack and nothing else", () => {
     assert.equal(CHECKOUT_PATH, "/checkout");
     assert.equal(PAYMENT_METHODS.length, 1);
-    assert.equal(MPESA_METHOD.id, "mpesa");
-    assert.equal(MPESA_METHOD.label, "M-Pesa");
-    assert.equal(MPESA_METHOD.provider, "PAYHERO");
-    assert.equal(MPESA_METHOD.method, "MOBILE_MONEY");
-    assert.equal(MPESA_METHOD.requiresPhone, true);
-    assert.equal(MPESA_METHOD.enabled, true);
+    assert.equal(PAYSTACK_METHOD.id, "paystack");
+    assert.equal(PAYSTACK_METHOD.label, "Paystack");
+    assert.equal(PAYSTACK_METHOD.provider, "PAYSTACK");
+    assert.equal(PAYSTACK_METHOD.method, "MOBILE_MONEY");
+    assert.equal(PAYSTACK_METHOD.enabled, true);
 
     const advertised = JSON.stringify(PAYMENT_METHODS).toLowerCase();
     for (const unsupported of ["airtel", "paypal", "card", "bank transfer", "stripe"]) {
@@ -100,40 +97,27 @@ describe("payment methods — only what the backend can actually collect", () =>
   });
 });
 
-describe("phone validation — the same Kenyan rule the server enforces", () => {
-  it("accepts every common valid format", () => {
-    for (const value of ["0712345678", "0112345678", "+254712345678", "254712345678"]) {
-      assert.equal(validateMpesaPhone(value), null, `${value} should be valid`);
-    }
-  });
-
-  it("rejects invalid numbers, separators and empty input with a clear message", () => {
-    for (const value of ["00", "12345", "071234567", "0812345678", "25471", "0712 345 678"]) {
-      const error = validateMpesaPhone(value);
-      assert.ok(error, `${value} should be rejected`);
-      assert.match(error!, /valid Kenyan M-Pesa number/i);
-    }
-    for (const empty of ["", "   "]) {
-      assert.match(validateMpesaPhone(empty)!, /enter the m-pesa phone number/i);
-    }
-  });
-});
-
 describe("error mapping — safe, friendly, no internals", () => {
   it("replaces provider-level backend text with buyer-facing copy", () => {
     assert.equal(
-      mapPaymentError("provider_not_configured", "Card/mobile-money collection is not configured on this deployment."),
-      "Mobile payments are temporarily unavailable. Please try again later."
+      mapPaymentError(
+        "provider_not_configured",
+        "Mobile-money collection is not configured on this deployment."
+      ),
+      "Online payments are temporarily unavailable. Please try again later."
     );
     assert.equal(
       mapPaymentError("attempt_limit", "This order has reached the maximum number of payment attempts."),
       "Payment attempts for this order have reached the limit. Please try again later."
     );
+    assert.equal(
+      mapPaymentError("provider_retired", "This payment used a retired provider."),
+      "This payment needs to be checked by our support team. Please contact us with the order number."
+    );
   });
 
   it("prefers the backend's own domain messages (they are specific and safe)", () => {
     assert.equal(mapPaymentError("already_paid", "This order has already been paid."), "This order has already been paid.");
-    assert.equal(mapPaymentError("phone_invalid", "Enter a valid Kenyan phone number, e.g. 0712345678"), "Enter a valid Kenyan phone number, e.g. 0712345678");
     assert.equal(mapPaymentError(undefined, undefined), "Something went wrong. Please try again.");
   });
 
@@ -143,8 +127,9 @@ describe("error mapping — safe, friendly, no internals", () => {
       "provider_rejected",
       "provider_unavailable",
       "provider_invalid_response",
-      "phone_required",
-      "phone_invalid",
+      "provider_retired",
+      "payment_initializing",
+      "verification_failed",
       "not_found",
       "not_payable",
       "already_paid",
@@ -153,7 +138,7 @@ describe("error mapping — safe, friendly, no internals", () => {
     ];
     for (const code of codes) {
       const message = mapPaymentError(code, "internal provider text");
-      assert.equal(/token|channel_id|callback_url|payhero_auth|stack|Error:/i.test(message), false, code);
+      assert.equal(/token|channel_id|callback_url|secret|stack|Error:/i.test(message), false, code);
     }
   });
 });
@@ -186,7 +171,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     }
   });
 
-  it("maps an empty-cart refusal to the server's message and creates no STK call", async () => {
+  it("maps an empty-cart refusal to the server's message", async () => {
     responder = () => ({
       status: 400,
       body: { success: false, error: "Your cart is empty.", code: "empty_cart" },
@@ -213,30 +198,27 @@ describe("POST /api/orders — server-authoritative order creation", () => {
   });
 });
 
-describe("POST /api/payments/payhero/stk — exactly two fields, never a success claim", () => {
-  it("sends only orderId and phoneNumber", async () => {
+describe("POST /api/payments/paystack/initialize — exactly one field, never a success claim", () => {
+  it("sends only orderId and returns the checkout access code", async () => {
     responder = () => ({
       status: 200,
       body: {
         success: true,
         data: {
-          paymentReference: "MH-ABC12345",
-          checkoutRequestId: "ws_CO_1",
-          paymentStatus: "PROCESSING",
-          amountCents: 200_000,
-          alreadyInitiated: false,
-          providerStatus: "QUEUED",
+          accessCode: "ASxK8-9fGhJkLmNpQrStUvWx",
+          reference: "MH-ABC12345",
+          reused: false,
         },
       },
     });
 
-    const result = await initiateStkPayment("order-1", BUYER_PHONE);
+    const result = await initiatePaystackCheckout("order-1");
 
-    assert.equal(calls[0]!.url, STK_ENDPOINT);
+    assert.equal(calls[0]!.url, PAYSTACK_INITIALIZE_ENDPOINT);
+    assert.equal(calls[0]!.init.method, "POST");
     const sent = bodyOf(calls[0]!);
-    assert.deepEqual(Object.keys(sent).sort(), ["orderId", "phoneNumber"]);
+    assert.deepEqual(Object.keys(sent).sort(), ["orderId"]);
     assert.equal(sent.orderId, "order-1");
-    assert.equal(sent.phoneNumber, BUYER_PHONE);
     for (const forbidden of [
       "amount",
       "amountCents",
@@ -246,21 +228,37 @@ describe("POST /api/payments/payhero/stk — exactly two fields, never a success
       "currency",
       "buyerId",
       "sellerId",
-      "channelId",
-      "channel_id",
+      "phoneNumber",
+      "phone",
       "callbackUrl",
       "callback_url",
       "provider",
       "paymentStatus",
+      "status",
     ]) {
       assert.equal(forbidden in sent, false, `client must not send ${forbidden}`);
     }
 
-    // The response says QUEUED / PROCESSING — never "paid".
+    // The response says the checkout was created — never "paid".
     assert.equal(result.ok, true);
     if (result.ok) {
-      assert.equal(result.data.providerStatus, "QUEUED");
-      assert.equal(result.data.paymentStatus, "PROCESSING");
+      assert.equal(result.data.accessCode, "ASxK8-9fGhJkLmNpQrStUvWx");
+      assert.equal(result.data.reference, "MH-ABC12345");
+      assert.equal(result.data.reused, false);
+    }
+  });
+
+  it("rejects a malformed checkout response", async () => {
+    responder = () => ({
+      status: 200,
+      body: { success: true, data: { reference: "MH-ABC12345" } },
+    });
+
+    const result = await initiatePaystackCheckout("order-1");
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.match(result.message, /invalid checkout details/i);
     }
   });
 
@@ -269,16 +267,19 @@ describe("POST /api/payments/payhero/stk — exactly two fields, never a success
       status: 503,
       body: {
         success: false,
-        error: "Card/mobile-money collection is not configured on this deployment.",
+        error: "Mobile-money collection is not configured on this deployment.",
         code: "provider_not_configured",
       },
     });
 
-    const result = await initiateStkPayment("order-1", BUYER_PHONE);
+    const result = await initiatePaystackCheckout("order-1");
 
     assert.equal(result.ok, false);
     if (!result.ok) {
-      assert.equal(result.message, "Mobile payments are temporarily unavailable. Please try again later.");
+      assert.equal(
+        result.message,
+        "Online payments are temporarily unavailable. Please try again later."
+      );
       assert.equal(result.code, "provider_not_configured");
     }
   });
@@ -290,7 +291,7 @@ describe("payment status — reads are cheap, verification is explicit", () => {
 
     await fetchPaymentStatus("order-1");
     assert.equal(calls[0]!.init.method, "GET");
-    assert.match(calls[0]!.url, new RegExp(`^${PAYMENT_STATUS_ENDPOINT}\\?orderId=order-1`));
+    assert.equal(calls[0]!.url, `${PAYMENT_STATUS_ENDPOINT}?orderId=order-1`);
     assert.equal(calls[0]!.init.body, undefined);
 
     await fetchPaymentStatus("order-1", { verify: true });
@@ -310,7 +311,7 @@ describe("payment status — reads are cheap, verification is explicit", () => {
   });
 });
 
-describe("state honesty — a queued STK is never success", () => {
+describe("state honesty — an initiated checkout is never success", () => {
   it("maps PROCESSING/PENDING attempts to 'awaiting' and only server success to 'succeeded'", () => {
     assert.equal(paymentPhaseFromSnapshot(null), "idle");
 
@@ -319,10 +320,11 @@ describe("state honesty — a queued STK is never success", () => {
       payment: {
         id: "p1",
         status: "PROCESSING",
+        provider: "PAYSTACK",
         amountCents: 200_000,
         customerReference: "MH-ABC12345",
-        providerTransactionId: "ws_CO_1",
-        providerReference: null,
+        providerTransactionId: "48213",
+        providerReference: "MH-ABC12345",
         retryCount: 0,
         createdAt: new Date().toISOString(),
         paidAt: null,
@@ -334,7 +336,13 @@ describe("state honesty — a queued STK is never success", () => {
 
     const paid = snapshot({
       order: { id: "order-1", orderNumber: "MH-ABC12345", status: "PAID", totalCents: 200_000 },
-      payment: { ...processing.payment!, status: "SUCCESS", providerReference: "RCPT1", paidAt: new Date().toISOString() },
+      payment: {
+        ...processing.payment!,
+        status: "SUCCESS",
+        providerReference: "MH-ABC12345",
+        providerTransactionId: "48213",
+        paidAt: new Date().toISOString(),
+      },
     });
     assert.equal(paymentPhaseFromSnapshot(paid), "succeeded");
 

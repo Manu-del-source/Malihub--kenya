@@ -1,6 +1,6 @@
 """Resend email adapter.
 
-Unlike the PayHero and Cloudinary transfer stubs, this one is real: Resend is
+Unlike the retired payment-provider stubs that came before it, this one is real: Resend is
 already MaliHub's email provider on the Next.js side, its API is a single POST,
 and it is inert without `RESEND_API_KEY`. Implementing it costs ~40 lines and
 means the backend can send a confirmation email the moment something needs to,

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import health, payments
+from app.api.v1.endpoints import chat, health, payments
 from app.core.config import Settings, get_settings
 from app.schemas.common import ApiV1Index
 
@@ -32,6 +32,7 @@ api_router = APIRouter()
 
 api_router.include_router(health.router)
 api_router.include_router(payments.router)
+api_router.include_router(chat.router, tags=["chat"])
 
 
 @api_router.get(
@@ -57,6 +58,9 @@ async def v1_index(settings: Settings = Depends(get_settings)) -> ApiV1Index:
             "health": f"{prefix}/health",
             "readiness": f"{prefix}/health/ready",
             "payment_providers": f"{prefix}/payments/providers",
+            # WebSocket (one-shot-ticket authenticated); the browser obtains
+            # the ticket from the Next.js app's POST /api/chat/ws-ticket.
+            "chat_ws": f"{prefix}/chat/ws",
         },
     )
 

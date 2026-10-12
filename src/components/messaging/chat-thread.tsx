@@ -10,7 +10,7 @@ import { MessageBubble } from "@/components/messaging/message-bubble";
 import { MessageInput } from "@/components/messaging/message-input";
 import { TypingIndicator } from "@/components/messaging/typing-indicator";
 import { ImageViewer } from "@/components/messaging/image-viewer";
-import { useChatRealtime } from "@/hooks/use-chat-realtime";
+import { useChatSocket } from "@/hooks/use-chat-socket";
 import {
   sendMessageAction,
   markChatReadAction,
@@ -56,7 +56,7 @@ export function ChatThread({
     setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
   }, []);
 
-  const { typingUserIds, onlineUserIds, sendTyping } = useChatRealtime({
+  const { typingUserIds, onlineUserIds, sendTyping } = useChatSocket({
     chatId,
     userId: currentUserId,
     onMessageInsert: handleMessageInsert,

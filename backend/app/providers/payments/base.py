@@ -5,7 +5,7 @@
           ▼
     PaymentProvider  ← this module
           │
-          ├── PayHeroProvider   (providers/payments/payhero.py)  — first provider
+          ├── (no adapters today — see below)
           └── DarajaProvider    (future; deliberately absent)
 
 Everything above the line is provider-agnostic and never changes when a new
@@ -61,8 +61,22 @@ from app.core.errors import (
 
 
 class PaymentProviderName(StrEnum):
-    """Which processor moves the money. Mirrors the Prisma `PaymentProvider` enum."""
+    """Which processor moves the money. Mirrors the Prisma `PaymentProvider` enum.
 
+    Values must stay in character-for-character lockstep with
+    prisma/schema.prisma — the Postgres enum is the source of truth.
+    """
+
+    #: THE ACTIVE provider. Collection (hosted checkout, signed webhooks,
+    #: verification) is implemented in the NEXT.JS application, not in this
+    #: API: this service holds no PAYSTACK credentials and no adapter may be
+    #: registered under this name here. Reconciliation of rows written by the
+    #: Next.js app still reads this value.
+    PAYSTACK = "PAYSTACK"
+    #: RETIRED. The Phase 9 integration has been removed from this repository;
+    #: the value remains because historical `Payment` rows carry it and
+    #: reconciliation reads them. No code path in this repository creates a
+    #: new PAYHERO row, and no adapter is registered under it.
     PAYHERO = "PAYHERO"
     #: Reserved. A `Payment` must never carry this value until a
     #: `DarajaProvider` exists — see the enum comment in prisma/schema.prisma.
@@ -391,8 +405,9 @@ class ProviderCapability(_MoneyModel):
     supported_methods: tuple[PaymentMethod, ...] = ()
     #: Credentials present and the adapter implemented.
     configured: bool = False
-    #: Configured *and* usable right now. False for the Phase 8 PayHero stub,
-    #: which is configured-capable but not implemented.
+    #: Configured *and* usable right now. No adapter on this deployment is
+    #: available today — see `registry.py` for why (Paystack collection lives
+    #: in the Next.js application).
     available: bool = False
     #: Human-readable reason `available` is false. Shown in an admin surface,
     #: never used as a control.

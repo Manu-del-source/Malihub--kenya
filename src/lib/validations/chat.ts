@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_MESSAGE_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -25,7 +26,15 @@ export const sendMessageSchema = z
       .max(MAX_MESSAGE_LENGTH, `Messages must be under ${MAX_MESSAGE_LENGTH} characters`)
       .transform(stripControlCharacters)
       .optional(),
-    imageUrl: z.string().url().optional(),
+    // IMAGE deliveries from our own Cloudinary only — see
+    // isOwnCloudinaryImageUrl for why a bare url() is not enough.
+    imageUrl: z
+      .string()
+      .url()
+      .refine(isOwnCloudinaryImageUrl, {
+        message: "Photo attachments must be uploaded with the in-app uploader",
+      })
+      .optional(),
   })
   .refine((data) => !!data.content || !!data.imageUrl, {
     message: "Message can't be empty",

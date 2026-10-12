@@ -44,7 +44,6 @@ from app.providers.payments.marketplace import (
     SellerPayoutAccountStatus,
     SellerPayoutAccountType,
 )
-from app.providers.payments.payhero import PayHeroProvider
 from app.providers.payments.registry import (
     PaymentProviderRegistry,
     build_default_registry,
@@ -55,7 +54,6 @@ from app.providers.payments.registry import (
 __all__ = [
     "MarketplaceCapability",
     "MarketplaceProvider",
-    "PayHeroProvider",
     "Payer",
     "PaymentEventType",
     "PaymentInitiationRequest",

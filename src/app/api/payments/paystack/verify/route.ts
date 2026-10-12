@@ -10,30 +10,36 @@ import {
 } from "@/services/payment-status-service";
 
 /**
- * Buyer payment status for one of the caller's own orders.
+ * Buyer payment verification for one of the caller's own orders — the
+ * server-authoritative "has my payment landed?" endpoint.
  *
- * ─── Why this endpoint exists ───────────────────────────────────────────────
- * Collection already had two trusted channels: PayHero's server-to-server
- * callback and the on-demand transaction-status verification. Neither is
- * reachable from a browser: verification takes a *payment* id and no session,
- * and the callback is provider-facing. The checkout screen needs to ask "has
- * my payment landed yet?" without ever being able to settle anything itself —
- * this route is that doorway, and it only ever answers questions.
+ * ─── Why this endpoint exists ──────────────────────────────────────────────
+ * Settlement has two trusted channels: Paystack's signed webhook (push) and
+ * this on-demand verification (pull). Neither is reachable from a browser on
+ * its own terms: the webhook is provider-facing and signature-gated, and
+ * verification takes a *payment* id resolved from the session. The checkout
+ * and order screens use THIS route to ask "has my payment landed yet?" — and
+ * it can only ever ask the SERVER, which asks PAYSTACK. The browser's claim
+ * of success (the checkout popup's `onSuccess`) has no power here: it merely
+ * triggers a POST to this route, and the server decides the outcome by
+ * re-verifying the transaction against Paystack's API with the secret key.
  *
- * ─── GET — read-only ────────────────────────────────────────────────────────
- * `GET /api/payments/payhero/status?orderId=…` returns the caller's snapshot
+ * ─── GET — read-only ───────────────────────────────────────────────────────
+ * `GET /api/payments/paystack/verify?orderId=…` returns the caller's snapshot
  * from OUR database and performs no provider round-trip and no write. Cheap
- * enough to be polled on a page that is waiting for a callback.
+ * enough to be polled on a page that is waiting for the webhook.
  *
- * ─── POST — verify (server-authoritative) ───────────────────────────────────
- * `POST /api/payments/payhero/status {orderId}` first asks the existing
- * `verifyPayheroPaymentStatus` about a waiting attempt, then returns the
- * refreshed snapshot. Verification can legitimately settle a payment
- * (that is the point — it runs the same conditional claims as the callback),
- * so this method is same-origin guarded like every other mutating route, and
- * rate-limited per buyer because each call may hit PayHero.
+ * ─── POST — verify (server-authoritative, settlement-capable) ──────────────
+ * `POST /api/payments/paystack/verify {orderId}` asks
+ * `verifyPaystackPaymentStatus` about the order's waiting attempt (Paystack
+ * `GET /transaction/verify/{reference}`, amount and currency re-checked
+ * against the order row) and then returns the refreshed snapshot. This can
+ * legitimately settle the payment — through the same conditional claims the
+ * webhook uses — so this method is same-origin guarded like every other
+ * mutating route, and rate-limited per buyer because each call may hit
+ * Paystack.
  *
- * ─── Trust boundary ─────────────────────────────────────────────────────────
+ * ─── Trust boundary ────────────────────────────────────────────────────────
  * The body carries ONE field, the order id, and it is only ever used together
  * with the session's user id (`{ id, buyerId: userId }`). A payment id, buyer
  * id, amount or status in a request is not read and could not steer anything.
@@ -68,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ success: true, data: { ...snapshot, verification: null } });
   } catch (error) {
-    console.error("GET /api/payments/payhero/status failed", error);
+    console.error("GET /api/payments/paystack/verify failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }
@@ -121,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ success: true, data: snapshot });
   } catch (error) {
-    console.error("POST /api/payments/payhero/status failed", error);
+    console.error("POST /api/payments/paystack/verify failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

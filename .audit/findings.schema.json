@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "findings.schema.json",
+  "title": "MaliHub audit findings ledger",
+  "type": "object",
+  "required": ["generated", "findings"],
+  "properties": {
+    "generated": { "type": "string" },
+    "branch": { "type": "string" },
+    "note": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "severity", "status", "resolution", "evidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^ASA-[A-Z]+-[0-9]{3}$" },
+          "title": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "status": {
+            "type": "string",
+            "enum": ["fixed", "confirmed", "dismissed", "unresolved", "open"]
+          },
+          "original_description": { "type": "string" },
+          "resolution": { "type": "string", "minLength": 1 },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["file", "lines", "what"],
+              "properties": {
+                "file": { "type": "string", "minLength": 1 },
+                "lines": { "type": "string" },
+                "what": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "residual": { "type": "array", "items": { "type": "string" } },
+          "verification": { "type": "string" }
+        }
+      }
+    }
+  }
+}

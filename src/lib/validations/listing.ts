@@ -1,13 +1,32 @@
 import { z } from "zod";
 import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/constants";
+import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 
 const categorySlug = z.enum(
   DEFAULT_CATEGORIES.map((c) => c.slug) as [string, ...string[]]
 );
 
+/**
+ * Listing images must be IMAGE deliveries from OUR Cloudinary account — the
+ * same URL the in-app uploader returned. This closes two gaps a bare
+ * `z.string().url()` leaves open:
+ *
+ *  - another tenant's Cloudinary (or any external) image being stored and
+ *    proxied through our `next/image` allowlist, and
+ *  - a `/raw/` or `/video/` Cloudinary delivery of arbitrary content uploaded
+ *    through the unsigned preset, which would still sit on our own CDN host.
+ *
+ * Fails closed when the cloud name is unconfigured, like every check in
+ * `upload-security.ts`.
+ */
 export const listingImageSchema = z.object({
-  url: z.string().url(),
-  cloudinaryId: z.string().min(1),
+  url: z
+    .string()
+    .url()
+    .refine(isOwnCloudinaryImageUrl, {
+      message: "Photos must be uploaded with the in-app image uploader",
+    }),
+  cloudinaryId: z.string().min(1).max(300),
 });
 
 export const listingSchema = z.object({

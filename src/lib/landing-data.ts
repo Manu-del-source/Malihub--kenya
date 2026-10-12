@@ -12,11 +12,11 @@ export const CATEGORY_LISTING_COUNTS: Record<string, number> = {};
 
 export const POPULAR_SEARCHES = [
   "iPhone 13",
-  "Toyota Probox",
+  "Wireless headphones",
   "3-bedroom apartment",
   "Office chairs",
   "Land in Kajiado",
-  "Motorbike",
+  "Office desk",
 ];
 
 export const TRENDING_SEARCHES = [
@@ -24,7 +24,7 @@ export const TRENDING_SEARCHES = [
   "Maize harvester",
   "Studio apartment Nairobi",
   "Second-hand fridge",
-  "Toyota Vitz",
+  "Sneakers",
 ];
 
 export const RECENT_SEARCHES_SAMPLE = [

@@ -87,8 +87,8 @@
       radial-gradient(42% 48% at 12% 15%, hsl(var(--primary) / 0.16), transparent 72%),
       radial-gradient(38% 46% at 85% 25%, hsl(25 30% 24% / 0.19), transparent 72%),
       radial-gradient(36% 42% at 60% 85%, hsl(var(--primary) / 0.08), transparent 72%);
-    background-size: 170% 170%;
-    animation: mesh-drift 24s ease-in-out infinite alternate;
+    /* Keep the ambient glow static: animated background-position triggers repeated paint work. */
+    background-size: cover;
   }
 
   .copper-text {
@@ -139,6 +139,21 @@
   .hero-orbit { animation: orbit-breathe 8s ease-in-out infinite alternate; }
   .hero-orbit-delayed { animation-delay: -3s; }
 
+  /* Short, transform-only entrances keep motion polished without layout thrashing. */
+  .hero-tile-enter {
+    animation: tile-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--tile-delay, 0ms);
+  }
+
+  .interactive-lift {
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+  .interactive-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgb(0 0 0 / 0.2);
+  }
+  .interactive-lift:active { transform: translateY(0) scale(0.99); }
+
   .site-footer { background: linear-gradient(180deg, #0b0b0a 0%, #080808 100%); }
   .footer-glow {
     background: radial-gradient(48% 100% at 50% 0%, hsl(var(--primary) / 0.08), transparent 75%);
@@ -181,9 +196,9 @@
   .marketing-document li { text-wrap: pretty; }
 }
 
-@keyframes mesh-drift {
-  0% { background-position: 0% 0%, 100% 0%, 50% 100%; }
-  100% { background-position: 8% 12%, 92% 10%, 45% 88%; }
+@keyframes tile-enter {
+  from { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes orbit-breathe {
   0% { transform: scale(0.98); opacity: 0.45; }
@@ -193,7 +208,14 @@
   100% { transform: translateX(100%); }
 }
 
+@media (max-width: 640px) {
+  /* Avoid expensive blur/backdrop effects on small devices and slower GPUs. */
+  .site-header-surface { backdrop-filter: blur(10px); }
+  .hero-visual-tile { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hero-tile-enter { animation: none !important; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

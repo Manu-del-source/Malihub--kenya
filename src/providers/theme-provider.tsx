@@ -14,21 +14,13 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = "malihub-theme";
 
-export function ThemeProvider({
-  children,
-  defaultTheme = "dark",
-}: {
-  children: React.ReactNode;
-  defaultTheme?: Theme;
-}) {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // MaliHub's public design is intentionally dark black-and-copper. Ignore
+  // OS preference and stale saved light-mode values to prevent white pages.
+  const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    const initial =
-      stored ??
-      (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-    setThemeState(initial);
+    setThemeState("dark");
   }, []);
 
   useEffect(() => {

@@ -10,7 +10,7 @@ import {
 import { fadeUp } from "@/lib/motion";
 
 const ICONS: Record<string, LucideIcon> = {
-  Car, Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
+  Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
   WashingMachine, Dumbbell, BookOpen, Baby, PawPrint, Package, Footprints,
 };
 

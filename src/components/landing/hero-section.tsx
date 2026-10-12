@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, ArrowUpRight, Car, Home, Smartphone, Shirt, Sparkles, ShieldCheck,
+  ArrowRight, ArrowUpRight, Sofa, Home, Smartphone, Shirt, Sparkles, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
@@ -13,9 +13,9 @@ import { PopularSearches } from "@/components/landing/popular-searches";
 
 const visualCategories = [
   { label: "Electronics", icon: Smartphone, className: "hero-tile-electronics" },
-  { label: "Vehicles", icon: Car, className: "hero-tile-vehicles" },
+  { label: "Home essentials", icon: Sofa, className: "hero-tile-home" },
   { label: "Fashion", icon: Shirt, className: "hero-tile-fashion" },
-  { label: "Property & home", icon: Home, className: "hero-tile-home" },
+  { label: "Property", icon: Home, className: "hero-tile-home" },
 ];
 
 export function HeroSection() {

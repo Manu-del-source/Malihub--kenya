@@ -9,8 +9,8 @@ import { staggerContainer, defaultViewport } from "@/lib/motion";
 
 export function CategoriesSection() {
   return (
-    <section id="categories" className="py-24 sm:py-32">
-      <Container className="flex flex-col gap-14">
+    <section id="categories" className="py-20 sm:py-28">
+      <Container className="flex flex-col gap-10 sm:gap-14">
         <SectionHeading
           eyebrow="Browse"
           title="Browse marketplace categories"

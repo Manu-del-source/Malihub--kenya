@@ -17,8 +17,8 @@ const tips = [
 
 export default function SupportPage() {
   return (
-    <Container className="py-12 sm:py-16">
-      <article className="mx-auto max-w-3xl">
+    <Container className="marketing-page py-16 sm:py-20">
+      <article className="marketing-document mx-auto max-w-3xl rounded-3xl border border-white/[0.07] bg-[#0e0e0d]/75 px-6 py-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-10 sm:py-10">
         <p className="text-sm font-medium text-primary">Help centre</p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Support &amp; Safety

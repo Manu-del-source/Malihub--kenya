@@ -24,38 +24,33 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <Container className="pt-4">
-        <div className="glass flex items-center justify-between rounded-full px-4 py-2.5 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-display text-lg font-medium">
-            <span
-              aria-hidden
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-secondary text-sm font-semibold text-primary-foreground"
-            >
+      <Container className="pt-3 sm:pt-4">
+        <div className="site-header-surface flex items-center justify-between rounded-2xl px-3 py-2.5 sm:rounded-full sm:px-5">
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="MaliHub home">
+            <span aria-hidden className="brand-mark flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-[#17110a] transition-transform group-hover:rotate-[-5deg]">
               M
             </span>
-            MaliHub
+            <span className="font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Mali<span className="text-primary-400">Hub</span>
+            </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary navigation">
             {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
+              <Link key={link.href} href={link.href} className="nav-link text-sm font-medium text-muted-foreground transition-colors hover:text-primary-400">
                 {link.label}
               </Link>
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
             </button>
 
             <NotificationBell isSignedIn={!!user} />
@@ -68,9 +63,8 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                   <Link href="/login">Sign in</Link>
                 </Button>
                 <Button variant="primary" size="sm" asChild className="hidden sm:inline-flex">
-                  <Link href="/register">
-                    Start selling
-                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                  <Link href="/register?role=seller">
+                    Start selling <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
                   </Link>
                 </Button>
               </>
@@ -81,9 +75,10 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground lg:hidden"
+              aria-controls="mobile-primary-navigation"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
             >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>
           </div>
         </div>
@@ -92,20 +87,16 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            id="mobile-primary-navigation"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="px-4 pt-2 lg:hidden"
           >
-            <div className="glass flex flex-col gap-1 rounded-2xl p-3">
+            <div className="site-header-surface mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl p-3">
               {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
+                <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="rounded-xl px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {link.label}
                 </Link>
               ))}
@@ -113,15 +104,10 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                 {user ? (
                   <>
                     <Button variant="secondary" size="sm" asChild className="flex-1">
-                      <Link href="/buyer" onClick={() => setMobileOpen(false)}>
-                        Dashboard
-                      </Link>
+                      <Link href="/buyer" onClick={() => setMobileOpen(false)}>Dashboard</Link>
                     </Button>
                     <form action={signOutAction} className="flex-1">
-                      <button
-                        type="submit"
-                        className="h-9 w-full rounded-full border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
-                      >
+                      <button type="submit" className="h-9 w-full rounded-full border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive">
                         Sign out
                       </button>
                     </form>
@@ -129,10 +115,10 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                 ) : (
                   <>
                     <Button variant="secondary" size="sm" asChild className="flex-1">
-                      <Link href="/login">Sign in</Link>
+                      <Link href="/login" onClick={() => setMobileOpen(false)}>Sign in</Link>
                     </Button>
                     <Button variant="primary" size="sm" asChild className="flex-1">
-                      <Link href="/register">Start selling</Link>
+                      <Link href="/register?role=seller" onClick={() => setMobileOpen(false)}>Start selling</Link>
                     </Button>
                   </>
                 )}

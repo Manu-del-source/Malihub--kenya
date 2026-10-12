@@ -60,6 +60,7 @@ export async function searchListings(
 
   const conditions: Prisma.Sql[] = [
     Prisma.sql`p.status = 'ACTIVE'`,
+    Prisma.sql`c.slug <> 'vehicles'`,
     Prisma.sql`EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED')`,
   ];
 
@@ -188,7 +189,8 @@ export async function getSearchSuggestions(query: string, limit = 6) {
     SELECT p.title, p.slug
     FROM products p
     JOIN sellers s ON s.id = p.seller_id AND s.verification_status = 'VERIFIED'
-    WHERE p.status = 'ACTIVE' AND p.title % ${query.trim()}
+    JOIN categories c ON c.id = p.category_id
+    WHERE p.status = 'ACTIVE' AND c.slug <> 'vehicles' AND p.title % ${query.trim()}
     ORDER BY similarity(p.title, ${query.trim()}) DESC
     LIMIT ${limit}
   `;
@@ -200,7 +202,7 @@ export async function getSearchSuggestions(query: string, limit = 6) {
  * why the marketing page still uses editorial content instead. */
 export async function getTrendingSearchTerms(limit = 6) {
   const rows = await prisma.product.findMany({
-    where: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
+    where: { status: "ACTIVE", category: { slug: { not: "vehicles" } }, seller: { verificationStatus: "VERIFIED" } },
     orderBy: { viewCount: "desc" },
     take: limit,
     select: { title: true },

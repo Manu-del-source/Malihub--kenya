@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Moon, Sun, ArrowUpRight } from "lucide-react";
+import { Menu, X, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { useTheme } from "@/providers/theme-provider";
 import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOutAction } from "@/app/(auth)/actions";
@@ -20,7 +19,6 @@ const NAV_LINKS = [
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
@@ -44,15 +42,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
-            </button>
-
             <NotificationBell isSignedIn={!!user} />
 
             {user ? (

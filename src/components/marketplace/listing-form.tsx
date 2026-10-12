@@ -79,7 +79,7 @@ export function ListingForm({
       <FormField id="title" label="Title" error={errors.title?.message}>
         <Input
           id="title"
-          placeholder="e.g. Toyota Probox 2015, well maintained"
+          placeholder="e.g. Samsung Galaxy phone, excellent condition"
           invalid={!!errors.title}
           {...register("title")}
         />
@@ -128,7 +128,7 @@ export function ListingForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField id="brand" label="Brand (optional)" error={errors.brand?.message}>
-          <Input id="brand" placeholder="e.g. Toyota, Samsung" {...register("brand")} />
+          <Input id="brand" placeholder="e.g. Samsung, Nike, Sony" {...register("brand")} />
         </FormField>
         <FormField id="quantity" label="Quantity" error={errors.quantity?.message}>
           <Input id="quantity" type="number" min={1} {...register("quantity")} />

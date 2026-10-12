@@ -60,7 +60,7 @@ export async function searchListings(
 
   const conditions: Prisma.Sql[] = [
     Prisma.sql`p.status = 'ACTIVE'`,
-    Prisma.sql`c.slug <> 'vehicles'`,
+    Prisma.sql`c.slug NOT IN ('vehicles', 'property')`,
     Prisma.sql`EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED')`,
   ];
 
@@ -145,7 +145,7 @@ export async function searchListings(
 
 export async function getListingBySlug(slug: string) {
   return prisma.product.findFirst({
-    where: { slug, category: { slug: { not: "vehicles" } } },
+    where: { slug, category: { slug: { notIn: ["vehicles", "property"] } } },
     include: PRODUCT_INCLUDE,
   });
 }

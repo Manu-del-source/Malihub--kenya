@@ -5,6 +5,11 @@
  * another Cloudinary account's or another Supabase project's public
  * files, which would still match the hostname allowlist. These validators
  * close that gap by checking the URL path is actually ours.
+ *
+ * `*.supabase.co` is a LEGACY entry: profile avatars created before the Phase 2
+ * Cloudinary cutover are still hosted in the Supabase `avatars` bucket until
+ * `scripts/migrate-avatars-to-cloudinary.mjs` has run and been verified in
+ * production. No upload path writes there any more.
  */
 
 function getCloudinaryCloudName(): string | null {

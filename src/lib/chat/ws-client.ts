@@ -157,6 +157,12 @@ export class ChatSocketManager {
     if (this.status === "open" && this.ws) {
       this.send({ type: "join", chatId });
     }
+    // Fresh user interest re-arms a manager that gave up. This is the ONLY
+    // place the counter is reset: resetting it on each retry (inside
+    // `ensureConnected`) made `MAX_RECONNECT_ATTEMPTS` unreachable, so a
+    // permanently failing endpoint meant an unbounded retry loop — the
+    // opposite of what this module documents.
+    this.reconnectAttempts = 0;
     this.ensureConnected();
 
     return () => {
@@ -193,8 +199,9 @@ export class ChatSocketManager {
   private ensureConnected(): void {
     if (this.listeners.size === 0) return;
     if (this.status !== "inactive") return;
-    // A previous run gave up; re-arm on fresh interest.
-    this.reconnectAttempts = 0;
+    // NOTE: the attempt counter is deliberately NOT reset here — this method
+    // is what the reconnect timer calls, so resetting would defeat the cap.
+    // `subscribe()` owns the re-arm (see its comment).
     this.clearReconnectTimer();
     this.status = "connecting";
     this.intentionalClose = false;

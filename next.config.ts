@@ -10,12 +10,16 @@ import type { NextConfig } from "next";
  *    requires 'unsafe-inline' for RSC script tags — a known residual, see
  *    .audit/), Paystack InlineJS (checkout), and the Cloudinary upload
  *    widget's loader (the only third-party script on any page).
- *  - connect: Paystack API + checkout host, Cloudinary's upload endpoint and
- *    CDN (the upload widget XHRs there), and Supabase (storage + realtime
- *    websocket).
- *  - images: our own, data/blob (picker previews), Cloudinary, Supabase
- *    storage and Google profile avatars — exactly the `images.remotePatterns`
- *    set below.
+ *  - connect: Paystack API + checkout host, and Cloudinary's upload endpoint
+ *    and CDN (the upload widget XHRs there). Supabase was dropped here in
+ *    Phase 4 of docs/SUPABASE-REMOVAL-PLAN.md: the browser no longer talks to
+ *    it at all (avatars go through POST /api/avatar/upload, chat realtime goes
+ *    through our own POST /api/chat/ws-ticket + the FastAPI WebSocket), so no
+ *    `*.supabase.co` / `wss://*.supabase.co` origin is needed.
+ *  - images: our own, data/blob (picker previews), Cloudinary, Google profile
+ *    avatars, and `*.supabase.co` — that last one is LEGACY-only, for avatars
+ *    still hosted in the old Supabase bucket until the avatar migration in
+ *    scripts/migrate-avatars-to-cloudinary.mjs is verified in production.
  *  - frames: same-origin only, plus Paystack's checkout host. The Cloudinary
  *    upload widget opens its UI in a POPUP window (its own origin, outside
  *    our CSP's frame-src), so no Cloudinary frame entry is needed.
@@ -33,7 +37,7 @@ const SECURITY_HEADERS: { key: string; value: string }[] = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com https://*.supabase.co wss://*.supabase.co",
+      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com",
       "frame-src 'self' https://checkout.paystack.com",
       "object-src 'none'",
       "base-uri 'self'",
@@ -80,6 +84,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
+        // LEGACY avatars only. Nothing uploads here since Phase 2 (avatars are
+        // written to Cloudinary); this entry keeps pre-migration avatars
+        // renderable and comes out once the avatar migration is verified in
+        // production. See docs/SUPABASE-REMOVAL-PLAN.md §3 and §6.
       },
       {
         protocol: "https",

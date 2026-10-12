@@ -10,16 +10,18 @@ const TYPING_TIMEOUT_MS = 3000;
 /**
  * Wire rows carry ISO date strings (exactly what the HTTP API delivers too);
  * the thread's `Message`-typed state already contains such strings at runtime
- * (the old realtime path cast Postgres payloads the same way). Centralizing
- * the cast here keeps the `Date`/`string` mismatch in one documented place.
+ * (the Supabase realtime hook this replaces cast Postgres payloads the same
+ * way, before it was deleted in Phase 4). Centralizing the cast here keeps the
+ * `Date`/`string` mismatch in one documented place.
  */
 function asMessage(row: ChatMessageRow): Message {
   return row as unknown as Message;
 }
 
 /**
- * Realtime state for one chat thread — a drop-in replacement for the old
- * Supabase realtime hook (`use-chat-realtime.ts`).
+ * Realtime state for one chat thread. This replaced the Supabase Realtime hook
+ * (`use-chat-realtime.ts`, deleted in Phase 4 — docs/SUPABASE-REMOVAL-PLAN.md
+ * §5) and keeps its contract.
  *
  * Same contract, same consumers:
  *   - `typingUserIds` / `onlineUserIds` sets for the badges,

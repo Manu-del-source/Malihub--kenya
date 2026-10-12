@@ -1,5 +1,14 @@
 # Supabase Removal — Migration Plan (Phase 1 audit output)
 
+> **Phase status:** Phases 2 (avatars → Cloudinary) and 3 (chat realtime →
+> FastAPI WebSocket + Redis) are implemented; **Phase 4 (dependency removal) is
+> complete as of 2026-10-12 on branch `arena/174af3cf-malihub-kenya`.** What was
+> actually removed, what deliberately remains, the gate results and the
+> outstanding production steps are in
+> [`SUPABASE-REMOVAL-PHASE4-REPORT.md`](./SUPABASE-REMOVAL-PHASE4-REPORT.md).
+> The audit and phase plan below are kept as written — they are the record of
+> what §1 found, not a description of the current tree.
+
 **Status:** plan v1 — 2026-10-12, branch `arena/8b21d47b-malihub-kenya`, HEAD `ee102f3`.
 **Goal:** remove Supabase from the MaliHub runtime without breaking auth, database,
 messaging, avatar upload, payments, or deployment. Neon (Postgres + Neon Auth)

@@ -15,10 +15,10 @@ import { slugify } from "@/utils";
  * history, and so the diff between the two systems stays reviewable side by
  * side.
  *
- * Restoring it is documented in docs/auth/MIGRATION.md §8. The short version:
- * this module alone is NOT sufficient to roll back — the Server Actions, the
- * middleware and the ~25 call sites that now use `@/lib/auth` also have to move
- * back, which is why the documented rollback path is
+ * Restoring it is documented in docs/auth/MIGRATION.md §9 (rollback plan). The
+ * short version: this module alone is NOT sufficient to roll back — the Server
+ * Actions, the middleware and the ~25 call sites that now use `@/lib/auth` also
+ * have to move back, which is why the documented rollback path is
  *
  *     git checkout <pre-migration-commit> -- src/app/\(auth\)/actions.ts \
  *       src/middleware.ts src/services/auth-service.ts src/lib/auth
@@ -26,19 +26,22 @@ import { slugify } from "@/utils";
  * with this file as the reference for what the Supabase side did.
  *
  * ─── Why it is not simply deleted ──────────────────────────────────────────
- * Supabase itself is NOT being removed from MaliHub. It stays installed and
- * configured, and two non-authentication features still depend on it in the
- * live request path:
- *
- *   - profile avatar uploads  → `src/components/auth/avatar-upload.tsx`
- *                               (Supabase Storage, `avatars` bucket)
- *   - chat realtime           → `src/hooks/use-chat-realtime.ts`
- *                               (Supabase Realtime, postgres_changes + presence)
- *
- * What is retired is Supabase **Auth** specifically: session issuing, password
+ * Supabase **Auth** is what is retired here: session issuing, password
  * verification, OAuth, email verification, password reset, and the
  * `app_metadata` claim cache. Those must not run alongside Neon Auth, because
  * two providers both able to establish a session is two authentication systems.
+ *
+ * The rest of Supabase left MaliHub in Phases 2–4 of
+ * docs/SUPABASE-REMOVAL-PLAN.md, so nothing in the live request path depends on
+ * it any more:
+ *
+ *   - profile avatar uploads  → Cloudinary (`POST /api/avatar/upload`, Phase 2)
+ *   - chat realtime           → FastAPI WebSocket + Upstash Redis (Phase 3)
+ *   - browser Supabase client → deleted, together with the Realtime hook (Phase 4)
+ *
+ * This auth rollback set is therefore the *only* surviving consumer of
+ * `@supabase/ssr` (via `src/lib/supabase/server.ts`), and MIGRATION.md §9 is the
+ * authority on when it may be deleted.
  *
  * ─── The app_metadata architecture this replaces ───────────────────────────
  * The functions below mirrored MaliHub's authoritative role/onboarding state

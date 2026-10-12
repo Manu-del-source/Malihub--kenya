@@ -35,7 +35,7 @@ this can serve traffic, how existing users are handled, and how to go back.
 | No production environment variable was changed. | Not ours to change. §3 lists what must be set. |
 | No Neon Console configuration (Google OAuth, email provider, trusted domains). | Requires console access. §5–§6 are the checklist. |
 | Nothing deployed, pushed, or merged. | Work is on branch `arena/01a0d6e7-malihub-kenya`. |
-| Supabase packages not removed, Supabase project not touched. | Still used for Storage (avatars) and Realtime (chat) — see §10. |
+| Supabase packages not removed, Supabase project not touched. | At the time, Storage (avatars) and Realtime (chat) still lived on Supabase — see §10. Superseded by Phases 2–4 of `docs/SUPABASE-REMOVAL-PLAN.md`: avatars moved to Cloudinary, chat realtime to FastAPI + Redis, and `@supabase/supabase-js` was removed from `package.json`. The Supabase *project* was never touched: no bucket, table or row was deleted. |
 | No destructive database migration. | The one migration adds a nullable column. |
 | No Next.js or unrelated dependency upgrades. | Out of scope. |
 | The FastAPI backend was not modified. | Different service, own deploy. §7 says exactly what it needs. |
@@ -112,7 +112,9 @@ MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL=false
   request time. A half-configured deployment fails closed with a redirect to
   `/login` and a `console.error`, not an opaque edge 500.
 
-Supabase variables are **still required** — Storage and Realtime use them (§10).
+Of the Supabase variables, only `NEXT_PUBLIC_SUPABASE_URL` is still required by
+the default deployment — and then only to validate and migrate **legacy avatar
+URLs** (§10). Everything else in that block is rollback-only.
 
 ### The build-time trap
 
@@ -253,7 +255,8 @@ never reach Google.
 - [ ] `MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL=false` for launch
 - [ ] Build route table shows `ƒ (Dynamic)` for `/`, `/notifications`, `/buyer/*`,
       `/seller/*`, `/messages/*`, `/complete-profile`, `/verify-email` (§3)
-- [ ] Supabase variables still present — Storage and Realtime need them (§10)
+- [ ] `NEXT_PUBLIC_SUPABASE_URL` present — legacy avatar URLs are validated
+      against it until the avatar migration is verified (§10)
 - [ ] FastAPI backend re-pointed per §7 **before** the app goes live, or its
       authenticated routes will reject every token
 
@@ -397,7 +400,8 @@ deleted:
 |---|---|
 | `src/lib/supabase/auth-legacy.ts` | the complete retired implementation: identity mapping, provisioning keyed on `users.id`, `syncSupabaseAppMetadata`, `supabaseCompleteUserProfile`, `mapSupabaseError` |
 | `src/lib/supabase/middleware.ts` | `updateSession()` — restore the call in `src/middleware.ts` |
-| `src/lib/supabase/{client,server}.ts` | never removed; still in use for Storage/Realtime |
+| `src/lib/supabase/server.ts` | never removed; the service-role client `auth-legacy.ts` needs. (Its sibling `client.ts` — the browser client — was deleted in Phase 4, when the Storage/Realtime code that used it was replaced. Restoring the *browser* client is `git checkout` of that one file.) |
+| `package.json` → `@supabase/ssr` | retained for the two files above. `@supabase/supabase-js` was removed in Phase 4 with its last importer, so **a rollback starts with `npm install @supabase/supabase-js@2.117.3`** — `@supabase/ssr` only declares it as a peer, and `.npmrc` sets `legacy-peer-deps`, so npm will not add it back on its own. |
 | `/api/auth/callback` | currently 410; restore from git history if OAuth/email links must work again |
 
 Because application code depends on `@/lib/auth` rather than on a provider,
@@ -446,18 +450,27 @@ files cost nothing — they are not imported, not bundled (verify: the edge bund
 
 ## 10. Supabase: what stays and why
 
+**Updated by Phase 4 of `docs/SUPABASE-REMOVAL-PLAN.md`** — the table below is
+the post-Phase-4 state. Full evidence and the remaining work are in
+`docs/SUPABASE-REMOVAL-PHASE4-REPORT.md`.
+
 | Capability | Status | Note |
 |---|---|---|
-| **Auth** | **removed from the request path** | code retained in `auth-legacy.ts` |
-| Storage — profile avatars | **kept** | `src/components/auth/avatar-upload.tsx`; not authentication |
-| Realtime — chat presence/typing | **kept** | `src/hooks/use-chat-realtime.ts`; unrelated to identity |
+| **Auth** | **removed from the request path** | code retained, unreferenced, in `auth-legacy.ts` (§9) |
+| Storage — profile avatars | **moved to Cloudinary** (Phase 2) | `POST /api/avatar/upload`; no anon key in the browser any more. Pre-migration Supabase avatar URLs are still valid and still render until the migration script has run *and* been verified in production |
+| Realtime — chat presence/typing | **moved to FastAPI WebSocket + Redis** (Phase 3) | `src/hooks/use-chat-socket.ts`; `use-chat-realtime.ts` was deleted in Phase 4 |
 | Postgres as the app database | unchanged | §6c of the root architecture doc; Prisma owns the schema |
-| `manual_rls_policies.sql`, `manual_storage_avatars.sql` | still apply | RLS is the backstop for anything reaching Postgres outside Prisma |
+| `manual_rls_policies.sql` | still applies *where Postgres is Supabase-hosted* | RLS is the backstop for anything reaching Postgres outside Prisma; the Neon deployment has no anon-key path at all |
+| `manual_storage_avatars.sql` | **legacy** | defines the bucket that pre-Phase-2 avatars are still served from — and that the avatar migration reads. Nothing uploads to it |
+| `manual_phase6_rls_realtime.sql` | **RLS half applies if Supabase-hosted; Realtime half legacy** | nothing subscribes to the `supabase_realtime` publication since Phase 3 |
 | `manual_auth_trigger.sql` | obsolete | it mirrored Supabase `auth.users` into `users`; only ever meaningful when the app database *was* Supabase Postgres |
 
-The packages (`@supabase/supabase-js`, `@supabase/ssr`) stay installed and
-importable. Removing them would break Storage and Realtime, which are not part of
-this migration.
+**Packages.** `@supabase/supabase-js` was removed in Phase 4 — its last importer
+was the browser Realtime client, deleted with the Phase 3 replacement.
+`@supabase/ssr` **stays installed and importable**: it is what the two retained
+rollback modules (above) build on, and deleting it would turn the documented
+rollback into a code archaeology exercise. See
+`docs/SUPABASE-REMOVAL-PHASE4-REPORT.md` for the exact trigger that lets it go.
 
 ---
 

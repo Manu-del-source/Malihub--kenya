@@ -21,7 +21,7 @@ ARCHITECTURE.md, and **`docs/auth/`** for the authoritative auth design.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Neon Auth/Supabase/Cloudinary keys
+cp .env.example .env.local   # fill in Neon Auth/Cloudinary/Upstash keys
 npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 ```
 
@@ -40,6 +40,14 @@ npx prisma migrate dev       # creates/updates tables from prisma/schema.prisma
 > too**. The one exception is the Phase 8 file, which exists purely to upgrade an
 > *existing* database without destroying data.
 >
+> Two of them are **legacy**: `manual_storage_avatars.sql` (3) defines the
+> Supabase `avatars` bucket that pre-Phase-2 avatars still live in, and
+> `manual_phase6_rls_realtime.sql` (5) enables the `supabase_realtime`
+> publication that the chat UI used before Phase 3. The application no longer
+> writes the bucket or subscribes to that publication, so neither is needed for
+> a new deployment — run them only if you are keeping the legacy Supabase
+> artefacts they describe (and run (3) before `scripts/migrate-avatars-to-cloudinary.mjs`).
+>
 > The file names say which phase introduced them, not the order to run them.
 > The list below **is** the order to run them.
 
@@ -49,8 +57,9 @@ Supabase Postgres** — they reference Supabase primitives (`auth.uid()`,
 `auth.jwt()`, the `supabase_realtime` publication) and cannot be executed as
 written against an independent Neon/RDS database, where the application-layer
 authorization in `src/lib/auth/session.ts` is the data-layer control. The
-storage file (3) runs against your **Supabase project** (the avatars bucket
-lives there). The rest run against the application database itself.
+storage file (3) runs against your **Supabase project** (legacy avatars live in
+that bucket; nothing in the app writes it any more). The rest run against the
+application database itself.
 
 1. `prisma/migrations/manual_auth_trigger.sql` — mirrors `auth.users` into
    `public.users`/`profiles` on signup. **Only relevant when the application
@@ -62,16 +71,21 @@ lives there). The rest run against the application database itself.
    `users` row.
 2. `prisma/migrations/manual_rls_policies.sql` — Row Level Security for
    user-owned tables.
-3. `prisma/migrations/manual_storage_avatars.sql` — creates the `avatars`
-   Storage bucket + policies used by /complete-profile.
+3. `prisma/migrations/manual_storage_avatars.sql` — creates the Supabase
+   `avatars` Storage bucket + policies. **Legacy**: no code path uploads there
+   since Phase 2 (`/complete-profile` posts to `/api/avatar/upload`, which writes
+   to Cloudinary). Needed only while pre-migration avatars are still served from
+   that bucket — and by `scripts/migrate-avatars-to-cloudinary.mjs`, which reads
+   them from there.
 4. `prisma/migrations/manual_product_search.sql` — full-text search
    (tsvector + trigram indexes) that `/search` depends on directly.
 5. `prisma/migrations/manual_phase6_rls_realtime.sql` — RLS for
    chats/messages/orders/order_reviews, and enables Supabase Realtime on
-   `messages`/`chats`. **Required** for the chat UI's live updates to work
-   at all — without the `alter publication supabase_realtime add table`
-   statements in this file, Realtime subscriptions on those tables will
-   simply never fire, with no error to point at why.
+   `messages`/`chats`. The Realtime half is **legacy**: chat live updates run on
+   the FastAPI WebSocket + Redis fan-out since Phase 3, and nothing subscribes to
+   the `supabase_realtime` publication any more, so a new deployment does not
+   need those `alter publication …` statements. The RLS half still matters only
+   on a Supabase-hosted database (see the paragraph above).
 6. `prisma/migrations/manual_phase8_provider_agnostic_payments.sql` —
    **existing databases only; skip on a fresh one**, where
    `prisma migrate dev` already produces this exact shape. It creates
@@ -173,12 +187,12 @@ src/
                   search, audit) — the choke points other code calls through
   emails/         React Email templates, sent via services/email-service.ts
   lib/            auth/ (the provider abstraction — the ONLY place
-                  @neondatabase/auth is imported), supabase/ (Storage and
-                  Realtime clients, plus the retained rollback target),
-                  Prisma client, constants, redis.ts, rate-limit.ts, csrf.ts,
-                  validations/
+                  @neondatabase/auth is imported), chat/ (WebSocket client +
+                  wire protocol), supabase/ (RETAINED ROLLBACK TARGET ONLY —
+                  nothing in the request path imports it), Prisma client,
+                  constants, redis.ts, rate-limit.ts, csrf.ts, validations/
   utils/          Pure helpers (formatKes, slugify, timeAgo, toKenyanMsisdn, …)
-  types/          Domain types + Supabase generated types
+  types/          Domain types + the retained Supabase generated types
   providers/      React context providers (theme, react-query)
   middleware.ts   Authentication gate ONLY (fail-closed, no database access);
                   authorization lives in the server-side guards in lib/auth/

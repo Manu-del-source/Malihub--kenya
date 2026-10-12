@@ -41,6 +41,15 @@ backend/dist/
 # Local Prisma engine placeholders (offline sandboxes only) — never committed.
 .prisma-engines/
 
+# TypeScript's incremental-build cache (`tsconfig.json` sets `incremental`).
+# It is a generated, machine-dependent artifact: absolute paths, resolved
+# node_modules/.next entries and compiler-internal ids all vary per checkout,
+# so committing it produces diffs that describe the machine, not the code.
+# Removing it only costs one full type-check on the next run; nothing imports
+# it and `tsc` writes it automatically.
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # Data artifacts from migration scripts (old→new avatar URL mappings, …).
 # They reference production rows and live on the machine that ran the script.
 data/

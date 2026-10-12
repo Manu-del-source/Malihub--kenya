@@ -87,7 +87,8 @@ export function HeroSection() {
                 <Link
                   key={label}
                   href="/marketplace"
-                  className={`hero-visual-tile group relative flex min-h-40 flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.09] p-5 transition duration-300 hover:-translate-y-1 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-52 sm:p-6 ${className} ${index % 2 === 1 ? "sm:translate-y-7" : ""}`}
+                  style={{ "--tile-delay": `${index * 75}ms` } as React.CSSProperties}
+                  className={`hero-visual-tile hero-tile-enter group relative flex min-h-40 flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.09] p-5 transition duration-300 hover:-translate-y-1 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-52 sm:p-6 ${className} ${index % 2 === 1 ? "sm:translate-y-7" : ""}`}
                 >
                   <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/[0.08] blur-2xl transition group-hover:bg-primary/[0.16]" aria-hidden />
                   <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-black/30 text-primary-400">

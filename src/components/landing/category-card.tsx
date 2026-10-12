@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Car, Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
+  Home, Smartphone, Tv, Sofa, Shirt, Sparkles, Wheat, Briefcase, Wrench,
   WashingMachine, Dumbbell, BookOpen, Baby, PawPrint, Package, Footprints,
   ArrowUpRight, type LucideIcon,
 } from "lucide-react";

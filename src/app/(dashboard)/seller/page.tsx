@@ -15,7 +15,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireSellerAccess } from "@/lib/auth";
@@ -80,7 +79,7 @@ export default async function SellerDashboardPage() {
   const ordersPreview = (recentOrders ?? []).slice(0, 5);
 
   return (
-    <Container className="py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Badge variant={seller.verificationStatus === "VERIFIED" ? "verified" : "default"}>
@@ -89,39 +88,41 @@ export default async function SellerDashboardPage() {
           <h1 className="mt-2 font-display text-3xl font-medium">{seller.businessName}</h1>
         </div>
         {seller.verificationStatus === "VERIFIED" ? (
-          <Button asChild>
-            <Link href={`${SELLER_DASHBOARD_PATH}/listings/new`}>
-              <Plus className="h-4 w-4" aria-hidden />
-              New listing
-            </Link>
-          </Button>
+          <Link
+            href={`${SELLER_DASHBOARD_PATH}/listings/new`}
+            className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add new listing
+          </Link>
         ) : (
-          <Button asChild>
-            <Link href="/seller/onboarding">
-              <Plus className="h-4 w-4" aria-hidden />
-              {seller.verificationStatus === "PENDING" ? "View application" : "Complete application"}
-            </Link>
-          </Button>
+          <Link
+            href="/seller/onboarding"
+            className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {seller.verificationStatus === "PENDING" ? "View application" : "Complete application"}
+          </Link>
         )}
       </div>
 
       {seller.verificationStatus !== "VERIFIED" && (
-        <section className="mb-8 rounded-2xl border border-orange-200 bg-orange-50 p-5 sm:p-6" aria-label="Seller verification status">
-          <h2 className="font-semibold text-slate-900">
+        <section className="mb-8 rounded-2xl border border-[#FF8C42]/25 bg-[#141414] p-5 sm:p-6" aria-label="Seller verification status">
+          <h2 className="font-semibold text-white">
             {seller.verificationStatus === "PENDING"
               ? "Your seller application is under review"
               : seller.verificationStatus === "REJECTED"
                 ? "Your seller application needs attention"
                 : "Finish setting up your seller account"}
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/70">
             {seller.verificationStatus === "PENDING"
               ? "MaliHub is reviewing your business details. You can check or update your application while you wait."
               : seller.verificationStatus === "REJECTED"
                 ? "Update your business details and resubmit your application. New listings are available after approval."
                 : "Submit your business profile for review. Once MaliHub approves it, you can publish listings."}
           </p>
-          <Link href="/seller/onboarding" className="mt-3 inline-flex text-sm font-semibold text-orange-700 underline underline-offset-4 hover:text-orange-800">
+          <Link href="/seller/onboarding" className="mt-3 inline-flex text-sm font-semibold text-[#FF8C42] underline underline-offset-4 hover:text-white">
             {seller.verificationStatus === "PENDING" ? "View application →" : "Continue application →"}
           </Link>
         </section>
@@ -133,7 +134,7 @@ export default async function SellerDashboardPage() {
           <Link
             key={label}
             href={href}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-white/60 transition-colors hover:border-[#FF8C42]/40 hover:text-white"
           >
             <Icon className="h-4 w-4" aria-hidden />
             {label}
@@ -144,22 +145,31 @@ export default async function SellerDashboardPage() {
       {/* ── First-product empty state ───────────────────────────────────── */}
       {stats.totalListings === 0 && (
         <div className="mb-8">
-          <EmptyState
-            icon={Package}
-            title="You haven't listed any products yet."
-            description={seller.verificationStatus === "VERIFIED"
-              ? "Your first listing is how buyers find you. Add a product to start selling on MaliHub."
-              : "Complete seller verification first. Once approved, you can publish your first product."}
-            actionLabel={seller.verificationStatus === "VERIFIED" ? "Add your first product" : "Complete seller application"}
-            actionHref={seller.verificationStatus === "VERIFIED" ? `${SELLER_DASHBOARD_PATH}/listings/new` : "/seller/onboarding"}
-          />
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] py-20 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#FF8C42]">
+              <Package className="h-6 w-6" aria-hidden />
+            </div>
+            <h2 className="mt-5 text-lg font-semibold text-white">You haven't listed any products yet.</h2>
+            <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-white/60">
+              {seller.verificationStatus === "VERIFIED"
+                ? "Your first listing is how buyers find you. Add a product to start selling on MaliHub."
+                : "Complete seller verification first. Once approved, you can publish your first product."}
+            </p>
+            <Link
+              href={seller.verificationStatus === "VERIFIED" ? `${SELLER_DASHBOARD_PATH}/listings/new` : "/seller/onboarding"}
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {seller.verificationStatus === "VERIFIED" ? "Add your first product" : "Complete seller application"}
+            </Link>
+          </div>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {STAT_CARDS.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="rounded-xl border border-border bg-card p-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary-400">
+          <div key={key} className="rounded-2xl border border-white/10 bg-[#141414] p-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#FF8C42]/20 bg-[#FF8C42]/10 text-[#FF8C42]">
               <Icon className="h-4 w-4" aria-hidden />
             </div>
             <p className="mt-3 font-mono text-2xl font-medium tabular-nums">{stats[key].toLocaleString()}</p>
@@ -171,7 +181,7 @@ export default async function SellerDashboardPage() {
       {lowStockCount > 0 && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
           <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-          <p className="text-amber-600 dark:text-amber-400">
+          <p className="text-amber-300">
             {lowStockCount} active listing{lowStockCount === 1 ? " is" : "s are"} low on
             stock (3 units or fewer).{" "}
             <Link

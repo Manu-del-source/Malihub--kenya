@@ -32,11 +32,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     [categories, products] = await Promise.all([
       prisma.category.findMany({
-        where: { isActive: true, slug: { not: "vehicles" } },
+        where: { isActive: true, slug: { notIn: ["vehicles", "property"] } },
         select: { slug: true },
       }),
       prisma.product.findMany({
-        where: { status: "ACTIVE", category: { slug: { not: "vehicles" } }, seller: { verificationStatus: "VERIFIED" } },
+        where: { status: "ACTIVE", category: { slug: { notIn: ["vehicles", "property"] } }, seller: { verificationStatus: "VERIFIED" } },
         select: { slug: true, updatedAt: true },
         take: 50000, // Sitemap protocol cap is 50k URLs per file
         orderBy: { updatedAt: "desc" },

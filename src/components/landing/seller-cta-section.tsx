@@ -49,9 +49,9 @@ function SellerIllustration() {
 
 export function SellerCtaSection() {
   return (
-    <section id="sell" className="py-24 sm:py-32">
+    <section id="sell" className="py-16 sm:py-24">
       <Container>
-        <div className="glass grid grid-cols-1 items-center gap-12 rounded-2xl p-8 sm:p-12 lg:grid-cols-2 lg:p-16">
+        <div className="seller-cta-panel grid grid-cols-1 items-center gap-8 rounded-3xl border border-primary/15 p-6 sm:gap-12 sm:p-10 lg:grid-cols-2 lg:p-14">
           <motion.div variants={fadeIn} initial="hidden" whileInView="visible" viewport={defaultViewport}>
             <SellerIllustration />
           </motion.div>

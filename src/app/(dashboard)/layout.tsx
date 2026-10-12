@@ -1,16 +1,5 @@
 import Link from "next/link";
-import {
-  Heart,
-  LayoutDashboard,
-  LogOut,
-  MessageCircle,
-  Package,
-  Search,
-  ShieldCheck,
-  ShoppingCart,
-  Store,
-  UserRound,
-} from "lucide-react";
+import { LogOut, Search, ShoppingCart, UserRound } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
@@ -19,6 +8,7 @@ import {
   SELLER_DASHBOARD_PATH,
 } from "@/lib/auth/config";
 import { signOutAction } from "@/app/(auth)/actions";
+import { DashboardNavLinks } from "@/components/shell/dashboard-nav-links";
 
 /**
  * Role-aware navigation.
@@ -60,54 +50,6 @@ function buildNav({
   return { primary, account };
 }
 
-function NavIcon({ label }: { label: string }) {
-  const className = "h-4 w-4 shrink-0";
-  switch (label) {
-    case "Marketplace":
-      return <Store className={className} aria-hidden />;
-    case "Wishlist":
-      return <Heart className={className} aria-hidden />;
-    case "Dashboard":
-      return <LayoutDashboard className={className} aria-hidden />;
-    case "Products":
-      return <Package className={className} aria-hidden />;
-    case "Orders":
-    case "My orders":
-      return <ShoppingCart className={className} aria-hidden />;
-    case "Sales":
-      return <Package className={className} aria-hidden />;
-    case "Messages":
-      return <MessageCircle className={className} aria-hidden />;
-    case "Profile":
-      return <UserRound className={className} aria-hidden />;
-    case "Admin":
-      return <ShieldCheck className={className} aria-hidden />;
-    default:
-      return null;
-  }
-}
-
-function NavLinks({ items, mobile = false }: { items: NavItem[]; mobile?: boolean }) {
-  return (
-    <>
-      {items.map((item) => (
-        <Link
-          key={`${item.label}-${item.href}`}
-          href={item.href}
-          className={
-            mobile
-              ? "flex shrink-0 items-center gap-2 rounded-full border border-orange-100 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-orange-300 hover:text-orange-700"
-              : "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-orange-50 hover:text-orange-700"
-          }
-        >
-          <NavIcon label={item.label} />
-          {item.label}
-        </Link>
-      ))}
-    </>
-  );
-}
-
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
   const { primary, account } = buildNav({
@@ -116,12 +58,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   });
 
   return (
-    <div className="min-h-svh bg-slate-50">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-orange-100 bg-orange-50">
-          <Container className="flex items-center justify-between py-1.5 text-xs text-slate-600">
+    <div className="min-h-svh bg-[#0A0A0A] text-white">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#111111]">
+        <div className="border-b border-white/10 bg-[#111111]">
+          <Container className="flex items-center justify-between py-1.5 text-xs text-white/60">
             <span>Discover great finds on MaliHub</span>
-            <Link href="/marketplace" className="font-semibold text-orange-700 hover:text-orange-800">
+            <Link href="/marketplace" className="font-semibold text-[#FF8C42] transition hover:text-white">
               Shop the marketplace
             </Link>
           </Container>
@@ -131,11 +73,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
             <span
               aria-hidden
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-lg font-extrabold text-white shadow-sm shadow-orange-200"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF8C42] text-lg font-extrabold text-black"
             >
               M
             </span>
-            <span className="font-display text-xl font-bold tracking-tight text-slate-900">
+            <span className="font-display text-xl font-bold tracking-tight text-white">
               Mali<span className="text-orange-600">Hub</span>
             </span>
           </Link>
@@ -144,18 +86,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <label htmlFor="dashboard-marketplace-search" className="sr-only">
               Search products and listings
             </label>
-            <div className="flex h-11 w-full overflow-hidden rounded-lg border border-slate-300 bg-white transition focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100">
-              <Search className="ml-3.5 mt-3 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+            <div className="flex h-11 w-full overflow-hidden rounded-full border border-white/10 bg-[#1A1A1A] transition focus-within:border-[#FF8C42]/60 focus-within:ring-2 focus-within:ring-[#FF8C42]/15">
+              <Search className="ml-3.5 mt-3 h-4 w-4 shrink-0 text-white/40" aria-hidden />
               <input
                 id="dashboard-marketplace-search"
                 name="q"
                 type="search"
                 placeholder="Search products, brands and more..."
-                className="min-w-0 flex-1 bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-white/35"
               />
               <button
                 type="submit"
-                className="flex shrink-0 items-center gap-2 bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 sm:px-5"
+                className="flex shrink-0 items-center gap-2 bg-[#FF8C42] px-4 text-sm font-bold text-black transition hover:bg-[#ff9b5c] sm:px-5"
               >
                 Search
               </button>
@@ -166,14 +108,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <NotificationBell isSignedIn />
             <Link
               href="/account"
-              className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-slate-700 transition hover:bg-orange-50 hover:text-orange-700 sm:flex"
+              className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-white/60 transition hover:bg-white/5 hover:text-white sm:flex"
             >
               <UserRound className="h-5 w-5" aria-hidden />
               <span className="text-sm font-medium">Account</span>
             </Link>
             <Link
               href="/buyer/cart"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-slate-700 transition hover:bg-orange-50 hover:text-orange-700"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-white/60 transition hover:bg-white/5 hover:text-white"
             >
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium sm:inline">Cart</span>
@@ -183,7 +125,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 type="submit"
                 aria-label="Sign out"
                 title="Sign out"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/50 transition hover:bg-red-500/10 hover:text-red-300"
               >
                 <LogOut className="h-4 w-4" aria-hidden />
               </button>
@@ -191,17 +133,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </Container>
 
-        <div className="border-t border-slate-100 bg-white">
+        <div className="border-t border-white/10 bg-[#111111]">
           <Container>
             <nav className="hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
-              <NavLinks items={primary} />
-              <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
-              <NavLinks items={account} />
+              <DashboardNavLinks items={primary} />
+              <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-white/10" />
+              <DashboardNavLinks items={account} />
               <div className="ml-auto flex shrink-0 items-center gap-2 pl-3">
                 <form action={signOutAction}>
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-white/50 transition hover:bg-red-500/10 hover:text-red-300"
                   >
                     <LogOut className="h-4 w-4" aria-hidden />
                     Sign out
@@ -211,9 +153,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </nav>
 
             <nav className="flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
-              <NavLinks items={[...primary, ...account]} mobile />
+              <DashboardNavLinks items={[...primary, ...account]} mobile />
               <form action={signOutAction} className="shrink-0">
-                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-100 bg-white px-3.5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50">
+                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-400/20 bg-[#141414] px-3.5 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">
                   <LogOut className="h-4 w-4" aria-hidden />
                   Sign out
                 </button>

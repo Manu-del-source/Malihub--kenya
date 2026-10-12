@@ -54,11 +54,14 @@ export function DashboardNavLinks({
   return (
     <>
       {items.map((item) => {
+        const routePrefix = item.label === "Products" ? "/seller/listings" : item.href;
         const active =
           pathname === item.href ||
-          (item.href !== "/marketplace" &&
-            item.href !== "/buyer/wishlist" &&
-            pathname.startsWith(item.href + "/"));
+          (item.label === "Products" && pathname.startsWith("/seller/listings")) ||
+          (item.label !== "Dashboard" &&
+            item.label !== "Marketplace" &&
+            routePrefix !== "/buyer/wishlist" &&
+            pathname.startsWith(routePrefix + "/"));
 
         return (
           <Link

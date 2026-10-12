@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     template: "%s | MaliHub Kenya",
   },
   description:
-    "MaliHub Kenya is a marketplace to discover electronics, phones, fashion, property, home essentials, and services from sellers across all 47 counties.",
+    "MaliHub Kenya is a marketplace to discover electronics, phones, fashion, home essentials, and services from sellers across all 47 counties.",
   keywords: [
     "Kenya marketplace",
     "buy and sell Kenya",

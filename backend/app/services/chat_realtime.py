@@ -348,7 +348,8 @@ def get_chat_realtime_hub() -> ChatRealtimeHub:
                     row = (await session.execute(statement)).first()
                 return row is not None
             except Exception as exc:
-                # exception text can embed the DSN and the bound user id).
+                # Log the exception TYPE only, never its text: driver errors
+                # can embed the DSN and the bound user id.
                 logger.warning(
                     "chat_participant_query_failed",
                     extra={"event": "chat_participant_query_failed", "error_type": type(exc).__name__},

@@ -172,6 +172,10 @@ function track(fn: () => void) {
   return fn;
 }
 
+function trackSubscription(unsub: () => void): () => void {
+  return track(unsub);
+}
+
 function listener(partial: Partial<ChatSocketListener>): ChatSocketListener {
   return {
     onMessageInsert: () => undefined,
@@ -287,5 +291,122 @@ describe("ChatSocketManager lifecycle", () => {
     manager.sendTyping(CHAT_1); // within 1.5s window → dropped
     const typings = ws.sentCommands().filter((c) => c.type === "typing");
     assert.equal(typings.length, 1);
+  });
+});
+
+// ─── resilience: backoff, give-up, heartbeat, ticket retry ──────────────────
+
+/**
+ * Reconnect and heartbeat behaviour, driven by `mock.timers` so the manager's
+ * real timers are exercised without waiting real seconds. These are the paths
+ * that decide what a browser tab does when the FastAPI host restarts, a
+ * network drops, or the ticket endpoint is temporarily unavailable — all of
+ * which must stay "chat works over HTTP", never "chat silently breaks".
+ */
+describe("ChatSocketManager resilience", () => {
+  const flush = () => new Promise((r) => setImmediate(r));
+
+  it("reconnects with a new ticket after an unexpected close and re-joins", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+
+    const onJoined = trackSubscription(manager.subscribe(CHAT_1, USER_A, listener({})));
+    assert.ok(onJoined);
+
+    await flush();
+    const first = FakeWebSocket.instances[0]!;
+    first.open();
+    assert.deepEqual(first.sentCommands(), [{ type: "join", chatId: CHAT_1 }]);
+
+    // The server drops the connection (deploy, network, watchdog).
+    first.drop();
+
+    // No hammering: the first retry waits out the backoff window.
+    assert.equal(FakeWebSocket.instances.length, 1);
+    t.mock.timers.tick(1_000);
+    await flush();
+    assert.equal(FakeWebSocket.instances.length, 2);
+
+    // The new socket is a fresh one (fresh ticket) and rejoins the room.
+    const second = FakeWebSocket.instances[1]!;
+    second.open();
+    assert.deepEqual(second.sentCommands(), [{ type: "join", chatId: CHAT_1 }]);
+  });
+
+  it("gives up after the attempt cap instead of retrying forever", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+
+    trackSubscription(manager.subscribe(CHAT_1, USER_A, listener({})));
+    await flush();
+
+    // 20 failed attempts (MAX_RECONNECT_ATTEMPTS), each closed immediately.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      FakeWebSocket.instances.at(-1)!.drop();
+      t.mock.timers.tick(30_000); // ≥ every backoff step
+      await flush();
+    }
+    const afterCap = FakeWebSocket.instances.length;
+    assert.equal(afterCap, 21); // 1 initial + 20 retries
+
+    // A 21st close yields no further socket — the loop is bounded, which is
+    // the whole point of the cap (a permanently failing endpoint must not be
+    // retried forever; chat stays on HTTP in the meantime).
+    FakeWebSocket.instances.at(-1)!.drop();
+    t.mock.timers.tick(60_000);
+    await flush();
+    assert.equal(FakeWebSocket.instances.length, afterCap);
+
+    // …and fresh user interest re-arms it, exactly as documented: a new
+    // subscription restarts the backoff from a clean slate.
+    trackSubscription(manager.subscribe(CHAT_1, USER_A, listener({})));
+    await flush();
+    assert.equal(FakeWebSocket.instances.length, afterCap + 1);
+  });
+
+  it("heartbeats: pings while pongs arrive, closes and retries when they stop", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+
+    trackSubscription(manager.subscribe(CHAT_1, USER_A, listener({})));
+    await flush();
+    const ws = FakeWebSocket.instances[0]!;
+    ws.open(); // lastPongAt = now
+
+    // One interval, a pong comes back → connection stays up.
+    t.mock.timers.tick(25_000);
+    assert.deepEqual(ws.sentCommands().at(-1), { type: "ping" });
+    ws.deliver({ type: "pong" });
+    t.mock.timers.tick(25_000);
+    assert.equal(ws.sentCommands().filter((c) => c.type === "ping").length, 2);
+    assert.equal(ws.readyState, FakeWebSocket.OPEN);
+
+    // Now stop answering: 3 intervals is 75s > the 65s pong timeout, so the
+    // client tears the socket down itself rather than clinging to a dead one —
+    // which also arms the reconnect path.
+    t.mock.timers.tick(25_000);
+    t.mock.timers.tick(25_000);
+    t.mock.timers.tick(25_000);
+    assert.equal(ws.readyState, 3, "a socket that stops ponging must be closed client-side");
+  });
+
+  it("degrades to HTTP-only when the ticket endpoint fails, then retries once", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return { ok: false, status: 503, json: async () => ({ success: false }) } as unknown as Response;
+    }) as typeof fetch;
+
+    trackSubscription(manager.subscribe(CHAT_1, USER_A, listener({})));
+    await flush();
+
+    // No socket, no thrown error out of subscribe(): realtime is simply off.
+    assert.equal(FakeWebSocket.instances.length, 0);
+    assert.equal(calls, 1);
+
+    // The cooldown re-arms it exactly once per window (not a hot loop).
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(calls, 2);
+    assert.equal(FakeWebSocket.instances.length, 0);
   });
 });

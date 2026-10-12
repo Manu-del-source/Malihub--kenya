@@ -17,6 +17,7 @@ type CategoryPageProps = {
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
+  if (slug === "vehicles") return { robots: { index: false, follow: false } };
   const category = await prisma.category.findUnique({ where: { slug }, select: { name: true } });
   if (!category) return {};
 
@@ -29,6 +30,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
+  if (slug === "vehicles") notFound();
   const category = await prisma.category.findUnique({ where: { slug, isActive: true } });
   if (!category) notFound();
 

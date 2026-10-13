@@ -55,13 +55,17 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.co.ke"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.smartbiz365.site"),
   title: {
     default: "MaliHub Kenya — Buy & Sell Anything, Anywhere in Kenya",
     template: "%s | MaliHub Kenya",
   },
   description:
     "MaliHub Kenya is a marketplace to discover electronics, phones, fashion, home essentials, and services from sellers across all 47 counties.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
   keywords: [
     "Kenya marketplace",
     "buy and sell Kenya",

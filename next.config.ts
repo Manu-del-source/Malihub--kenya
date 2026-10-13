@@ -8,16 +8,16 @@ import type { NextConfig } from "next";
  *
  *  - scripts: our own bundles, Next.js inline flight/style tags (App Router
  *    requires 'unsafe-inline' for RSC script tags — a known residual, see
- *    .audit/), Paystack InlineJS (checkout), and the Cloudinary upload
- *    widget's loader (the only third-party script on any page).
- *  - connect: Paystack API + checkout host, and Cloudinary's upload endpoint
- *    and CDN (the upload widget XHRs there). Supabase was dropped here in
+ *    .audit/), Paystack InlineJS (checkout), the Cloudinary upload widget's loader, and Google Tag Manager for the configured
+ *    Google Analytics tag.
+ *  - connect: Paystack API + checkout host, Cloudinary's upload endpoint/CDN,
+ *    and Google Analytics collection endpoints. Supabase was dropped here in
  *    Phase 4 of docs/SUPABASE-REMOVAL-PLAN.md: the browser no longer talks to
  *    it at all (avatars go through POST /api/avatar/upload, chat realtime goes
  *    through our own POST /api/chat/ws-ticket + the FastAPI WebSocket), so no
  *    `*.supabase.co` / `wss://*.supabase.co` origin is needed.
- *  - images: our own, data/blob (picker previews), Cloudinary, Google profile
- *    avatars, and `*.supabase.co` — that last one is LEGACY-only, for avatars
+ *  - images: our own, data/blob (picker previews), Cloudinary, Google Analytics
+ *    audience endpoints, Google profile avatars, and `*.supabase.co` — legacy-only, for avatars
  *    still hosted in the old Supabase bucket until the avatar migration in
  *    scripts/migrate-avatars-to-cloudinary.mjs is verified in production.
  *  - frames: same-origin only, plus Paystack's checkout host. The Cloudinary
@@ -35,9 +35,9 @@ const SECURITY_HEADERS: { key: string; value: string }[] = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://js.paystack.co https://upload-widget.cloudinary.com https://www.googletagmanager.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com https://stats.g.doubleclick.net https://www.google.co.ke",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com",
+      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com https://www.google.com https://analytics.google.com https://stats.g.doubleclick.net",
       "frame-src 'self' https://checkout.paystack.com https://upload-widget.cloudinary.com",
       "object-src 'none'",
       "base-uri 'self'",

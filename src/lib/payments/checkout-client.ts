@@ -146,11 +146,12 @@ function failureFrom(
 }
 
 /**
- * `POST /api/orders` — creates the PENDING order(s) for the session's cart.
+ * `POST /api/orders` — creates PENDING order(s) for the session's cart.
  *
- * The body is an empty object on purpose: prices, sellers and ownership are
- * server-derived, and the cart is a single-use token server-side (a doubled
- * request loses the claim and creates nothing twice).
+ * Only delivery county/address are supplied by the buyer. Prices, sellers,
+ * inventory and ownership are server-derived, and the cart is claimed
+ * transactionally server-side so a duplicated request cannot create orders
+ * twice.
  */
 export async function createCheckoutOrders(delivery: {
   county: string;

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { BadgeCheck, PackageSearch, Search, ShieldCheck, Truck } from "lucide-react";
+import { BadgeCheck, PackageSearch, Search, ShieldCheck, Truck, SlidersHorizontal } from "lucide-react";
 import { SearchFiltersSidebar } from "@/components/marketplace/search-filters-sidebar";
 import { SearchResultsGrid } from "@/components/marketplace/search-results-grid";
 import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrapper";
@@ -11,9 +11,8 @@ import { DEFAULT_CATEGORIES } from "@/lib/constants";
 import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back-button";
 
 /**
- * Shared marketplace browser: a real database-backed catalogue with search,
- * category links, filters, sorting and cursor pagination. Keep the page
- * focused on shopping rather than marketing/landing-page content.
+ * Shared marketplace browser: database-backed catalogue with search,
+ * category links, filters, sorting and cursor pagination.
  */
 export async function MarketplaceBrowser({
   rawParams,
@@ -28,45 +27,34 @@ export async function MarketplaceBrowser({
 
   const parsed = searchParamsSchema.safeParse(flatParams);
   const params = parsed.success ? parsed.data : { sort: "newest" as const };
-
   const result = await searchListings(params);
   const initialItems = result.items.map((item) => toListingCardData(item));
-
   const clientParamsString = new URLSearchParams(
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
   ).toString();
-
   const activeCategory = flatParams.category;
 
   return (
-    <div className="mx-auto max-w-[1440px]">
+    <div className="mx-auto max-w-[1440px] min-w-0">
       <MarketplaceBackButton />
-      <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="grid gap-5 bg-gradient-to-br from-card via-card to-primary/10 p-5 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-center lg:p-8">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              MaliHub Marketplace
-            </div>
-            <h1 className="max-w-2xl font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {heading ?? (flatParams.q ? `Results for “${flatParams.q}”` : "Find your next great deal")}
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Discover products from sellers across Kenya. Compare prices, check seller details and shop with confidence.
-            </p>
+      <section className="mb-4 overflow-hidden rounded-xl border border-border bg-card sm:mb-6 sm:rounded-2xl">
+        <div className="bg-gradient-to-br from-card via-card to-primary/10 px-4 py-4 sm:p-7 lg:p-8">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary sm:mb-3 sm:px-3 sm:text-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            MaliHub Marketplace
           </div>
-          <div className="hidden items-center gap-3 rounded-xl border border-border/70 bg-background/70 p-4 lg:flex">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ShieldCheck className="h-5 w-5" aria-hidden />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Shop with confidence</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Seller details on every listing</p>
-            </div>
+          <h1 className="max-w-2xl font-display text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            {heading ?? (flatParams.q ? `Results for “${flatParams.q}”` : "Find your next great deal")}
+          </h1>
+          <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-base sm:leading-6">
+            Discover products from sellers across Kenya. Compare prices and shop with confidence.
+          </p>
+          <div className="mt-3 hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <ShieldCheck className="h-4 w-4 text-primary" aria-hidden />
+            Seller details on every listing
           </div>
         </div>
-
-        <form action="/marketplace" method="get" className="border-t border-border p-3 sm:p-4">
+        <form action="/marketplace" method="get" role="search" className="border-t border-border p-3 sm:p-4">
           <div className="flex gap-2">
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">Search products</span>
@@ -76,23 +64,23 @@ export async function MarketplaceBrowser({
                 name="q"
                 defaultValue={typeof flatParams.q === "string" ? flatParams.q : ""}
                 placeholder="Search products, brands and more..."
-                className="h-12 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="h-11 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 sm:h-12 sm:rounded-xl sm:pl-11 sm:pr-4"
               />
             </label>
-            <button type="submit" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-6">
+            <button type="submit" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-12 sm:rounded-xl sm:px-6">
               <Search className="h-4 w-4" aria-hidden />
               <span className="hidden sm:inline">Search</span>
             </button>
           </div>
         </form>
-      </div>
+      </section>
 
-      <nav aria-label="Browse categories" className="mb-7">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Explore categories</h2>
-          <span className="text-xs text-muted-foreground">Shop by category</span>
+      <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Categories</h2>
+          <span className="hidden text-xs text-muted-foreground sm:inline">Shop by category</span>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {DEFAULT_CATEGORIES.slice(0, 10).map((category) => {
             const selected = activeCategory === category.slug;
             return (
@@ -100,7 +88,7 @@ export async function MarketplaceBrowser({
                 key={category.slug}
                 href={selected ? "/marketplace" : `/marketplace?category=${encodeURIComponent(category.slug)}`}
                 aria-current={selected ? "page" : undefined}
-                className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-medium transition ${selected ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5"}`}
+                className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5"}`}
               >
                 {category.name}
               </Link>
@@ -109,36 +97,43 @@ export async function MarketplaceBrowser({
         </div>
       </nav>
 
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
-        <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">The catalogue</p>
-          <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3 sm:mb-5 sm:pb-4">
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-semibold tracking-tight sm:text-2xl">
             {flatParams.q ? "Search results" : activeCategory ? "Explore this category" : "Browse all listings"}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {result.items.length > 0 ? "Fresh finds from sellers around Kenya" : "No listings found for these filters"}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="hidden items-center gap-2 text-xs text-muted-foreground xl:flex">
           <PackageSearch className="h-4 w-4" aria-hidden />
-          <span>Filter by location, condition and price</span>
+          Filter by location, condition and price
         </div>
       </div>
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:gap-7">
-        <div className="rounded-2xl border border-border bg-card p-4 lg:w-64 lg:shrink-0 lg:self-start lg:p-5">
-          <Suspense fallback={null}>
-            <SearchFiltersSidebar />
-          </Suspense>
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:gap-7">
+        <div className="lg:hidden">
+          <details className="group rounded-xl border border-border bg-card">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden /> Filters &amp; refine</span>
+              <span className="text-xs text-muted-foreground group-open:hidden">Tap to open</span>
+              <span className="hidden text-xs text-muted-foreground group-open:inline">Tap to close</span>
+            </summary>
+            <div className="border-t border-border p-2">
+              <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
+            </div>
+          </details>
         </div>
+        <aside className="hidden lg:block lg:w-64 lg:shrink-0 lg:self-start">
+          <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
+        </aside>
         <div className="min-w-0 flex-1">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
+            <p className="text-xs text-muted-foreground sm:text-sm">
               <span className="font-semibold text-foreground">{result.items.length}</span> listings on this page
             </p>
-            <Suspense fallback={null}>
-              <SortDropdownWrapper currentSort={params.sort} />
-            </Suspense>
+            <Suspense fallback={null}><SortDropdownWrapper currentSort={params.sort} /></Suspense>
           </div>
           <SearchResultsGrid
             searchParamsString={clientParamsString}
@@ -149,18 +144,18 @@ export async function MarketplaceBrowser({
         </div>
       </div>
 
-      <div className="mt-10 grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 sm:p-5">
+      <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-border bg-card p-4 sm:grid sm:p-5 lg:mt-10">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeCheck className="h-5 w-5" aria-hidden /></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeCheck className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold">Verified sellers</p><p className="text-xs text-muted-foreground">Look for seller verification</p></div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Truck className="h-5 w-5" aria-hidden /></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Truck className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold">Shop across Kenya</p><p className="text-xs text-muted-foreground">Browse listings by county</p></div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-5 w-5" aria-hidden /></div>
-          <div><p className="text-sm font-semibold">Know the seller</p><p className="text-xs text-muted-foreground">Review listing and seller information</p></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-5 w-5" aria-hidden /></div>
+          <div><p className="text-sm font-semibold">Know the seller</p><p className="text-xs text-muted-foreground">Review seller information</p></div>
         </div>
       </div>
     </div>

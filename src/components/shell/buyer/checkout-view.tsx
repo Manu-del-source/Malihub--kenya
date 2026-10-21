@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   CreditCard,
   TriangleAlert,
+  MapPin,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,27 +61,37 @@ type Stage = "review" | "creating" | "paying";
 export type CheckoutViewProps = {
   summary: CheckoutSummary;
   buyer: { name: string | null; email: string; phone: string | null };
+  initialDeliveryCounty?: string | null;
 };
 
-export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
+export function CheckoutView({ summary, buyer, initialDeliveryCounty }: CheckoutViewProps) {
   const [stage, setStage] = useState<Stage>("review");
+  const [deliveryCounty, setDeliveryCounty] = useState(initialDeliveryCounty ?? "");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
 
   const [error, setError] = useState<string | null>(null);
   const [paystackReady, setPaystackReady] = useState(false);
 
-  // One order-creation call at a time, for the lifetime of this screen.
-  const createOrdersOnce = useMemo(() => createSerializedTask(createCheckoutOrders), []);
+  // The order service remains server-authoritative for products, quantities and prices.
+  // Delivery details are the only buyer-supplied fields accepted by the order endpoint.
 
   const blockedByStock = summary.unavailableCount > 0;
 
   async function handlePay() {
     if (stage !== "review") return;
 
+    const county = deliveryCounty.trim();
+    const address = deliveryAddress.trim();
+    if (!county || !address || address.length < 5) {
+      setError("Enter your delivery county and a full delivery address before continuing.");
+      return;
+    }
+
     setError(null);
     setStage("creating");
 
-    const result = await createOrdersOnce();
+    const result = await createCheckoutOrders({ county, address });
     if (!result.ok) {
       setError(result.message);
       setStage("review");
@@ -141,8 +152,47 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-6">
           {/* ── Delivery / buyer information ───────────────────────────────── */}
           <section className="glass rounded-xl p-4 sm:rounded-2xl sm:p-6">
-            <h2 className="font-display text-lg font-medium">Delivery &amp; buyer information</h2>
-            <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <MapPin className="h-4 w-4" aria-hidden />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-medium">Delivery details</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Tell the seller where to deliver your order.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block text-sm font-medium">
+                County <span className="text-destructive">*</span>
+                <input
+                  value={deliveryCounty}
+                  onChange={(event) => setDeliveryCounty(event.target.value)}
+                  maxLength={80}
+                  autoComplete="address-level1"
+                  placeholder="e.g. Uasin Gishu"
+                  required
+                  className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
+              <label className="block text-sm font-medium sm:col-span-2">
+                Delivery address / pickup details <span className="text-destructive">*</span>
+                <textarea
+                  value={deliveryAddress}
+                  onChange={(event) => setDeliveryAddress(event.target.value)}
+                  minLength={5}
+                  maxLength={300}
+                  autoComplete="street-address"
+                  placeholder="Town, estate, street, building or agreed pickup point"
+                  required
+                  rows={3}
+                  className="mt-1.5 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">Up to 300 characters. Do not enter your M-Pesa PIN or payment credentials.</span>
+              </label>
+            </div>
+            <div className="mt-5 border-t border-border pt-4">
+              <h3 className="text-sm font-medium">Your contact details</h3>
+              <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">Name</dt>
                 <dd className="mt-0.5">{buyer.name ?? "Not set"}</dd>
@@ -157,10 +207,10 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
                 </dt>
                 <dd className="mt-0.5">{buyer.phone || "Not set"}</dd>
               </div>
-            </dl>
+              </dl>
+            </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Delivery is arranged with each seller after payment — MaliHub does not add a delivery
-              fee at checkout.
+              Delivery cost and timing are confirmed with the seller before dispatch; they are not included in this total yet.
             </p>
           </section>
 
@@ -341,7 +391,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
                 type="button"
                 className="mt-5 w-full"
                 onClick={() => void handlePay()}
-                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady}
+                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !deliveryCounty.trim() || deliveryAddress.trim().length < 5}
               >
                 {paystackReady
                   ? `Pay securely · ${formatKes(summary.totalCents)}`

@@ -10,7 +10,7 @@ import type {
  * ─── What a request may carry ───────────────────────────────────────────────
  * Exactly what the existing route handlers accept and nothing else:
  *
- *   POST /api/orders                        → `{}` (the session is the payload)
+ *   POST /api/orders                        → delivery county/address only
  *   POST /api/payments/paystack/initialize  → `{ orderId }`
  *   GET  /api/payments/paystack/verify      → `?orderId=…`
  *   POST /api/payments/paystack/verify      → `{ orderId }`
@@ -152,13 +152,19 @@ function failureFrom(
  * server-derived, and the cart is a single-use token server-side (a doubled
  * request loses the claim and creates nothing twice).
  */
-export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>> {
+export async function createCheckoutOrders(delivery: {
+  county: string;
+  address: string;
+}): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
   try {
     response = await fetch(ORDERS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        deliveryCounty: delivery.county,
+        deliveryAddress: delivery.address,
+      }),
     });
   } catch {
     return { ok: false, status: 0, message: "We couldn't reach the server. Please try again." };

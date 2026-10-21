@@ -168,4 +168,13 @@ describe("checkout UI — credentials never reach the browser", () => {
       "no amount is ever sent from the client"
     );
   });
+
+  it("requires and persists delivery details before creating seller orders", () => {
+    const route = read("src/app/api/orders/route.ts");
+    const service = read("src/modules/orders/service.ts");
+    assert.match(route, /invalid_delivery_details/, "invalid shipping information must be rejected");
+    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address \}\)/);
+    assert.match(service, /deliveryCounty: delivery\.county/);
+    assert.match(service, /deliveryAddress: delivery\.address/);
+  });
 });

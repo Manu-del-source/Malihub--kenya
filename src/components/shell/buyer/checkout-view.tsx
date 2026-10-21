@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import type { CheckoutSummary } from "@/lib/payments/checkout-summary";
 import {
   createCheckoutOrders,
-  createSerializedTask,
   PAYMENT_METHODS,
   initiatePaystackCheckout,
   fetchPaymentStatus,
@@ -34,7 +33,7 @@ import { formatKes } from "@/utils";
  *
  * ─── Flow ───────────────────────────────────────────────────────────────────
  *  review  → the buyer sees the SERVER's cart and presses "Pay securely …".
- *  creating→ `POST /api/orders` (body `{}`) creates the PENDING order(s) —
+ *  creating→ `POST /api/orders` (delivery details only) creates PENDING order(s) —
  *            one per seller — and reserves stock. Nothing is created before
  *            this click, so merely visiting checkout reserves nothing.
  *  paying  → the created order(s) are shown with the real amounts from the
@@ -44,8 +43,8 @@ import { formatKes } from "@/utils";
  *
  * ─── What the browser never sends ───────────────────────────────────────────
  * No prices, subtotal, total, seller or buyer id, amount, currency or
- * provider setting. The order call sends `{}`; the initialization call sends
- * `{ orderId }`. Everything else is server-derived.
+ * provider setting. The order call sends delivery county/address only; the
+ * initialization call sends `{ orderId }`. Everything else is server-derived.
  *
  * ─── Duplicate safety ───────────────────────────────────────────────────────
  * The CTA is disabled while working, the created orders live in component
@@ -193,20 +192,20 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
             <div className="mt-5 border-t border-border pt-4">
               <h3 className="text-sm font-medium">Your contact details</h3>
               <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-              <div>
+                <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">Name</dt>
                 <dd className="mt-0.5">{buyer.name ?? "Not set"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
                 <dd className="mt-0.5 break-all">{buyer.email}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Phone
-                </dt>
-                <dd className="mt-0.5">{buyer.phone || "Not set"}</dd>
-              </div>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Phone
+                  </dt>
+                  <dd className="mt-0.5">{buyer.phone || "Not set"}</dd>
+                </div>
               </dl>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">

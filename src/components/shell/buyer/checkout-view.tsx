@@ -137,10 +137,10 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
         strategy="afterInteractive"
         onReady={() => setPaystackReady(true)}
       />
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-4 sm:gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-6">
           {/* ── Delivery / buyer information ───────────────────────────────── */}
-          <section className="glass rounded-2xl p-5 sm:p-6">
+          <section className="glass rounded-xl p-4 sm:rounded-2xl sm:p-6">
             <h2 className="font-display text-lg font-medium">Delivery &amp; buyer information</h2>
             <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
               <div>
@@ -165,8 +165,8 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
           </section>
 
           {/* ── Your order (server cart, grouped per seller) ───────────────── */}
-          <section className="glass rounded-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+          <section className="glass rounded-xl sm:rounded-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5 sm:px-6 sm:py-4">
               <h2 className="font-display text-lg font-medium">Your order</h2>
               {summary.sellerCount > 1 && (
                 <Badge variant="cyan">{summary.sellerCount} sellers</Badge>
@@ -175,7 +175,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
 
             <div className="divide-y divide-border">
               {summary.groups.map((group) => (
-                <div key={group.sellerId} className="px-5 py-4 sm:px-6">
+                <div key={group.sellerId} className="px-4 py-3.5 sm:px-6 sm:py-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     Sold by {group.sellerName}
                   </p>
@@ -212,7 +212,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
               ))}
             </div>
 
-            <dl className="space-y-2 border-t border-border px-5 py-4 text-sm sm:px-6">
+            <dl className="space-y-2 border-t border-border px-4 py-4 text-sm sm:px-6">
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Subtotal</dt>
                 <dd className="font-mono tabular-nums">{formatKes(summary.subtotalCents)}</dd>
@@ -275,7 +275,7 @@ export function CheckoutView({ summary, buyer }: CheckoutViewProps) {
 
         {/* ── Payment method + action ──────────────────────────────────────── */}
         <aside className="w-full lg:w-96">
-          <div className="glass sticky top-6 rounded-2xl p-5 sm:p-6">
+          <div className="glass rounded-xl p-4 sm:rounded-2xl sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-display text-lg font-medium">Payment method</h2>
 
             <div className="mt-4 flex flex-col gap-3">

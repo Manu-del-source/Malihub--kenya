@@ -160,7 +160,8 @@ describe("checkout UI — credentials never reach the browser", () => {
   it("the browser sends only the fields the routes accept", () => {
     const source = read("src/lib/payments/checkout-client.ts");
     assert.match(source, /JSON\.stringify\(\{ orderId \}\)/, "payment calls send only the order id");
-    assert.match(source, /body: JSON\.stringify\(\{\}\)/, "order creation sends an empty body");
+    assert.match(source, /deliveryCounty: delivery\.county/, "order creation sends the delivery county");
+    assert.match(source, /deliveryAddress: delivery\.address/, "order creation sends the delivery address");
     assert.equal(
       source.includes("amountCents:") && source.includes("body: JSON.stringify({ amountCents"),
       false,

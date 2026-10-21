@@ -64,7 +64,7 @@ export function ListingCard({
         {listing.isVerifiedSeller && (
           <Badge variant="verified" className="absolute left-2 top-2 max-w-[calc(100%-3.5rem)] glass-sm sm:left-3 sm:top-3">
             <ShieldCheck className="h-3 w-3" aria-hidden />
-            <span className="hidden xs:inline">Verified</span>
+            <span className="hidden sm:inline">Verified</span>
           </Badge>
         )}
       </div>

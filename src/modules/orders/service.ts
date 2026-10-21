@@ -125,9 +125,15 @@ export type CheckoutResult = {
  *     price the seller had at commit time, not the one seen before the
  *     transaction opened.
  */
+export type CheckoutDeliveryDetails = {
+  county: string;
+  address: string;
+};
+
 export async function checkoutCart(
   db: OrderStore & TransactionalOrderStore,
-  userId: string
+  userId: string,
+  delivery?: CheckoutDeliveryDetails
 ): Promise<CheckoutResult> {
   const cartRows = await db.cartItem.findMany({
     where: { userId },
@@ -276,6 +282,9 @@ export async function checkoutCart(
             // adjusts the row that already exists rather than the total a
             // buyer was quoted.
             totalCents: subtotalCents,
+            ...(delivery
+              ? { deliveryCounty: delivery.county, deliveryAddress: delivery.address }
+              : {}),
             items: { create: itemData },
           },
           select: {

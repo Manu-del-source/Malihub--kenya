@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import type { CheckoutSummary } from "@/lib/payments/checkout-summary";
 import {
   createCheckoutOrders,
+  createSerializedTask,
   PAYMENT_METHODS,
   initiatePaystackCheckout,
   fetchPaymentStatus,
@@ -72,8 +73,18 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
   const [error, setError] = useState<string | null>(null);
   const [paystackReady, setPaystackReady] = useState(false);
 
-  // The order service remains server-authoritative for products, quantities and prices.
-  // Delivery details are the only buyer-supplied fields accepted by the order endpoint.
+  // Keep one in-flight order-creation request for the current delivery details.
+  // The server independently claims the cart transactionally against duplicate requests.
+  const createOrdersOnce = useMemo(
+    () =>
+      createSerializedTask(() =>
+        createCheckoutOrders({
+          county: deliveryCounty.trim(),
+          address: deliveryAddress.trim(),
+        })
+      ),
+    [deliveryCounty, deliveryAddress]
+  );
 
   const blockedByStock = summary.unavailableCount > 0;
 
@@ -90,7 +101,7 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
     setError(null);
     setStage("creating");
 
-    const result = await createCheckoutOrders({ county, address });
+    const result = await createOrdersOnce();
     if (!result.ok) {
       setError(result.message);
       setStage("review");

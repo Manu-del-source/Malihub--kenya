@@ -178,8 +178,6 @@ export async function ProductDetail({
 
           <SellerInfoCard
             seller={product.seller}
-            sellerUserId={product.ownerId}
-            productId={product.id}
             contactPreference={product.contactPreference}
             whatsapp={sellerProfile?.whatsapp}
             phone={sellerContact?.phone}

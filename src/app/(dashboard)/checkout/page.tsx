@@ -24,8 +24,8 @@ import { buildCheckoutSummary } from "@/lib/payments/checkout-summary";
  *
  * ─── Opening checkout reserves NOTHING ──────────────────────────────────────
  * No order is created here, no stock is decremented, no cart row is touched.
- * The order is created only when the buyer presses "Pay … with M-Pesa" on this
- * screen (see `checkout-view.tsx` → `POST /api/orders`). A buyer who opens
+ * The order is created only when the buyer confirms delivery details and
+ * continues to payment (see `checkout-view.tsx` → `POST /api/orders`). A buyer who opens
  * checkout and changes their mind leaves the cart exactly as it was.
  *
  * ─── Multi-seller carts ─────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ export default async function CheckoutPage() {
     getCart(prisma, user.id),
     prisma.profile.findUnique({
       where: { userId: user.id },
-      select: { fullName: true },
+      select: { fullName: true, county: true },
     }),
   ]);
 
@@ -54,8 +54,8 @@ export default async function CheckoutPage() {
 
   if (summary.itemCount === 0) {
     return (
-      <Container className="py-10">
-        <h1 className="mb-1 font-display text-3xl font-medium">Checkout</h1>
+      <Container className="py-6 sm:py-10">
+        <h1 className="mb-1 font-display text-2xl font-medium sm:text-3xl">Checkout</h1>
         <p className="mb-8 text-sm text-muted-foreground">Nothing to check out yet</p>
         <EmptyState
           icon={ShoppingCart}
@@ -74,10 +74,10 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <Container className="py-10">
-      <h1 className="mb-1 font-display text-3xl font-medium">Checkout</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
-        Review your order, then pay securely with M-Pesa.
+    <Container className="py-6 sm:py-10">
+      <h1 className="mb-1 font-display text-2xl font-medium sm:text-3xl">Checkout</h1>
+      <p className="mb-5 text-sm text-muted-foreground sm:mb-8">
+        Confirm your delivery details, review your items and pay securely.
       </p>
 
       <CheckoutView
@@ -87,6 +87,7 @@ export default async function CheckoutPage() {
           email: user.email,
           phone: user.phone ?? null,
         }}
+        initialDeliveryCounty={profile?.county}
       />
     </Container>
   );

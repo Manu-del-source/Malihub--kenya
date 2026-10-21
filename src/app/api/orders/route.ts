@@ -9,9 +9,9 @@ import { checkoutCart, listBuyerOrders, OrderError } from "@/services/order-serv
  * Buyer orders endpoint — the checkout boundary for this phase.
  *
  * `POST /api/orders` converts the caller's cart into PENDING orders (one per
- * seller). The request body is deliberately read for nothing: prices,
- * inventory, seller ids and ownership all come from the database keyed by the
- * session's application user. Payment collection is NOT part of this route —
+ * seller). The only accepted client fields are delivery county and address;
+ * prices, inventory, seller ids and ownership remain server-derived. Payment
+ * collection is NOT part of this route —
  * an order is created in `PENDING` and the future payment flow attaches to
  * that row (see `src/services/order-service.ts`).
  */
@@ -57,8 +57,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const body = await request.json().catch(() => null);
+  const county = typeof body?.deliveryCounty === "string" ? body.deliveryCounty.trim() : "";
+  const address = typeof body?.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
+
+  if (!county || county.length > 80 || !address || address.length < 5 || address.length > 300) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Enter a county and a delivery address (5–300 characters) before continuing.",
+        code: "invalid_delivery_details",
+      },
+      { status: 400 }
+    );
+  }
+
   try {
-    const result = await checkoutCart(prisma, user.id);
+    const result = await checkoutCart(prisma, user.id, { county, address });
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
     if (error instanceof OrderError) {

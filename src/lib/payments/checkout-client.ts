@@ -10,7 +10,7 @@ import type {
  * ─── What a request may carry ───────────────────────────────────────────────
  * Exactly what the existing route handlers accept and nothing else:
  *
- *   POST /api/orders                        → `{}` (the session is the payload)
+ *   POST /api/orders                        → delivery county/address only
  *   POST /api/payments/paystack/initialize  → `{ orderId }`
  *   GET  /api/payments/paystack/verify      → `?orderId=…`
  *   POST /api/payments/paystack/verify      → `{ orderId }`
@@ -146,19 +146,26 @@ function failureFrom(
 }
 
 /**
- * `POST /api/orders` — creates the PENDING order(s) for the session's cart.
+ * `POST /api/orders` — creates PENDING order(s) for the session's cart.
  *
- * The body is an empty object on purpose: prices, sellers and ownership are
- * server-derived, and the cart is a single-use token server-side (a doubled
- * request loses the claim and creates nothing twice).
+ * Only delivery county/address are supplied by the buyer. Prices, sellers,
+ * inventory and ownership are server-derived, and the cart is claimed
+ * transactionally server-side so a duplicated request cannot create orders
+ * twice.
  */
-export async function createCheckoutOrders(): Promise<ApiResult<CheckoutOrder[]>> {
+export async function createCheckoutOrders(delivery: {
+  county: string;
+  address: string;
+}): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
   try {
     response = await fetch(ORDERS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        deliveryCounty: delivery.county,
+        deliveryAddress: delivery.address,
+      }),
     });
   } catch {
     return { ok: false, status: 0, message: "We couldn't reach the server. Please try again." };

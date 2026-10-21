@@ -31,7 +31,7 @@ export function SearchResultsGrid({
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
       },
-      { rootMargin: "400px" }
+      { rootMargin: "500px 0px" }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -57,13 +57,13 @@ export function SearchResultsGrid({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-5">
         {items.map((listing, i) => (
-          <ListingCard key={listing.id} listing={listing} priority={i < 4} />
+          <ListingCard key={listing.id} listing={listing} priority={i < 2} />
         ))}
       </div>
       {hasMore && (
-        <div ref={sentinelRef} className="flex justify-center py-10" aria-label="Loading more listings">
+        <div ref={sentinelRef} className="flex justify-center py-8 sm:py-10" aria-label="Loading more listings">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
         </div>
       )}

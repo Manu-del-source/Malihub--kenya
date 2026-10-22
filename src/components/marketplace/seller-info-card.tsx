@@ -1,21 +1,14 @@
 "use client";
 
-import { useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Star, MessageCircle, Phone, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { ShieldCheck, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { startChatAction } from "@/app/(dashboard)/messages/actions";
 
 export function SellerInfoCard({
   seller,
-  sellerUserId,
-  productId,
   contactPreference,
   whatsapp,
-  phone,
   isOwnListing,
 }: {
   seller: {
@@ -23,40 +16,16 @@ export function SellerInfoCard({
     slug: string;
     logoUrl: string | null;
     verificationStatus: string;
-    ratingAverage: unknown; // Prisma.Decimal — coerced for display only
+    ratingAverage: unknown;
     ratingCount?: number;
     county: string;
   };
-  sellerUserId: string;
-  productId: string;
   contactPreference: "CALL" | "WHATSAPP" | "CHAT" | "ANY";
   whatsapp?: string | null;
-  phone?: string | null;
   isOwnListing?: boolean;
 }) {
-  const router = useRouter();
-  const [isStartingChat, startTransition] = useTransition();
   const rating = Number(seller.ratingAverage as never) || 0;
-
-  const showCall = (contactPreference === "CALL" || contactPreference === "ANY") && phone;
   const showWhatsapp = (contactPreference === "WHATSAPP" || contactPreference === "ANY") && whatsapp;
-  const showChat = contactPreference === "CHAT" || contactPreference === "ANY";
-
-  function handleChatClick() {
-    startTransition(async () => {
-      const result = await startChatAction({ sellerId: sellerUserId, productId });
-      if (!result.success) {
-        if (result.error.includes("Sign in")) {
-          toast.error("Sign in to message this seller.");
-          router.push("/login");
-          return;
-        }
-        toast.error(result.error);
-        return;
-      }
-      router.push(`/messages/${result.data.chatId}`);
-    });
-  }
 
   return (
     <div className="glass flex flex-col gap-4 rounded-2xl p-5">
@@ -93,33 +62,19 @@ export function SellerInfoCard({
         </Badge>
       )}
 
-      <div className="flex flex-col gap-2">
-        {!isOwnListing && showChat && (
-          <Button size="lg" className="w-full" onClick={handleChatClick} disabled={isStartingChat}>
-            {isStartingChat ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <MessageCircle className="h-4 w-4" aria-hidden />}
-            Chat with seller
-          </Button>
-        )}
-        {!isOwnListing && showCall && (
-          <Button variant="secondary" size="lg" className="w-full" asChild>
-            <a href={`tel:${phone}`}>
-              <Phone className="h-4 w-4" aria-hidden />
-              Call seller
-            </a>
-          </Button>
-        )}
-        {!isOwnListing && showWhatsapp && (
+      {!isOwnListing && showWhatsapp && (
+        <div className="flex flex-col gap-2">
           <Button variant="outline" size="lg" className="w-full" asChild>
             <a
-              href={`https://wa.me/${whatsapp!.replace(/\D/g, "")}`}
+              href={`https://wa.me/${whatsapp!.replace(/\\D/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               WhatsApp seller
             </a>
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       <p className="text-center text-[11px] text-muted-foreground">
         Meet in a public place. Never pay before seeing the item.
       </p>

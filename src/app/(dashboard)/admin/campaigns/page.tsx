@@ -31,7 +31,7 @@ export default async function AdminCampaignsPage() {
         <Link href="/admin" className="text-sm text-primary-400 hover:underline">Back to overview</Link>
       </header>
 
-      <CampaignManagement products={products} campaigns={campaigns.map(c => ({ id: c.id, title: c.title, status: c.status }))} />
+      <CampaignManagement products={products} campaigns={campaigns.map(c => ({ id: c.id, title: c.title, slug: c.slug, description: c.description, startsAt: c.startsAt.toISOString(), endsAt: c.endsAt.toISOString(), status: c.status, products: c.products }))} />
 
       <section>
         <h2 className="mb-3 text-xl font-medium">Campaign overview</h2>

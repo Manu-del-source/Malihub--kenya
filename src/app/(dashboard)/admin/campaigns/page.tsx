@@ -8,11 +8,11 @@ import { listAdminCampaigns } from "@/services/campaign-admin-service";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Campaigns | Admin" };
 
-function campaignTone(status: string): "default" | "secondary" | "destructive" | "outline" {
-  if (status === "ACTIVE") return "default";
-  if (status === "CANCELLED") return "destructive";
-  if (status === "SCHEDULED") return "secondary";
-  return "outline";
+function campaignTone(status: string): "default" | "primary" | "cyan" | "glass" | "verified" {
+  if (status === "ACTIVE") return "verified";
+  if (status === "CANCELLED") return "primary";
+  if (status === "SCHEDULED") return "cyan";
+  return "default";
 }
 
 export default async function AdminCampaignsPage() {

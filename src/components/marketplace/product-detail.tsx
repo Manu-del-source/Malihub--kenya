@@ -17,7 +17,7 @@ import type { ProductWithRelations } from "@/types";
 
 /**
  * Shared product detail for both /products/[slug] and /marketplace/[productId].
- * Keep all listing actions and seller contact behavior in this component.
+ * Keep listing actions and seller profile information in this component.
  */
 const CONDITION_LABEL: Record<string, string> = {
   NEW: "Brand New",
@@ -178,11 +178,8 @@ export async function ProductDetail({
 
           <SellerInfoCard
             seller={product.seller}
-            sellerUserId={product.ownerId}
-            productId={product.id}
             contactPreference={product.contactPreference}
             whatsapp={sellerProfile?.whatsapp}
-            phone={sellerContact?.phone}
             isOwnListing={isOwnListing}
           />
         </aside>

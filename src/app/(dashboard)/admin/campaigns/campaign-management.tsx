@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createCampaignAction, setCampaignStatusAction, updateCampaignAction } from "../actions";
+import { createCampaignAction, deleteCampaignAction, setCampaignStatusAction, updateCampaignAction } from "../actions";
 
 type ProductOption = { id: string; title: string; slug: string; priceCents: number; seller: { businessName: string } };
 type Campaign = { id: string; status: string; title: string; slug: string; description: string | null; startsAt: string; endsAt: string; products: { productId: string }[] };
@@ -37,6 +37,17 @@ export function CampaignManagement({ products, campaigns }: { products: ProductO
     startTransition(async () => {
       const result = await setCampaignStatusAction({ id, status });
       if (!result.success) { setMessage(result.error || "Could not update campaign."); return; }
+      window.location.reload();
+    });
+  }
+
+  function deleteCampaign(campaign: Campaign) {
+    const confirmed = window.confirm("Permanently delete \"" + campaign.title + "\"? This removes the campaign and its product assignments, but not the product listings. The campaign cannot be restored.");
+    if (!confirmed) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await deleteCampaignAction({ id: campaign.id });
+      if (!result.success) { setMessage(result.error || "Could not delete campaign."); return; }
       window.location.reload();
     });
   }
@@ -108,6 +119,7 @@ export function CampaignManagement({ products, campaigns }: { products: ProductO
       </section>
       <section className="rounded-xl border border-border p-6">
         <h2 className="text-xl font-medium">Campaign controls</h2>
+        {message && <p role="status" className="mb-3 text-sm">{message}</p>}
         <div className="mt-4 divide-y divide-border">
           {campaigns.map(campaign => (
             <div key={campaign.id} className="py-4">
@@ -117,6 +129,7 @@ export function CampaignManagement({ products, campaigns }: { products: ProductO
                   {campaign.status !== "DRAFT" && campaign.status !== "CANCELLED" && campaign.status !== "ENDED" && <button type="button" disabled={pending} onClick={() => changeStatus(campaign.id, "DRAFT")} className="rounded-md border border-border px-3 py-1.5 text-sm">Set draft</button>}
                   {campaign.status !== "CANCELLED" && campaign.status !== "ENDED" && <button type="button" disabled={pending} onClick={() => changeStatus(campaign.id, "CANCELLED")} className="rounded-md border border-border px-3 py-1.5 text-sm">Cancel</button>}
                   {campaign.status === "DRAFT" && <button type="button" disabled={pending} onClick={() => changeStatus(campaign.id, "SCHEDULED")} className="rounded-md border border-border px-3 py-1.5 text-sm">Schedule</button>}
+                  <button type="button" disabled={pending} onClick={() => deleteCampaign(campaign)} className="rounded-md border border-destructive px-3 py-1.5 text-sm text-destructive disabled:opacity-50">{pending ? "Working…" : "Delete campaign"}</button>
                 </div>
               </div>
               {campaign.status !== "CANCELLED" && campaign.status !== "ENDED" && (

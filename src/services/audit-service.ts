@@ -31,6 +31,7 @@ export type AuditAction =
   | "admin.category_updated"
   | "admin.category_deleted"
   | "admin.campaign_created"
+  | "admin.campaign_deleted"
   | "admin.campaign_updated"
   | "admin.campaign_status_changed"
   // ─── Order lifecycle (Phase 9.1) ───────────────────────────────────────────

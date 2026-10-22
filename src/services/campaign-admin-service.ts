@@ -264,3 +264,28 @@ export async function updateAdminCampaign(
     throw error;
   }
 }
+
+
+/** Permanently remove a campaign and its assignments, never the products themselves. */
+export async function deleteAdminCampaign(id: string, actor: AdminActor) {
+  const current = await prisma.campaign.findUnique({
+    where: { id },
+    select: { id: true, title: true, slug: true, status: true, startsAt: true, endsAt: true },
+  });
+  if (!current) throw new AdminServiceError("Campaign no longer exists.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.campaignProduct.deleteMany({ where: { campaignId: id } });
+    await tx.campaign.delete({ where: { id } });
+  });
+
+  await logAuditEvent({
+    action: "admin.campaign_deleted",
+    actorId: actor.id,
+    actorEmail: actor.email,
+    targetType: "campaign",
+    targetId: id,
+    metadata: { title: current.title, slug: current.slug, status: current.status, startsAt: current.startsAt.toISOString(), endsAt: current.endsAt.toISOString() },
+  });
+  return { id: current.id, title: current.title, slug: current.slug };
+}

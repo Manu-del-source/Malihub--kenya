@@ -287,6 +287,7 @@ export async function createCampaignAction(input: unknown): Promise<ApiResult<{ 
   return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
     const campaign = await createAdminCampaign(parsed.data, actor);
     revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
     revalidatePath("/");
     return { id: campaign.id, title: campaign.title, slug: campaign.slug };
   });
@@ -302,6 +303,7 @@ export async function setCampaignStatusAction(input: unknown): Promise<ApiResult
   return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
     const campaign = await setAdminCampaignStatus(parsed.data.id, parsed.data.status, actor);
     revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
     revalidatePath("/");
     return { id: campaign.id, status: campaign.status };
   });

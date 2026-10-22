@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
@@ -44,8 +45,8 @@ export default async function CampaignDetailPage({ params }: Props) {
             {campaign.products.map(({ product }) => (
               <article key={product.id} className="overflow-hidden rounded-xl border border-border bg-card">
                 <Link href={`/products/${product.slug}`} className="block p-3 sm:p-4">
-                  <div className="mb-3 flex aspect-square items-center justify-center rounded-lg border border-border bg-background px-3 text-center text-xs text-muted-foreground">
-                    {product.images[0]?.url ? <span className="line-clamp-2 break-all">{product.images[0].url}</span> : "Product listing"}
+                  <div className="relative mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-border bg-background text-xs text-muted-foreground">
+                    {product.images[0]?.url ? <Image src={product.images[0].url} alt={product.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" className="object-cover" /> : "Product listing"}
                   </div>
                   <h2 className="line-clamp-2 min-h-10 text-sm font-medium">{product.title}</h2>
                   <p className="mt-2 font-semibold text-primary">KES {(product.priceCents / 100).toLocaleString("en-KE")}</p>

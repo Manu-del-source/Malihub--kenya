@@ -57,9 +57,14 @@ export default async function AdminDashboardPage() {
             Live counts from the production database — updated on every request.
           </p>
         </div>
-        <Link href="/admin/audit" className="text-sm text-primary-400 hover:underline">
-          Recent admin activity →
-        </Link>
+        <nav className="flex flex-wrap gap-4">
+          <Link href="/admin/campaigns" className="text-sm text-primary-400 hover:underline">
+            Merchandising campaigns
+          </Link>
+          <Link href="/admin/audit" className="text-sm text-primary-400 hover:underline">
+            Recent admin activity →
+          </Link>
+        </nav>
       </header>
 
       {/* ── Accounts ─────────────────────────────────────────────────────── */}

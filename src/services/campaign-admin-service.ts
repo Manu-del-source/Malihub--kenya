@@ -19,7 +19,7 @@ export async function listEligibleCampaignProducts() {
 export async function listAdminCampaigns() {
   return prisma.campaign.findMany({
     orderBy: [{ createdAt: "desc" }],
-    include: { _count: { select: { products: true } } },
+    include: { _count: { select: { products: true } }, products: { select: { productId: true } } },
   });
 }
 

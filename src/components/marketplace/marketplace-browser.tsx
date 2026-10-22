@@ -75,6 +75,12 @@ export async function MarketplaceBrowser({
         </form>
       </section>
 
+      <div className="mb-4 flex justify-end">
+        <Link href="/campaigns" className="inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15">
+          Explore active campaigns
+        </Link>
+      </div>
+
       <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Categories</h2>

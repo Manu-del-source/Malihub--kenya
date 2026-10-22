@@ -10,7 +10,7 @@ import {
   sellerReviewActionSchema,
   uuidSchema,
 } from "@/lib/validations/admin";
-import { campaignCreateSchema, campaignStatusActionSchema } from "@/lib/validations/campaign";
+import { campaignCreateSchema, campaignStatusActionSchema, campaignUpdateSchema } from "@/lib/validations/campaign";
 import {
   AdminServiceError,
   createAdminCategory,
@@ -20,7 +20,7 @@ import {
   setSellerVerificationStatus,
   updateAdminCategory,
 } from "@/services/admin-service";
-import { createAdminCampaign, setAdminCampaignStatus } from "@/services/campaign-admin-service";
+import { createAdminCampaign, setAdminCampaignStatus, updateAdminCampaign } from "@/services/campaign-admin-service";
 import type { ApiResult } from "@/types";
 
 /**
@@ -287,6 +287,7 @@ export async function createCampaignAction(input: unknown): Promise<ApiResult<{ 
   return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
     const campaign = await createAdminCampaign(parsed.data, actor);
     revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
     revalidatePath("/");
     return { id: campaign.id, title: campaign.title, slug: campaign.slug };
   });
@@ -302,7 +303,28 @@ export async function setCampaignStatusAction(input: unknown): Promise<ApiResult
   return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
     const campaign = await setAdminCampaignStatus(parsed.data.id, parsed.data.status, actor);
     revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
     revalidatePath("/");
     return { id: campaign.id, status: campaign.status };
+  });
+}
+
+
+export async function updateCampaignAction(input: unknown): Promise<ApiResult<{ id: string; title: string; slug: string; status: string }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const parsed = campaignUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
+    const campaign = await updateAdminCampaign(parsed.data, actor);
+    revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaign.slug}`);
+    revalidatePath("/");
+    return { id: campaign.id, title: campaign.title, slug: campaign.slug, status: campaign.status };
   });
 }

@@ -17,6 +17,7 @@ export async function listEligibleCampaignProducts() {
 }
 
 export async function listAdminCampaigns() {
+  await refreshCampaignLifecycle();
   return prisma.campaign.findMany({
     orderBy: [{ createdAt: "desc" }],
     include: { _count: { select: { products: true } }, products: { select: { productId: true } } },
@@ -25,7 +26,7 @@ export async function listAdminCampaigns() {
 
 export async function createAdminCampaign(input: CampaignCreateInput, actor: AdminActor) {
   const now = new Date();
-  const status: CampaignStatus = input.startsAt > now ? "SCHEDULED" : "DRAFT";
+  const status: CampaignStatus = input.endsAt <= now ? "ENDED" : input.startsAt > now ? "SCHEDULED" : "ACTIVE";
 
   try {
     const campaign = await prisma.$transaction(async (tx) => {

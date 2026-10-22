@@ -35,13 +35,12 @@ export async function ProductDetail({
 }) {
   const user = (await getCurrentUser())?.user;
 
-  const [isFavorited, sellerContact, similar, sellerProfile] = await Promise.all([
+  const [isFavorited, similar, sellerProfile] = await Promise.all([
     user
       ? prisma.wishlist
           .findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } })
           .then((w: unknown) => !!w)
       : Promise.resolve(false),
-    prisma.user.findUnique({ where: { id: product.ownerId }, select: { phone: true } }),
     getSimilarListings(product.id, product.categoryId, product.county),
     prisma.profile.findUnique({ where: { userId: product.ownerId }, select: { whatsapp: true } }),
   ]);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, MapPin, Search, Store, Tag } from "lucide-react";
+import { ArrowRight, BadgeCheck, MapPin, Store, Tag } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
 

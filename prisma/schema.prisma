@@ -82,6 +82,14 @@ enum ListingStatus {
   REMOVED
 }
 
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
 enum ContactPreference {
   CALL
   WHATSAPP
@@ -335,6 +343,7 @@ model User {
   profile         Profile?
   seller          Seller?
   products        Product[]        @relation("ProductOwner")
+  campaignsCreated Campaign[]      @relation("CampaignCreator")
   orders          Order[]          @relation("BuyerOrders")
   wishlists       Wishlist[]
   reviews         Review[]         @relation("ReviewAuthor")
@@ -467,6 +476,7 @@ model Product {
   reports     Report[]
   listingViews ListingView[]
   chats       Chat[]
+  campaignProducts CampaignProduct[]
 
   @@index([categoryId, status])
   @@index([county, status])
@@ -1223,4 +1233,44 @@ model AuditLog {
   @@index([actorEmail, createdAt])
   @@index([actorId])
   @@map("audit_logs")
+}
+
+
+// ─── Merchandising campaigns ───────────────────────────────────────────────
+// Campaigns organize real listings for homepage/category merchandising.
+// This foundation intentionally does not define sale prices: discount pricing
+// must not appear until checkout and order snapshots enforce it consistently.
+model Campaign {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  slug        String         @unique
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  startsAt    DateTime       @map("starts_at")
+  endsAt      DateTime       @map("ends_at")
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  creator  User              @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  products CampaignProduct[]
+
+  @@index([status, startsAt, endsAt])
+  @@index([createdById, createdAt])
+  @@map("campaigns")
+}
+
+model CampaignProduct {
+  campaignId String   @map("campaign_id") @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, productId])
+  @@index([productId])
+  @@index([campaignId, sortOrder])
+  @@map("campaign_products")
 }

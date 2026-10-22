@@ -116,3 +116,87 @@ export async function setAdminCampaignStatus(
   });
   return updated;
 }
+
+
+/**
+ * Bring time-driven campaigns into their effective lifecycle state whenever
+ * an admin or public campaign surface is read. Public visibility also checks
+ * the actual time window, so stale status cannot expose an expired campaign.
+ */
+export async function refreshCampaignLifecycle(now = new Date()) {
+  await prisma.$transaction([
+    prisma.campaign.updateMany({
+      where: { status: "SCHEDULED", startsAt: { lte: now }, endsAt: { gt: now } },
+      data: { status: "ACTIVE" },
+    }),
+    prisma.campaign.updateMany({
+      where: { status: { in: ["SCHEDULED", "ACTIVE"] }, endsAt: { lte: now } },
+      data: { status: "ENDED" },
+    }),
+  ]);
+}
+
+export async function listPublicActiveCampaigns(now = new Date()) {
+  await refreshCampaignLifecycle(now);
+  return prisma.campaign.findMany({
+    where: {
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      endsAt: { gt: now },
+      products: {
+        some: {
+          product: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      description: true,
+      startsAt: true,
+      endsAt: true,
+      products: {
+        orderBy: { sortOrder: "asc" },
+        where: { product: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } } },
+        select: {
+          product: {
+            select: {
+              id: true, title: true, slug: true, priceCents: true, county: true,
+              images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }],
+    take: 12,
+  });
+}
+
+export async function getPublicActiveCampaignBySlug(slug: string, now = new Date()) {
+  await refreshCampaignLifecycle(now);
+  return prisma.campaign.findFirst({
+    where: {
+      slug,
+      status: "ACTIVE",
+      startsAt: { lte: now },
+      endsAt: { gt: now },
+    },
+    select: {
+      id: true, title: true, slug: true, description: true, startsAt: true, endsAt: true,
+      products: {
+        orderBy: { sortOrder: "asc" },
+        where: { product: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } } },
+        select: {
+          product: {
+            select: {
+              id: true, title: true, slug: true, priceCents: true, county: true,
+              images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+}

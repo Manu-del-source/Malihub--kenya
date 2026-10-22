@@ -20,7 +20,7 @@ import {
   setSellerVerificationStatus,
   updateAdminCategory,
 } from "@/services/admin-service";
-import { createAdminCampaign, setAdminCampaignStatus, updateAdminCampaign } from "@/services/campaign-admin-service";
+import { createAdminCampaign, deleteAdminCampaign, setAdminCampaignStatus, updateAdminCampaign } from "@/services/campaign-admin-service";
 import type { ApiResult } from "@/types";
 
 /**
@@ -326,5 +326,23 @@ export async function updateCampaignAction(input: unknown): Promise<ApiResult<{ 
     revalidatePath(`/campaigns/${campaign.slug}`);
     revalidatePath("/");
     return { id: campaign.id, title: campaign.title, slug: campaign.slug, status: campaign.status };
+  });
+}
+
+
+export async function deleteCampaignAction(input: unknown): Promise<ApiResult<{ id: string; title: string; slug: string }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.user.role !== "SUPER_ADMIN") return { success: false, error: "Only a super admin can permanently delete campaigns." };
+  const parsed = uuidSchema.safeParse((input as { id?: unknown } | null)?.id);
+  if (!parsed.success) return { success: false, error: "Invalid request." };
+
+  return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
+    const campaign = await deleteAdminCampaign(parsed.data, actor);
+    revalidateAdmin("/admin/campaigns");
+    revalidatePath("/campaigns");
+    revalidatePath("/campaigns/" + campaign.slug);
+    revalidatePath("/");
+    return campaign;
   });
 }

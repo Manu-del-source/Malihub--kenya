@@ -7,6 +7,15 @@ import { logAuditEvent } from "@/services/audit-service";
 import { AdminServiceError, type AdminActor } from "@/services/admin-service";
 import type { CampaignCreateInput } from "@/lib/validations/campaign";
 
+export async function listEligibleCampaignProducts() {
+  return prisma.product.findMany({
+    where: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } },
+    select: { id: true, title: true, slug: true, priceCents: true, seller: { select: { businessName: true } } },
+    orderBy: [{ createdAt: "desc" }],
+    take: 500,
+  });
+}
+
 export async function listAdminCampaigns() {
   return prisma.campaign.findMany({
     orderBy: [{ createdAt: "desc" }],

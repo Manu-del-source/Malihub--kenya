@@ -200,3 +200,68 @@ export async function getPublicActiveCampaignBySlug(slug: string, now = new Date
     },
   });
 }
+
+
+export async function updateAdminCampaign(
+  input: import("@/lib/validations/campaign").CampaignUpdateInput,
+  actor: AdminActor
+) {
+  const now = new Date();
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const current = await tx.campaign.findUnique({ where: { id: input.id } });
+      if (!current) throw new AdminServiceError("Campaign no longer exists.");
+      if (current.status === "CANCELLED" || current.status === "ENDED") {
+        throw new AdminServiceError("Ended or cancelled campaigns cannot be edited.");
+      }
+      if (input.productIds.length) {
+        const eligible = await tx.product.count({
+          where: {
+            id: { in: input.productIds },
+            status: "ACTIVE",
+            seller: { verificationStatus: "VERIFIED" },
+          },
+        });
+        if (eligible !== input.productIds.length) {
+          throw new AdminServiceError("Every campaign product must be an active listing from a verified seller.");
+        }
+      }
+      const status: CampaignStatus = current.status === "DRAFT"
+        ? "DRAFT"
+        : input.endsAt <= now
+          ? "ENDED"
+          : input.startsAt > now
+            ? "SCHEDULED"
+            : "ACTIVE";
+      await tx.campaignProduct.deleteMany({ where: { campaignId: input.id } });
+      return tx.campaign.update({
+        where: { id: input.id },
+        data: {
+          title: input.title,
+          slug: input.slug,
+          description: input.description,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          status,
+          products: { create: input.productIds.map((productId, sortOrder) => ({ productId, sortOrder })) },
+        },
+        include: { _count: { select: { products: true } } },
+      });
+    });
+    await logAuditEvent({
+      action: "admin.campaign_updated",
+      actorId: actor.id,
+      actorEmail: actor.email,
+      targetType: "campaign",
+      targetId: updated.id,
+      metadata: { slug: updated.slug, status: updated.status, productCount: updated._count.products },
+    });
+    return updated;
+  } catch (error) {
+    if (error instanceof AdminServiceError) throw error;
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AdminServiceError("A campaign with that slug already exists.");
+    }
+    throw error;
+  }
+}

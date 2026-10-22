@@ -138,10 +138,9 @@ export async function refreshCampaignLifecycle(now = new Date()) {
 }
 
 export async function listPublicActiveCampaigns(now = new Date()) {
-  await refreshCampaignLifecycle(now);
   return prisma.campaign.findMany({
     where: {
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "SCHEDULED"] },
       startsAt: { lte: now },
       endsAt: { gt: now },
       products: {
@@ -176,11 +175,10 @@ export async function listPublicActiveCampaigns(now = new Date()) {
 }
 
 export async function getPublicActiveCampaignBySlug(slug: string, now = new Date()) {
-  await refreshCampaignLifecycle(now);
   return prisma.campaign.findFirst({
     where: {
       slug,
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "SCHEDULED"] },
       startsAt: { lte: now },
       endsAt: { gt: now },
     },

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, Star, Phone } from "lucide-react";
+import { ShieldCheck, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -9,7 +9,6 @@ export function SellerInfoCard({
   seller,
   contactPreference,
   whatsapp,
-  phone,
   isOwnListing,
 }: {
   seller: {
@@ -27,7 +26,6 @@ export function SellerInfoCard({
   isOwnListing?: boolean;
 }) {
   const rating = Number(seller.ratingAverage as never) || 0;
-  const showCall = (contactPreference === "CALL" || contactPreference === "ANY") && phone;
   const showWhatsapp = (contactPreference === "WHATSAPP" || contactPreference === "ANY") && whatsapp;
 
   return (
@@ -65,16 +63,8 @@ export function SellerInfoCard({
         </Badge>
       )}
 
-      <div className="flex flex-col gap-2">
-        {!isOwnListing && showCall && (
-          <Button variant="secondary" size="lg" className="w-full" asChild>
-            <a href={`tel:${phone}`}>
-              <Phone className="h-4 w-4" aria-hidden />
-              Call seller
-            </a>
-          </Button>
-        )}
-        {!isOwnListing && showWhatsapp && (
+      { !isOwnListing && showWhatsapp && (
+        <div className="flex flex-col gap-2">
           <Button variant="outline" size="lg" className="w-full" asChild>
             <a
               href={`https://wa.me/${whatsapp!.replace(/\\D/g, "")}`}
@@ -84,8 +74,8 @@ export function SellerInfoCard({
               WhatsApp seller
             </a>
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       <p className="text-center text-[11px] text-muted-foreground">
         Meet in a public place. Never pay before seeing the item.
       </p>

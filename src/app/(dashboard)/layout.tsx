@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { LogOut, Search, ShoppingCart, UserRound } from "lucide-react";
 import { Container } from "@/components/ui/container";

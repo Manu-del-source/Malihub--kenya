@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
+import { ShoppingDiscoverySection } from "@/components/landing/shopping-discovery-section";
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
@@ -41,6 +42,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HeroSection />
+      <ShoppingDiscoverySection />
       <CategoriesSection />
       <WhyMaliHubSection />
       <SellerCtaSection />

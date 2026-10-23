@@ -14,6 +14,13 @@ This is a staged buyer-protection workflow, **not escrow**. No new payment provi
 6. Any open or under-review case blocks payout eligibility. Only a documented resolution and policy check can restore eligibility.
 7. Seller payout remains subject to the existing settlement/payout workflow and a separately approved provider arrangement. No automatic release is implemented by this schema change.
 
+## Current server endpoints
+
+- `POST /api/seller/orders/[orderId]/shipment`: seller-owned order check; validates carrier, tracking number and HTTPS tracking URL; seller cannot set delivered status. It stores tracking metadata but intentionally does not bypass the dedicated order-transition service.
+- `POST /api/orders/[orderId]/protection`: buyer-owned order check; validates reason and description; creates one case per order and writes an audit event. It does not refund, hold, or release funds.
+
+These endpoints are a starting point only. The buyer order UI, seller shipment UI, admin case review, authenticated evidence upload, and payout-service enforcement are still missing.
+
 ## Data model
 
 - `OrderShipment`: one courier tracking record per order.

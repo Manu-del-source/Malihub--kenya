@@ -74,6 +74,13 @@ export async function POST(
 
   try {
     const shipment = await prisma.$transaction(async (tx) => {
+      const existing = await tx.orderShipment.findUnique({
+        where: { orderId: order.id },
+        select: { id: true, status: true },
+      });
+      if (existing?.status === "DELIVERED") {
+        throw new Error("Shipment already marked delivered; tracking cannot be reset by seller.");
+      }
       const saved = await tx.orderShipment.upsert({
         where: { orderId: order.id },
         create: {
@@ -92,20 +99,13 @@ export async function POST(
           status: "IN_TRANSIT",
           dispatchedAt: new Date(),
           lastEventAt: new Date(),
-          deliveredAt: null,
-          deliveryNotes: null,
         },
         select: {
           id: true, carrierName: true, trackingNumber: true, trackingUrl: true,
           status: true, dispatchedAt: true, lastEventAt: true,
         },
       });
-      if (order.status !== "SHIPPED") {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: "SHIPPED" },
-        });
-      }
+      // Shipment metadata must not bypass the dedicated order-transition service.
       return saved;
     });
 

@@ -108,6 +108,30 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum ShipmentStatus {
+  NOT_DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  DELIVERY_FAILED
+  RETURNED
+}
+
+enum ProtectionCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+  CLOSED
+}
+
+enum ProtectionReason {
+  ITEM_NOT_RECEIVED
+  ITEM_NOT_AS_DESCRIBED
+  DAMAGED_ITEM
+  WRONG_ITEM
+  OTHER
+}
+
 /// The *channel* a customer pays through — deliberately provider-neutral.
 /// `MOBILE_MONEY` covers M-Pesa, Airtel Money, etc.; which processor actually
 /// moves the money is `PaymentProvider` below. This enum was `MPESA | CARD |
@@ -362,6 +386,8 @@ model User {
   usersBlocked  BlockedUser[] @relation("BlockerOf")
   blockedByUsers BlockedUser[] @relation("BlockedBy")
   refundsInitiated Refund[] @relation("RefundInitiator")
+  buyerProtectionCases BuyerProtectionCase[] @relation("ProtectionCaseBuyer")
+  protectionEvidence BuyerProtectionEvidence[]
 
   @@map("users")
 }
@@ -519,6 +545,13 @@ model Order {
   deliveryCounty String?    @map("delivery_county")
   deliveryAddress String?   @map("delivery_address")
   notes         String?
+  /// Set only after courier-tracked delivery is verified. This is workflow data,
+  /// not proof that a payment provider is holding funds.
+  deliveredAt DateTime? @map("delivered_at")
+  /// Buyer inspection window starts from verified delivery. A dispute prevents
+  /// payout eligibility; this field never triggers a payment on its own.
+  inspectionEndsAt DateTime? @map("inspection_ends_at")
+  payoutEligibleAt DateTime? @map("payout_eligible_at")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -533,6 +566,8 @@ model Order {
   /// this never needs to become an array.
   settlement Settlement?
   refunds    Refund[]
+  shipment   OrderShipment?
+  protectionCase BuyerProtectionCase?
   @@index([sellerId])
   @@index([status])
   @@map("orders")

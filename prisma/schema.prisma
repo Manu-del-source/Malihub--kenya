@@ -108,6 +108,30 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum ShipmentStatus {
+  NOT_DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  DELIVERY_FAILED
+  RETURNED
+}
+
+enum ProtectionCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+  CLOSED
+}
+
+enum ProtectionReason {
+  ITEM_NOT_RECEIVED
+  ITEM_NOT_AS_DESCRIBED
+  DAMAGED_ITEM
+  WRONG_ITEM
+  OTHER
+}
+
 /// The *channel* a customer pays through — deliberately provider-neutral.
 /// `MOBILE_MONEY` covers M-Pesa, Airtel Money, etc.; which processor actually
 /// moves the money is `PaymentProvider` below. This enum was `MPESA | CARD |
@@ -362,6 +386,8 @@ model User {
   usersBlocked  BlockedUser[] @relation("BlockerOf")
   blockedByUsers BlockedUser[] @relation("BlockedBy")
   refundsInitiated Refund[] @relation("RefundInitiator")
+  buyerProtectionCases BuyerProtectionCase[] @relation("ProtectionCaseBuyer")
+  protectionEvidence BuyerProtectionEvidence[]
 
   @@map("users")
 }
@@ -519,6 +545,13 @@ model Order {
   deliveryCounty String?    @map("delivery_county")
   deliveryAddress String?   @map("delivery_address")
   notes         String?
+  /// Set only after courier-tracked delivery is verified. This is workflow data,
+  /// not proof that a payment provider is holding funds.
+  deliveredAt DateTime? @map("delivered_at")
+  /// Buyer inspection window starts from verified delivery. A dispute prevents
+  /// payout eligibility; this field never triggers a payment on its own.
+  inspectionEndsAt DateTime? @map("inspection_ends_at")
+  payoutEligibleAt DateTime? @map("payout_eligible_at")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -533,6 +566,8 @@ model Order {
   /// this never needs to become an array.
   settlement Settlement?
   refunds    Refund[]
+  shipment   OrderShipment?
+  protectionCase BuyerProtectionCase?
   @@index([sellerId])
   @@index([status])
   @@map("orders")
@@ -1273,4 +1308,69 @@ model CampaignProduct {
   @@index([productId])
   @@index([campaignId, sortOrder])
   @@map("campaign_products")
+}
+
+
+/// Courier tracking record for an order. This records carrier events only; it
+/// does not prove that funds are held or that a payout has been executed.
+model OrderShipment {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String         @unique @map("order_id") @db.Uuid
+  carrierName     String         @map("carrier_name")
+  trackingNumber  String         @map("tracking_number")
+  trackingUrl     String?        @map("tracking_url")
+  status          ShipmentStatus @default(NOT_DISPATCHED)
+  dispatchedAt    DateTime?      @map("dispatched_at")
+  deliveredAt     DateTime?      @map("delivered_at")
+  lastEventAt     DateTime?      @map("last_event_at")
+  deliveryNotes   String?        @map("delivery_notes")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
+  @@map("order_shipments")
+}
+
+/// A single buyer-protection case per order for the initial MVP. Opening a
+/// case must pause payout eligibility; the case record is not an escrow or
+/// wallet balance and must not be used to imply funds are held.
+model BuyerProtectionCase {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String               @unique @map("order_id") @db.Uuid
+  buyerId        String               @map("buyer_id") @db.Uuid
+  reason         ProtectionReason
+  status         ProtectionCaseStatus @default(OPEN)
+  description    String
+  resolutionNote String?              @map("resolution_note")
+  openedAt       DateTime             @default(now()) @map("opened_at")
+  resolvedAt     DateTime?            @map("resolved_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  order    Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  buyer    User                     @relation("ProtectionCaseBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  evidence BuyerProtectionEvidence[]
+
+  @@index([status, openedAt])
+  @@index([buyerId, openedAt])
+  @@map("buyer_protection_cases")
+}
+
+/// Evidence metadata for a case. File uploads must use the application's
+/// authenticated upload path; never accept arbitrary external URLs as proof.
+model BuyerProtectionEvidence {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String   @map("case_id") @db.Uuid
+  submittedBy String   @map("submitted_by") @db.Uuid
+  fileUrl     String   @map("file_url")
+  fileType    String   @map("file_type")
+  caption     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  protectionCase BuyerProtectionCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [submittedBy], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+  @@map("buyer_protection_evidence")
 }

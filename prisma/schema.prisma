@@ -1309,3 +1309,68 @@ model CampaignProduct {
   @@index([campaignId, sortOrder])
   @@map("campaign_products")
 }
+
+
+/// Courier tracking record for an order. This records carrier events only; it
+/// does not prove that funds are held or that a payout has been executed.
+model OrderShipment {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String         @unique @map("order_id") @db.Uuid
+  carrierName     String         @map("carrier_name")
+  trackingNumber  String         @map("tracking_number")
+  trackingUrl     String?        @map("tracking_url")
+  status          ShipmentStatus @default(NOT_DISPATCHED)
+  dispatchedAt    DateTime?      @map("dispatched_at")
+  deliveredAt     DateTime?      @map("delivered_at")
+  lastEventAt     DateTime?      @map("last_event_at")
+  deliveryNotes   String?        @map("delivery_notes")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
+  @@map("order_shipments")
+}
+
+/// A single buyer-protection case per order for the initial MVP. Opening a
+/// case must pause payout eligibility; the case record is not an escrow or
+/// wallet balance and must not be used to imply funds are held.
+model BuyerProtectionCase {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String               @unique @map("order_id") @db.Uuid
+  buyerId        String               @map("buyer_id") @db.Uuid
+  reason         ProtectionReason
+  status         ProtectionCaseStatus @default(OPEN)
+  description    String
+  resolutionNote String?              @map("resolution_note")
+  openedAt       DateTime             @default(now()) @map("opened_at")
+  resolvedAt     DateTime?            @map("resolved_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  order    Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  buyer    User                     @relation("ProtectionCaseBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  evidence BuyerProtectionEvidence[]
+
+  @@index([status, openedAt])
+  @@index([buyerId, openedAt])
+  @@map("buyer_protection_cases")
+}
+
+/// Evidence metadata for a case. File uploads must use the application's
+/// authenticated upload path; never accept arbitrary external URLs as proof.
+model BuyerProtectionEvidence {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String   @map("case_id") @db.Uuid
+  submittedBy String   @map("submitted_by") @db.Uuid
+  fileUrl     String   @map("file_url")
+  fileType    String   @map("file_type")
+  caption     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  protectionCase BuyerProtectionCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [submittedBy], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+  @@map("buyer_protection_evidence")
+}

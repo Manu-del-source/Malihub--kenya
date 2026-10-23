@@ -70,7 +70,9 @@ export type AuditAction =
   // up with the authoritative row (reference/amount/currency). Audit-only —
   // nothing is settled.
   | "payment.verification_mismatch"
-  | "payment.anomaly";
+  | "payment.anomaly"
+  | "protection.shipment_dispatched"
+  | "protection.case_opened";
 
 export async function logAuditEvent(params: {
   action: AuditAction;

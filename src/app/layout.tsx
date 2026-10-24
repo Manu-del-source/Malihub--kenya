@@ -55,7 +55,7 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.smartbiz365.site"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online"),
   title: {
     default: "MaliHub Kenya — Buy & Sell Anything, Anywhere in Kenya",
     template: "%s | MaliHub Kenya",

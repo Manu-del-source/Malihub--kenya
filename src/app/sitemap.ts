@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.co.ke";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
 
 /**
  * Generated at request time on ISR (see `revalidate` below) rather than at

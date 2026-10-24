@@ -45,7 +45,7 @@ export async function ProductDetail({
     prisma.profile.findUnique({ where: { userId: product.ownerId }, select: { whatsapp: true } }),
   ]);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.co.ke";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
   const canonicalUrl = `${appUrl}${canonicalPath}`;
   const isOwnListing = user?.id === product.ownerId;
   const isSold = product.status === "SOLD";

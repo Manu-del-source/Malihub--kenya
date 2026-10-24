@@ -4,7 +4,7 @@ import { sendEmail } from "@/services/email-service";
 import { NotificationEmail } from "@/emails/notification-email";
 import type { NotificationType } from "@prisma/client";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.co.ke";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
 
 const DEFAULT_EMAIL_TYPES = new Set<NotificationType>([
   "PAYMENT_UPDATE",

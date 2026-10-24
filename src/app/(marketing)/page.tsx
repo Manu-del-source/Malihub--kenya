@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihub.co.ke";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
 
 const jsonLd = {
   "@context": "https://schema.org",

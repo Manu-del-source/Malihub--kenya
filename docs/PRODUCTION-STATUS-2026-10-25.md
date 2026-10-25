@@ -113,13 +113,31 @@ Complete them before treating the entire production flow as fully verified.
 - [Viewing and retrying webhook deliveries](https://support.paystack.com/en/articles/10609026)
 
 
-## Dropshipping feature branch note (2026-10-25)
+## Dropshipping production status update (2026-10-25)
 
-The dropshipping governance, supplier order, purchase, return and dashboard
-changes described in `docs/DROPSHIPPING-OPERATIONS.md` were implemented on a
-separate feature branch only. They were **not** deployed, the additive
-migration was **not** applied to production, and no production environment
-variables were changed. Do not smoke-test these flows on production until a
-reviewed PR is merged, the migration duplicate preflight is run against the
-target database, fee/tax/payment-responsibility decisions are signed off, and
-an operations rota for manual verification and dispute handling exists.
+PR #61 was merged to `main`, and Vercel created a Production deployment for
+commit `83a33a55ba0eccaa48dfa6053789954752ffc4da`. The deployment build log
+reported nine Prisma migrations and explicitly logged
+`Applying migration `20261025120000_dropshipping_supplier_governance``.
+The deployment then completed successfully.
+
+**Important connection warning:** the same build log stated that
+`DIRECT_URL` was empty and the migration runner fell back to the pooled
+`DATABASE_URL`. The deployment evidence indicates the migration was applied,
+but an operator must verify the resulting migration state with a read-only
+query before any further database action. Do not rerun migrations or perform
+data repair based solely on these logs.
+
+The production deployment occurred automatically after the PR merge; it was
+not initiated manually in this session. No further production deployment,
+database operation, or environment-variable change is authorized by this note.
+
+Before treating dropshipping as launch-ready:
+- Verify the migration state and duplicate rows with read-only queries.
+- Test the live database/payment/fulfilment path in a safe test environment.
+- Complete fee/tax/payment-responsibility and return-policy decisions.
+- Establish the manual supplier-verification and exception-handling rota.
+
+PR #64 proposes making production migrations opt-in and refusing to fall back
+to a pooled connection. Keep that PR under review; do not merge it without
+reviewing the expected build/deployment behavior.

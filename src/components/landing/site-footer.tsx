@@ -11,7 +11,7 @@ const FOOTER_LINKS = {
   ],
   Help: [
     { label: "Support & safety", href: "/support" },
-    { label: "Email support", href: "mailto:hello@smartbiz365.site?subject=MaliHub%20Support" },
+    { label: "Email support", href: "mailto:support@malihubke.online?subject=MaliHub%20Support" },
   ],
   Legal: [
     { label: "Terms of service", href: "/terms" },
@@ -36,8 +36,8 @@ export function SiteFooter() {
             <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-medium text-primary-400 transition-colors hover:text-primary-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               Explore the marketplace <ArrowUpRight className="h-4 w-4" aria-hidden />
             </Link>
-            <a href="mailto:hello@smartbiz365.site?subject=MaliHub%20Support" className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Mail className="h-3.5 w-3.5" aria-hidden /> hello@smartbiz365.site
+            <a href="mailto:support@malihubke.online?subject=MaliHub%20Support" className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Mail className="h-3.5 w-3.5" aria-hidden /> support@malihubke.online
             </a>
           </div>
 

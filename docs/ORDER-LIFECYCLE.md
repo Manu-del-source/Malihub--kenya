@@ -188,3 +188,32 @@ and has already committed correctly.
   already exists in `prisma/schema.prisma`. The compare-and-swap relies on
   `orders.status` being filterable, which the existing `@@index([status])`
   already provides.
+
+
+---
+
+## Additive supplier-fulfilment lifecycle (2026-10-25)
+
+The existing `PENDING → PAID → SHIPPED → DELIVERED → COMPLETED` order state
+machine is unchanged. After a **provider-verified** successful payment, the
+canonical settlement finalizer best-effort creates one
+`SupplierFulfilment` per supplier-sourced `OrderItem`, keyed uniquely by
+`order_item_id`. Replayed webhooks and status checks cannot duplicate it.
+
+The supplier state machine is separate:
+
+```
+AWAITING_PAYMENT → AWAITING_SUPPLIER_CONFIRMATION → CONFIRMED → ORDERED
+  → DISPATCHED → IN_TRANSIT → DELIVERED
+```
+
+`FAILED` / `CANCELLED` are explicit exception states. Only an administrator
+with reviewed delivery evidence can record `DELIVERED`; a seller or supplier
+dispatch claim cannot. Admin-reviewed delivery updates `OrderShipment` and
+`Order.deliveredAt`, but never sets `payoutEligibleAt` or releases a payout.
+
+Supplier purchases are manual and unique per fulfilment. Return/dispute
+requests reuse `BuyerProtectionCase` and create at most one `Refund` request
+with a deterministic idempotency key; resolution requires a provider-confirmed
+`COMPLETED` refund in the database. The existing refund/settlement/payout
+models remain authoritative. See `docs/DROPSHIPPING-OPERATIONS.md`.

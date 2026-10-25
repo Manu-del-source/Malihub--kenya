@@ -155,5 +155,6 @@ export const returnDecisionSchema = z.object({
     .optional(),
   returnShippingParty: optionalText(120),
   resolutionNote: optionalText(2000),
-  refundStatus: z.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"]).optional(),
+  // Refund status is NEVER accepted from the client: the server reads the
+  // linked Refund row and requires a provider-confirmed COMPLETED state.
 });

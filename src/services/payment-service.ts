@@ -7,6 +7,7 @@ import {
 } from "@/lib/payment-state-machine";
 import { logAuditEvent } from "@/services/audit-service";
 import { notifyUser } from "@/services/notification-service";
+import { ensureSupplierFulfilmentsForPaidOrder } from "@/services/dropshipping-fulfilment-service";
 import { markOrderPaid, OrderTransitionError } from "@/services/order-transition-service";
 
 /**
@@ -382,6 +383,19 @@ export type SettleSuccessOutcome = OrderPaidOutcome & {
 };
 
 /**
+ * The payment store is a narrow Pick used by the existing webhook/verify
+ * tests. Only call the dropshipping fan-out when the new delegates are present;
+ * otherwise a replay on a non-dropshipping store must behave exactly as before.
+ */
+function hasSupplierFulfilmentDelegates(
+  db: PaymentStore,
+): db is PaymentStore & Parameters<typeof ensureSupplierFulfilmentsForPaidOrder>[0] {
+  const candidate = db as unknown as Record<string, unknown>;
+  const fulfilment = candidate.supplierFulfilment as Record<string, unknown> | undefined;
+  return typeof fulfilment?.create === "function" && typeof fulfilment?.findUnique === "function";
+}
+
+/**
  * The canonical post-claim completion of a successful payment — the ONLY code
  * that turns a claimed SUCCESS into an order transition plus its audit trail.
  *
@@ -447,6 +461,31 @@ export async function settleSuccessfulPayment(
           source: options.source,
         },
       }).catch(() => undefined)
+    );
+  }
+
+  // Best-effort, post-commit dropshipping fan-out. A verified payment remains
+  // settled even if task creation fails; the failure is audited for the admin
+  // exception queue and a duplicate verified-payment event can safely retry
+  // because each task is keyed by its order item.
+  if (
+    orderOutcome.orderStatus === "PAID" &&
+    !orderOutcome.anomaly &&
+    hasSupplierFulfilmentDelegates(db)
+  ) {
+    breadcrumbs.push(
+      ensureSupplierFulfilmentsForPaidOrder(db, payment.orderId).catch((error) => {
+        console.error("Supplier fulfilment post-payment creation failed", {
+          code: typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "unexpected",
+        });
+        return logAuditEvent({
+          action: "supplier_fulfilment.creation_failed",
+          actorId: PAYMENT_SYSTEM_ACTOR_ID,
+          targetType: "order",
+          targetId: payment.orderId,
+          metadata: { source: options.source, reason: "post_payment_fanout_failed" },
+        }).catch(() => undefined);
+      }),
     );
   }
 

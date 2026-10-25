@@ -21,3 +21,16 @@ This phase adds a supplier catalog foundation for MaliHub's seller-led dropshipp
 ## Next phase
 
 Build authenticated seller sourcing endpoints and an admin-only supplier approval/catalog management workflow. Validate role checks against the current Neon Auth session helpers and add tests before enabling any supplier data writes in production.
+
+
+## Update (2026-10-25): governance and freshness added
+
+The original Phase 1 schema remains the base, but supplier products now also
+have an admin approval lifecycle, dated stock/cost/delivery verification,
+`manual_refresh_required`, and an append-only verification history. The seller
+catalog filters on `approvalStatus: APPROVED` and returns an `availability`
+classification with `isSnapshot: true` / `isGuaranteed: false`. A
+verified-seller-only pricing preview uses integer KES cents and configured
+fees; no tax, commission or FX rate is invented. See
+`docs/DROPSHIPPING-GOVERNANCE-PHASE.md` and
+`docs/DROPSHIPPING-OPERATIONS.md`.

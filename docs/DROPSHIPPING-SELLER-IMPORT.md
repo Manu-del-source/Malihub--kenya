@@ -149,3 +149,20 @@ npm run build
 - Manual supplier fulfillment: Supplier purchasing and dispatch confirmation remain manual operational tasks in this phase.
 - Stock availability: Supplier `availableQuantity` reflects the last recorded snapshot and is not real-time inventory reservation. Sellers must confirm supplier stock before publishing high-volume listings.
 - Image licensing: Supplier-provided preview images must be reviewed and replaced by the seller's own verified photos uploaded through MaliHub's storage pipeline.
+
+
+## Update (2026-10-25): approval, stock caveat and profit preview
+
+`GET /api/seller/supplier-products` now returns only admin-approved products
+and includes an `availability` object (`isSnapshot`, `isGuaranteed`,
+`level`, `label`, `verifiedAt`, `warnings`). Stale or unverified stock can be
+imported with a visible caveat, but is never treated as a reservation; the
+seller must confirm availability at the fulfilment step.
+
+`POST /api/seller/supplier-products/[id]/pricing-preview` is available to
+verified sellers and returns estimated gross profit, margin and fee amounts.
+It does not return the raw supplier cost, delivery charge, contacts or notes.
+`POST /api/seller/supplier-products/[id]/import` now validates product approval
+and stock availability, records a private `SupplierListingCost` snapshot, and
+returns the estimate and stock caveat. Imported listings are still `DRAFT` and
+are never published automatically. See `docs/DROPSHIPPING-OPERATIONS.md`.

@@ -177,6 +177,11 @@ migration is accepted.
   applied in order to a fresh local PGlite/WASM Postgres instance; the new
   migration applied successfully. PGlite lacks the `pg_trgm` extension, so that
   unrelated migration was skipped in this local syntax check only.
+- The duplicate preflight was exercised separately: with two non-`REMOVED`
+  products sharing `(seller_id, supplier_product_id)` seeded before the new
+  migration, it aborted with
+  `Dropshipping uniqueness preflight failed: 1 duplicate ... group(s) exist`.
+  The earlier `20261025110000` index was also confirmed to reject those rows.
 - `npm test`, `npm run type-check`, `npm run lint` — see PR test evidence.
 - No Neon/production DB was contacted; migration application on production is
   **unverified**. No external supplier, courier or Paystack call was made.

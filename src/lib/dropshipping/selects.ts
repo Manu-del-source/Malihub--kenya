@@ -135,6 +135,7 @@ export const BUYER_FULFILMENT_SELECT = {
   deliveredAt: true,
   lastStatusChangedAt: true,
   product: { select: { title: true, slug: true } },
+  returnRequest: { select: { id: true, status: true, requestedAt: true } },
 } satisfies Prisma.SupplierFulfilmentSelect;
 
 /** Seller view of their own tasks: cost is visible, supplier contact is not. */

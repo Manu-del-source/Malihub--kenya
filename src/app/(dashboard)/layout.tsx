@@ -36,6 +36,7 @@ function buildNav({
     primary.push(
       { label: "Dashboard", href: SELLER_DASHBOARD_PATH },
       { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products` },
+      { label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers` },
       { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders` },
       { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` },
     );

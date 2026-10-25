@@ -158,11 +158,18 @@ describe("POST /api/orders — server-authoritative order creation", () => {
       },
     });
 
-    const result = await createCheckoutOrders();
+    const result = await createCheckoutOrders({
+      county: "Nairobi",
+      address: "Moi Avenue",
+    });
 
     assert.equal(calls[0]!.url, ORDERS_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
-    assert.deepEqual(bodyOf(calls[0]!), {}, "prices, ids and totals are never sent");
+    assert.deepEqual(
+      bodyOf(calls[0]!),
+      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue" },
+      "prices, ids and totals are never sent",
+    );
     assert.equal(result.ok, true);
     if (result.ok) {
       assert.equal(result.data.length, 2, "multi-seller checkout returns one order per seller");
@@ -177,7 +184,10 @@ describe("POST /api/orders — server-authoritative order creation", () => {
       body: { success: false, error: "Your cart is empty.", code: "empty_cart" },
     });
 
-    const result = await createCheckoutOrders();
+    const result = await createCheckoutOrders({
+      county: "Nairobi",
+      address: "Moi Avenue",
+    });
 
     assert.equal(result.ok, false);
     if (!result.ok) {
@@ -192,7 +202,10 @@ describe("POST /api/orders — server-authoritative order creation", () => {
       throw new Error("offline");
     }) as typeof fetch;
 
-    const result = await createCheckoutOrders();
+    const result = await createCheckoutOrders({
+      county: "Nairobi",
+      address: "Moi Avenue",
+    });
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.message, /reach the server/i);
   });
@@ -372,7 +385,9 @@ describe("duplicate safety and multi-seller sequencing", () => {
       };
     };
 
-    const once = createSerializedTask(createCheckoutOrders);
+    const once = createSerializedTask(() =>
+      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue" }),
+    );
     const [first, second] = await Promise.all([once(), once()]);
 
     assert.equal(calls.length, 1, "a double click must not create a second order");

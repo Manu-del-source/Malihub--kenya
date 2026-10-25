@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { AlertTriangle } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { ListingForm } from "@/components/marketplace/listing-form";
 import { requireUser } from "@/lib/auth";
@@ -28,7 +29,17 @@ export default async function EditListingPage({
 
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true },
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+      category: true,
+      supplierProduct: {
+        select: {
+          id: true,
+          title: true,
+          supplier: { select: { name: true, region: true } },
+        },
+      },
+    },
   });
 
   if (!product || product.ownerId !== user.id) notFound();
@@ -39,6 +50,30 @@ export default async function EditListingPage({
       <p className="mb-8 text-sm text-muted-foreground">
         Changes go live immediately for published listings.
       </p>
+
+      {product.supplierProduct && (
+        <div className="mb-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-amber-200">
+                  Supplier-sourced draft listing ({product.supplierProduct.supplier.name})
+                </h2>
+              </div>
+              <p className="mt-1 text-white/70">
+                This listing was imported from an approved supplier. Before publishing to the marketplace:
+              </p>
+              <ul className="mt-2 list-disc pl-5 space-y-1 text-xs text-white/60">
+                <li>Upload verified product images through the image upload grid below.</li>
+                <li>Confirm real-time product availability and delivery timelines with the supplier.</li>
+                <li>Verify title, description, category, and intended retail price.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="glass rounded-2xl p-6 sm:p-8">
         <ListingForm
           productId={product.id}

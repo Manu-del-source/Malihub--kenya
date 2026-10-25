@@ -519,6 +519,9 @@ model Product {
   campaignProducts CampaignProduct[]
   supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id], onDelete: SetNull)
   supplierProductId String? @map("supplier_product_id") @db.Uuid
+  // Note: Uniqueness for (sellerId, supplierProductId) where supplierProductId IS NOT NULL
+  // and status != 'REMOVED' is enforced at the database level via a partial unique index
+  // in prisma/migrations/20261025110000_unique_seller_supplier_product/migration.sql
 
   @@index([categoryId, status])
   @@index([county, status])

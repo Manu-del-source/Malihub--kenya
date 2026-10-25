@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   Package,
+  Boxes,
   CheckCircle2,
   FileEdit,
   Tags,
@@ -48,6 +49,7 @@ const STAT_CARDS = [
 
 const QUICK_LINKS = [
   { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products`, icon: Package },
+  { label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers`, icon: Boxes },
   { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders`, icon: ShoppingCart },
   { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales`, icon: Wallet },
   { label: "Profile", href: "/account", icon: UserRound },

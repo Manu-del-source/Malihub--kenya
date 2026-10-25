@@ -10,7 +10,7 @@ import { slugify } from "@/utils";
 const importSchema = z.object({
   categorySlug: z.string().trim().min(1).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   priceCents: z.number().int().min(100).max(2_000_000_000),
-  county: z.enum(KENYA_COUNTIES as [string, ...string[]]),
+  county: z.enum([...KENYA_COUNTIES] as [string, ...string[]]),
   town: z.string().trim().min(2).max(80),
   quantity: z.number().int().min(1).max(9999).default(1),
 });

@@ -111,3 +111,15 @@ Complete them before treating the entire production flow as fully verified.
 - [API keys and webhooks](https://support.paystack.com/en/articles/2123458)
 - [Paystack webhook documentation](https://docs-v2.paystack.com/payments/webhooks/)
 - [Viewing and retrying webhook deliveries](https://support.paystack.com/en/articles/10609026)
+
+
+## Dropshipping feature branch note (2026-10-25)
+
+The dropshipping governance, supplier order, purchase, return and dashboard
+changes described in `docs/DROPSHIPPING-OPERATIONS.md` were implemented on a
+separate feature branch only. They were **not** deployed, the additive
+migration was **not** applied to production, and no production environment
+variables were changed. Do not smoke-test these flows on production until a
+reviewed PR is merged, the migration duplicate preflight is run against the
+target database, fee/tax/payment-responsibility decisions are signed off, and
+an operations rota for manual verification and dispute handling exists.

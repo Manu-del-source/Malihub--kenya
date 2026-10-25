@@ -70,7 +70,32 @@ export type AuditAction =
   // up with the authoritative row (reference/amount/currency). Audit-only —
   // nothing is settled.
   | "payment.verification_mismatch"
-  | "payment.anomaly";
+  | "payment.anomaly"
+  // ─── Dropshipping operations ──────────────────────────────────────────────
+  // Status changes for suppliers, their products, stock/price verifications,
+  // fulfilment, manual purchases, and returns. Metadata must contain only
+  // ids/statuses/counts — never supplier costs, contacts, notes or references
+  // that could expose commercial terms outside the admin boundary.
+  | "supplier.created"
+  | "supplier.status_changed"
+  | "supplier.terms_updated"
+  | "supplier_product.submitted"
+  | "supplier_product.approved"
+  | "supplier_product.rejected"
+  | "supplier_product.suspended"
+  | "supplier_product.removed"
+  | "supplier_product.stock_verified"
+  | "supplier_product.cost_changed"
+  | "supplier_listing_cost.recalculated"
+  | "supplier_fulfilment.created"
+  | "supplier_fulfilment.status_changed"
+  | "supplier_fulfilment.creation_failed"
+  | "supplier_purchase.confirmed"
+  | "supplier_purchase.failed"
+  | "supplier_purchase.reconciled"
+  | "supplier_return.requested"
+  | "supplier_return.status_changed"
+  | "supplier_return.payout_hold";
 
 export async function logAuditEvent(params: {
   action: AuditAction;

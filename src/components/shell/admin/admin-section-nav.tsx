@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   FolderTree,
   ScrollText,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -29,6 +30,7 @@ const ADMIN_SECTIONS = [
   { label: "Sellers", href: "/admin/sellers", icon: Store },
   { label: "Listings", href: "/admin/listings", icon: Tags },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Dropshipping", href: "/admin/dropshipping", icon: Boxes },
   { label: "Categories", href: "/admin/categories", icon: FolderTree },
   { label: "Audit", href: "/admin/audit", icon: ScrollText },
 ];

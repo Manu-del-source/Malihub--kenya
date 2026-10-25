@@ -11,6 +11,9 @@ import {
 import { requireSellerAccess } from "@/lib/auth";
 import { BUYER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
+import { SELLER_SUPPLIER_PRODUCT_SELECT } from "@/lib/dropshipping/selects";
+import { classifySupplierAvailability } from "@/lib/dropshipping/availability";
+import { readDropshippingConfig } from "@/lib/dropshipping/config";
 
 export const dynamic = "force-dynamic";
 
@@ -36,26 +39,13 @@ export default async function SellerSuppliersPage() {
       select: { id: true, name: true, slug: true },
     }),
     prisma.supplierProduct.count({
-      where: { isActive: true, supplier: { status: "APPROVED" } },
+      where: { isActive: true, approvalStatus: "APPROVED", supplier: { status: "APPROVED" } },
     }),
     prisma.supplierProduct.findMany({
-      where: { isActive: true, supplier: { status: "APPROVED" } },
+      where: { isActive: true, approvalStatus: "APPROVED", supplier: { status: "APPROVED" } },
       orderBy: { title: "asc" },
       take: 24,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        sku: true,
-        sourceUrl: true,
-        imageUrl: true,
-        currency: true,
-        availableQuantity: true,
-        lastSyncedAt: true,
-        supplier: {
-          select: { id: true, name: true, region: true, countryCode: true },
-        },
-      },
+      select: SELLER_SUPPLIER_PRODUCT_SELECT,
     }),
   ]);
 
@@ -77,9 +67,21 @@ export default async function SellerSuppliersPage() {
       .map((item) => [item.supplierProductId, { id: item.id, slug: item.slug, status: item.status }]),
   );
 
+  const stockPolicy = readDropshippingConfig();
   const initialItems: SupplierCatalogItem[] = rawSupplierProducts.map((product) => ({
     ...product,
     lastSyncedAt: product.lastSyncedAt ? product.lastSyncedAt.toISOString() : null,
+    stockVerifiedAt: product.stockVerifiedAt ? product.stockVerifiedAt.toISOString() : null,
+    availability: classifySupplierAvailability({
+      supplierStatus: product.supplier.status,
+      approvalStatus: product.approvalStatus,
+      isActive: product.isActive,
+      stockStatus: product.stockStatus,
+      availableQuantity: product.availableQuantity,
+      stockVerifiedAt: product.stockVerifiedAt,
+      lastSyncedAt: product.lastSyncedAt,
+      maxAgeHours: stockPolicy.stockMaxAgeHours,
+    }),
     importedListing: importedMap.get(product.id) || null,
   }));
 

@@ -1,6 +1,6 @@
 # MaliHub Dropshipping Marketplace — Implementation Plan
 
-Status: design and implementation baseline; no production behaviour changed.
+Status: original design/implementation baseline, now partially implemented on a feature branch. No production behaviour changed. See `docs/DROPSHIPPING-GOVERNANCE-PHASE.md` and `docs/DROPSHIPPING-OPERATIONS.md` for the implemented model and runbook.
 
 ## Product decision
 
@@ -105,4 +105,4 @@ Do not make these tables production-facing until migrations, access control, ser
 
 ## Scope of this document
 
-This is a repository-grounded implementation plan, not evidence that supplier tables, dashboards or fulfilment integrations already exist. Work should proceed in a separate feature branch and pull request, with production untouched until review, tests and explicit release approval.
+This document remains the original repository-grounded implementation plan. The governance, stock-freshness, pricing, supplier order, purchase, return, notification and dashboard work now exists on the feature branch described in `docs/DROPSHIPPING-OPERATIONS.md`; that document is the source of truth for implemented behaviour. No supplier API/feed, courier integration, automated payment, escrow, payout service or production deployment has been added. All work remains on a separate feature branch and pull request, with production untouched until review, tests and explicit release approval.

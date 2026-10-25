@@ -10,6 +10,9 @@ import { prisma } from "@/lib/prisma";
 import { getBuyerOrder } from "@/services/order-service";
 import { readBuyerPaymentSnapshot } from "@/services/payment-status-service";
 import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button";
+import { SupplierReturnForm } from "@/components/shell/buyer/supplier-return-form";
+import { BUYER_FULFILMENT_SELECT } from "@/lib/dropshipping/selects";
+import { BUYER_FULFILMENT_MESSAGE, SUPPLIER_FULFILMENT_LABEL } from "@/lib/dropshipping/fulfilment-state-machine";
 import { PaystackPaySection } from "@/components/shell/buyer/paystack-pay-section";
 import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import { formatKes, timeAgo } from "@/utils";
@@ -59,6 +62,14 @@ export default async function BuyerOrderDetailPage({
 
   const itemSubtotal = order.items.reduce((sum, item) => sum + item.totalCents, 0);
 
+  // Buyer-safe supplier fulfilment projections only: no supplier name, cost,
+  // purchase reference, internal notes or delivery evidence is selected.
+  const supplierFulfilments = await prisma.supplierFulfilment.findMany({
+    where: { orderId: order.id, buyerId: user.id },
+    orderBy: { createdAt: "asc" },
+    select: BUYER_FULFILMENT_SELECT,
+  });
+
   return (
     <Container className="py-10">
       <Link
@@ -95,6 +106,7 @@ export default async function BuyerOrderDetailPage({
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
         <section className="glass rounded-2xl">
           <h2 className="border-b border-border px-6 py-4 font-display text-lg font-medium">
             Items
@@ -130,6 +142,53 @@ export default async function BuyerOrderDetailPage({
             </div>
           </div>
         </section>
+
+        {supplierFulfilments.length > 0 && (
+          <section className="glass rounded-2xl p-5 text-sm">
+            <h2 className="font-display text-base font-medium">Supplier fulfilment updates</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tracking is entered manually. A supplier dispatch claim is not proof of delivery.
+            </p>
+            <div className="mt-4 space-y-4">
+              {supplierFulfilments.map((fulfilment) => (
+                <div key={fulfilment.id} className="rounded-xl border border-border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{fulfilment.product.title}</p>
+                    <Badge variant="primary">
+                      {SUPPLIER_FULFILMENT_LABEL[fulfilment.status]}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-muted-foreground">
+                    {BUYER_FULFILMENT_MESSAGE[fulfilment.status]}
+                  </p>
+                  {fulfilment.carrierName && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Courier: {fulfilment.carrierName}
+                      {fulfilment.trackingNumber ? ` · ${fulfilment.trackingNumber}` : ""}
+                      {fulfilment.trackingUrl ? ` · ${fulfilment.trackingUrl}` : ""}
+                    </p>
+                  )}
+                  {fulfilment.deliveredAt && (
+                    <p className="mt-2 text-xs text-emerald-500">
+                      Delivery reviewed {new Date(fulfilment.deliveredAt).toLocaleString()}.
+                    </p>
+                  )}
+                  {fulfilment.returnRequest ? (
+                    <p className="mt-2 text-xs text-amber-500">
+                      Your return/dispute request is {fulfilment.returnRequest.status.toLowerCase()}. No refund is guaranteed until the payment provider confirms it.
+                    </p>
+                  ) : fulfilment.status !== "AWAITING_PAYMENT" &&
+                    fulfilment.status !== "CANCELLED" ? (
+                    <div className="rounded-xl border border-border bg-card/40 p-3">
+                      <SupplierReturnForm fulfilmentId={fulfilment.id} />
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        </div>
 
         <aside className="flex flex-col gap-4">
           {order.status === "PENDING" && (

@@ -50,6 +50,7 @@ const STAT_CARDS = [
 const QUICK_LINKS = [
   { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products`, icon: Package },
   { label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers`, icon: Boxes },
+  { label: "Supplier orders", href: `${SELLER_DASHBOARD_PATH}/supplier-orders`, icon: Boxes },
   { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders`, icon: ShoppingCart },
   { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales`, icon: Wallet },
   { label: "Profile", href: "/account", icon: UserRound },

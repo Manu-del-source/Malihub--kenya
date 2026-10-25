@@ -26,6 +26,19 @@ import { Input } from "@/components/ui/input";
 import { KENYA_COUNTIES } from "@/lib/constants";
 import { formatKes } from "@/utils";
 
+export type SupplierAvailability = {
+  level: "AVAILABLE" | "LIMITED" | "UNKNOWN" | "STALE" | "UNAVAILABLE";
+  label: string;
+  isSnapshot: boolean;
+  isGuaranteed: boolean;
+  canImport: boolean;
+  requiresFulfilmentConfirmation: boolean;
+  isStale: boolean;
+  verifiedAt: string | null;
+  ageHours: number | null;
+  warnings: string[];
+};
+
 export type SupplierCatalogItem = {
   id: string;
   title: string;
@@ -36,12 +49,22 @@ export type SupplierCatalogItem = {
   currency: string;
   availableQuantity: number | null;
   lastSyncedAt: string | null;
+  stockStatus?: string;
+  stockVerifiedAt?: string | null;
+  isActive?: boolean;
+  approvalStatus?: string;
+  manualRefreshRequired?: boolean;
   supplier: {
     id: string;
     name: string;
     region: "KENYA" | "INTERNATIONAL";
     countryCode: string;
+    status?: string;
+    deliveryCounties?: string[];
+    deliveryEstimateMinDays?: number | null;
+    deliveryEstimateMaxDays?: number | null;
   };
+  availability?: SupplierAvailability;
   importedListing: {
     id: string;
     slug: string;
@@ -68,6 +91,14 @@ type ImportFormState = {
   county: string;
   town: string;
   quantity: number;
+  sellerFulfilmentCostKes: string;
+};
+
+type PricingPreview = {
+  estimatedGrossProfitCents: number;
+  marginBps: number;
+  isEstimate: boolean;
+  warnings: string[];
 };
 
 type ImportResponse = {
@@ -111,7 +142,10 @@ export function SupplierCatalogView({
     county: KENYA_COUNTIES[0] || "Nairobi",
     town: "",
     quantity: 1,
+    sellerFulfilmentCostKes: "",
   });
+  const [pricingPreview, setPricingPreview] = useState<PricingPreview | null>(null);
+  const [pricingError, setPricingError] = useState<string | null>(null);
   const [isSubmittingImport, setIsSubmittingImport] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importFieldErrors, setImportFieldErrors] = useState<Record<string, string[]>>({});
@@ -180,8 +214,62 @@ export function SupplierCatalogView({
       county: "Nairobi",
       town: "",
       quantity: 1,
+      sellerFulfilmentCostKes: "",
     });
+    setPricingPreview(null);
+    setPricingError(null);
   }
+
+  useEffect(() => {
+    if (!importingItem || !sellerVerified) return;
+    const price = Number.parseFloat(importForm.priceKes.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(price) || price <= 0) {
+      setPricingPreview(null);
+      setPricingError(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const fulfilmentCost = Number.parseFloat(importForm.sellerFulfilmentCostKes.replace(/[^0-9.]/g, ""));
+        const res = await fetch(`/api/seller/supplier-products/${importingItem.id}/pricing-preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            categorySlug: importForm.categorySlug,
+            priceCents: Math.round(price * 100),
+            sellerFulfilmentCostCents:
+              Number.isFinite(fulfilmentCost) && fulfilmentCost > 0
+                ? Math.round(fulfilmentCost * 100)
+                : 0,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          setPricingPreview(null);
+          setPricingError(json.error || "Pricing preview unavailable.");
+          return;
+        }
+        setPricingError(null);
+        setPricingPreview(json.data);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setPricingError("Pricing preview unavailable.");
+        }
+      }
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    importingItem,
+    sellerVerified,
+    importForm.categorySlug,
+    importForm.priceKes,
+    importForm.sellerFulfilmentCostKes,
+  ]);
 
   async function handleSubmitImport(e: React.FormEvent) {
     e.preventDefault();
@@ -216,6 +304,9 @@ export function SupplierCatalogView({
           county: importForm.county,
           town: importForm.town.trim(),
           quantity: Math.max(1, importForm.quantity || 1),
+          sellerFulfilmentCostCents: Math.round(
+            Math.max(0, Number.parseFloat(importForm.sellerFulfilmentCostKes.replace(/[^0-9.]/g, "")) || 0) * 100,
+          ),
         }),
       });
 
@@ -483,10 +574,16 @@ export function SupplierCatalogView({
               {/* Bottom metadata and action */}
               <div className="mt-4 border-t border-white/5 pt-3">
                 <div className="mb-3 flex items-center justify-between text-xs text-white/50">
-                  <span>
-                    {item.availableQuantity !== null
-                      ? `${item.availableQuantity.toLocaleString()} in stock`
-                      : "Stock verified"}
+                  <span className={item.availability?.isStale ? "text-amber-300" : undefined}>
+                    {item.availability
+                      ? `${item.availability.label}${
+                          item.availableQuantity !== null
+                            ? ` · ${item.availableQuantity.toLocaleString()} units`
+                            : ""
+                        }`
+                      : item.availableQuantity !== null
+                        ? `${item.availableQuantity.toLocaleString()} in stock (snapshot)`
+                        : "Stock not verified"}
                   </span>
                   {item.sku && <span className="font-mono text-[11px]">SKU: {item.sku}</span>}
                 </div>
@@ -605,6 +702,20 @@ export function SupplierCatalogView({
                       : "Available on order"}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-white/70">
+                <p className="font-medium text-amber-200">
+                  {detailItem.availability?.label ?? "Stock not verified"}
+                </p>
+                <p className="mt-1">
+                  Supplier stock is a last-known snapshot, not a live reservation. Confirm availability and delivery time with the supplier before publishing or accepting an order.
+                </p>
+                {detailItem.supplier.deliveryEstimateMaxDays ? (
+                  <p className="mt-1">
+                    Supplier delivery estimate: up to {detailItem.supplier.deliveryEstimateMaxDays} days where verified.
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-6 flex items-center justify-end gap-3">
@@ -805,6 +916,59 @@ export function SupplierCatalogView({
                       </p>
                       {importFieldErrors.priceCents && (
                         <p className="mt-1 text-xs text-red-400">{importFieldErrors.priceCents[0]}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-white/70">
+                        Your own fulfilment cost in KES (optional)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="e.g. 300"
+                        value={importForm.sellerFulfilmentCostKes}
+                        onChange={(e) =>
+                          setImportForm((prev) => ({ ...prev, sellerFulfilmentCostKes: e.target.value }))
+                        }
+                        className="mt-1.5 h-11 rounded-xl border-white/10 bg-[#1A1A1A] text-sm text-white"
+                      />
+                      <p className="mt-1 text-[11px] text-white/50">
+                        Enter only costs you actually pay. Unknown platform, tax and payment fees are not invented.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#111]/80 p-3.5 text-xs" aria-live="polite">
+                      {pricingPreview ? (
+                        <>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-white/60">Estimated gross profit</span>
+                            <span className="font-mono text-sm font-semibold text-white">
+                              {formatKes(pricingPreview.estimatedGrossProfitCents)}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-white/60">Estimated margin</span>
+                            <span className="font-mono text-sm text-white">
+                              {(pricingPreview.marginBps / 100).toFixed(2)}%
+                            </span>
+                          </div>
+                          <p className="mt-2 text-[11px] text-amber-300">
+                            {pricingPreview.isEstimate
+                              ? "Estimate only — supplier cost, delivery charge or fee configuration is not fully verified."
+                              : "Based on verified inputs. Final supplier cost must still be confirmed before purchase."}
+                          </p>
+                          {pricingPreview.warnings.length > 0 ? (
+                            <p className="mt-1 text-[11px] text-white/50">
+                              {pricingPreview.warnings.join(", ")}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-white/60">
+                          {pricingError ?? "Enter a retail price to preview estimated profit and margin before publishing."}
+                        </p>
                       )}
                     </div>
 

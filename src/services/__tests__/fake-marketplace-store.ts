@@ -70,6 +70,23 @@ export type SupplierRow = {
   websiteUrl?: string | null;
   notes?: string | null;
   approvedAt?: Date | null;
+  legalName?: string | null;
+  registrationNumber?: string | null;
+  contactName?: string | null;
+  physicalAddress?: string | null;
+  verificationNotes?: string | null;
+  statusChangedAt?: Date | null;
+  statusReason?: string | null;
+  deliveryCounties?: string[];
+  dispatchEstimateMinDays?: number | null;
+  dispatchEstimateMaxDays?: number | null;
+  deliveryEstimateMinDays?: number | null;
+  deliveryEstimateMaxDays?: number | null;
+  returnTerms?: string | null;
+  paymentTerms?: string | null;
+  paymentResponsibility?: string;
+  commercialTermsVerifiedAt?: Date | null;
+  commercialTermsNote?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -88,6 +105,22 @@ export type SupplierProductRow = {
   availableQuantity?: number | null;
   isActive: boolean;
   lastSyncedAt?: Date | null;
+  deliveryChargeMinor?: number | null;
+  approvalStatus?: string;
+  submittedAt?: Date | null;
+  reviewedAt?: Date | null;
+  reviewedById?: string | null;
+  reviewNote?: string | null;
+  stockStatus?: string;
+  stockVerifiedAt?: Date | null;
+  verificationMethod?: string | null;
+  costStatus?: string;
+  costVerifiedAt?: Date | null;
+  deliveryChargeVerifiedAt?: Date | null;
+  manualRefreshRequired?: boolean;
+  feedAdapterKey?: string | null;
+  lastVerificationNote?: string | null;
+  removedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -131,6 +164,9 @@ export type OrderItemRow = {
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+  supplierProductId?: string | null;
+  supplierProductTitle?: string | null;
+  supplierSku?: string | null;
   createdAt: Date;
 };
 
@@ -519,6 +555,18 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
   // rollback so a lost race is visible to the test.
   const committedWrites: Array<{ table: keyof Tables; id: string; row: Record<string, unknown> }> = [];
 
+  function withSupplierProduct(product: ProductRow): Record<string, unknown> {
+    const supplierProduct = product.supplierProductId
+      ? tables.supplierProducts.get(product.supplierProductId)
+      : undefined;
+    return {
+      ...product,
+      supplierProduct: supplierProduct
+        ? { id: supplierProduct.id, title: supplierProduct.title, sku: supplierProduct.sku ?? null }
+        : null,
+    };
+  }
+
   function attachProduct(product: ProductRow, takeImages?: number) {
     const images = [...tables.productImages.values()]
       .filter((img) => img.productId === product.id)
@@ -820,7 +868,8 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (include && (include.images || include.category || include.seller)) {
           return attachProduct(row);
         }
-        return { ...row };
+        const select = args.select as Args | undefined;
+        return select ? project(withSupplierProduct(row), select) : { ...row };
       },
       async findUniqueOrThrow(args) {
         store.operations.push("product.findUniqueOrThrow");
@@ -837,7 +886,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (!row) return null;
         const select = args.select as Args | undefined;
         if (select) {
-          return project(row, select);
+          return project(withSupplierProduct(row), select);
         }
         const include = args.include as Args | undefined;
         if (include && (include.images || include.category || include.seller)) {
@@ -853,7 +902,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         );
         const select = args.select as Args | undefined;
         if (select) {
-          const projected = rows.map((r) => project(r, select));
+          const projected = rows.map((r) => project(withSupplierProduct(r), select));
           const take = args.take as number | undefined;
           return take !== undefined ? projected.slice(0, take) : projected;
         }
@@ -1027,6 +1076,18 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           websiteUrl: (data.websiteUrl as string | null) ?? null,
           notes: (data.notes as string | null) ?? null,
           approvedAt: (data.approvedAt as Date | null) ?? null,
+          legalName: (data.legalName as string | null) ?? null,
+          registrationNumber: (data.registrationNumber as string | null) ?? null,
+          contactName: (data.contactName as string | null) ?? null,
+          physicalAddress: (data.physicalAddress as string | null) ?? null,
+          verificationNotes: (data.verificationNotes as string | null) ?? null,
+          statusChangedAt: (data.statusChangedAt as Date | null) ?? null,
+          statusReason: (data.statusReason as string | null) ?? null,
+          deliveryCounties: (data.deliveryCounties as string[]) ?? [],
+          returnTerms: (data.returnTerms as string | null) ?? null,
+          paymentTerms: (data.paymentTerms as string | null) ?? null,
+          paymentResponsibility: (data.paymentResponsibility as string) ?? "UNDEFINED",
+          commercialTermsVerifiedAt: (data.commercialTermsVerifiedAt as Date | null) ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -1052,6 +1113,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         for (const row of tables.supplierProducts.values()) {
           if (where?.id && row.id !== where.id) continue;
           if (where?.isActive !== undefined && row.isActive !== where.isActive) continue;
+          if (where?.approvalStatus && row.approvalStatus !== where.approvalStatus) continue;
+          if (where?.stockStatus && row.stockStatus !== where.stockStatus) continue;
+          if (where?.manualRefreshRequired !== undefined && row.manualRefreshRequired !== where.manualRefreshRequired) continue;
           const supplier = tables.suppliers.get(row.supplierId);
           if (where?.supplier && typeof where.supplier === "object") {
             const sw = where.supplier as { status?: string; region?: string };
@@ -1070,6 +1134,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         let rows = [...tables.supplierProducts.values()].filter((row) => {
           if (where?.id && row.id !== where.id) return false;
           if (where?.isActive !== undefined && row.isActive !== where.isActive) return false;
+          if (where?.approvalStatus && row.approvalStatus !== where.approvalStatus) return false;
+          if (where?.stockStatus && row.stockStatus !== where.stockStatus) return false;
+          if (where?.manualRefreshRequired !== undefined && row.manualRefreshRequired !== where.manualRefreshRequired) return false;
           const supplier = tables.suppliers.get(row.supplierId);
           if (where?.supplier && typeof where.supplier === "object") {
             const sw = where.supplier as { status?: string; region?: string };
@@ -1112,6 +1179,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         return [...tables.supplierProducts.values()].filter((row) => {
           if (where?.id && row.id !== where.id) return false;
           if (where?.isActive !== undefined && row.isActive !== where.isActive) return false;
+          if (where?.approvalStatus && row.approvalStatus !== where.approvalStatus) return false;
+          if (where?.stockStatus && row.stockStatus !== where.stockStatus) return false;
+          if (where?.manualRefreshRequired !== undefined && row.manualRefreshRequired !== where.manualRefreshRequired) return false;
           const supplier = tables.suppliers.get(row.supplierId);
           if (where?.supplier && typeof where.supplier === "object") {
             const sw = where.supplier as { status?: string; region?: string };
@@ -1156,6 +1226,12 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           availableQuantity: (data.availableQuantity as number | null) ?? null,
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
           lastSyncedAt: (data.lastSyncedAt as Date | null) ?? null,
+          deliveryChargeMinor: (data.deliveryChargeMinor as number | null) ?? null,
+          approvalStatus: String(data.approvalStatus ?? "DRAFT"),
+          submittedAt: (data.submittedAt as Date | null) ?? null,
+          stockStatus: String(data.stockStatus ?? "UNKNOWN"),
+          costStatus: String(data.costStatus ?? "ESTIMATED"),
+          manualRefreshRequired: data.manualRefreshRequired !== undefined ? Boolean(data.manualRefreshRequired) : true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -1204,6 +1280,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
             quantity: Number(item.quantity ?? 1),
             unitPriceCents: Number(item.unitPriceCents ?? 0),
             totalCents: Number(item.totalCents ?? 0),
+            supplierProductId: (item.supplierProductId as string | null) ?? null,
+            supplierProductTitle: (item.supplierProductTitle as string | null) ?? null,
+            supplierSku: (item.supplierSku as string | null) ?? null,
             createdAt: new Date(),
           };
           tables.orderItems.set(itemRow.id, itemRow);
@@ -1991,6 +2070,13 @@ export function seedSupplier(
     websiteUrl: overrides?.websiteUrl ?? "https://nairobisupplies.co.ke",
     notes: overrides?.notes ?? "Verified Kenyan dropshipping supplier",
     approvedAt: overrides?.approvedAt ?? new Date(),
+    legalName: overrides?.legalName ?? "Nairobi Direct Supplies Ltd",
+    registrationNumber: overrides?.registrationNumber ?? "PVT-123456",
+    deliveryCounties: overrides?.deliveryCounties ?? ["Nairobi"],
+    returnTerms: overrides?.returnTerms ?? "Seven-day return window",
+    paymentTerms: overrides?.paymentTerms ?? "Prepaid before dispatch",
+    paymentResponsibility: overrides?.paymentResponsibility ?? "SELLER",
+    commercialTermsVerifiedAt: overrides?.commercialTermsVerifiedAt ?? new Date(),
     createdAt: overrides?.createdAt ?? new Date(),
     updatedAt: overrides?.updatedAt ?? new Date(),
   };
@@ -2016,6 +2102,15 @@ export function seedSupplierProduct(
     availableQuantity: overrides.availableQuantity !== undefined ? overrides.availableQuantity : 50,
     isActive: overrides.isActive ?? true,
     lastSyncedAt: overrides.lastSyncedAt ?? new Date(),
+    deliveryChargeMinor: overrides.deliveryChargeMinor !== undefined ? overrides.deliveryChargeMinor : 0,
+    approvalStatus: overrides.approvalStatus ?? "APPROVED",
+    stockStatus: overrides.stockStatus ?? "IN_STOCK",
+    stockVerifiedAt: overrides.stockVerifiedAt !== undefined ? overrides.stockVerifiedAt : (overrides.lastSyncedAt ?? new Date()),
+    verificationMethod: overrides.verificationMethod ?? "MANUAL",
+    costStatus: overrides.costStatus ?? "CONFIRMED",
+    costVerifiedAt: overrides.costVerifiedAt ?? new Date(),
+    deliveryChargeVerifiedAt: overrides.deliveryChargeVerifiedAt ?? new Date(),
+    manualRefreshRequired: overrides.manualRefreshRequired ?? false,
     createdAt: overrides.createdAt ?? new Date(),
     updatedAt: overrides.updatedAt ?? new Date(),
   };

@@ -523,6 +523,7 @@ model Product {
   @@index([categoryId, status])
   @@index([county, status])
   @@index([sellerId])
+  @@index([supplierProductId])
   @@index([status, publishedAt])
   @@map("products")
 }

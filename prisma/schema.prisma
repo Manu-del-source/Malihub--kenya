@@ -184,6 +184,20 @@ enum SellerVerificationStatus {
   REJECTED
 }
 
+/// Supplier approval is separate from MaliHub seller verification.
+enum SupplierStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// Origin is operational metadata, not a guarantee of delivery time or customs status.
+enum SupplierRegion {
+  KENYA
+  INTERNATIONAL
+}
+
 // ─── Marketplace payments (Phase 9) ────────────────────────────────────────
 // Four concerns kept as four models, deliberately not folded into `Payment`:
 // a Payment is "did the buyer's money arrive"; a Settlement is "what does the
@@ -434,6 +448,7 @@ model Seller {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   products Product[]
   orders   Order[]
+  sourcedProducts SupplierProduct[]
 
   payoutAccounts  SellerPayoutAccount[]
   settlements     Settlement[]
@@ -503,6 +518,8 @@ model Product {
   listingViews ListingView[]
   chats       Chat[]
   campaignProducts CampaignProduct[]
+  supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id], onDelete: SetNull)
+  supplierProductId String? @map("supplier_product_id") @db.Uuid
 
   @@index([categoryId, status])
   @@index([county, status])
@@ -1373,4 +1390,59 @@ model BuyerProtectionEvidence {
 
   @@index([caseId, createdAt])
   @@map("buyer_protection_evidence")
+}
+
+/// A vetted source that sellers can use to fulfil MaliHub listings.
+/// Supplier records are managed by authorized marketplace administrators;
+/// approval is explicit and does not imply a commercial or delivery guarantee.
+model Supplier {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String         @unique
+  region         SupplierRegion
+  countryCode    String         @default("KE") @map("country_code") @db.VarChar(2)
+  status         SupplierStatus @default(PENDING)
+  contactEmail   String?        @map("contact_email")
+  contactPhone   String?        @map("contact_phone")
+  websiteUrl     String?        @map("website_url")
+  notes          String?
+  approvedAt     DateTime?      @map("approved_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  products SupplierProduct[]
+
+  @@index([status, region])
+  @@index([countryCode, status])
+  @@map("suppliers")
+}
+
+/// Supplier-side source catalog. Costs are stored as integer minor units in
+/// the supplier's declared currency; they are not customer-facing listing prices.
+/// Currency conversion, duties, shipping, and landed-cost estimates are not
+/// automated in this foundation phase.
+model SupplierProduct {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplierId        String   @map("supplier_id") @db.Uuid
+  externalProductId String?  @map("external_product_id")
+  title             String
+  description       String?
+  sku               String?
+  sourceUrl          String?  @map("source_url")
+  imageUrl           String?  @map("image_url")
+  costMinor         Int      @map("cost_minor")
+  currency          String   @default("KES") @db.VarChar(3)
+  availableQuantity Int?     @map("available_quantity")
+  isActive          Boolean  @default(true) @map("is_active")
+  lastSyncedAt      DateTime? @map("last_synced_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  supplier Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@unique([supplierId, externalProductId])
+  @@index([supplierId, isActive])
+  @@index([isActive, title])
+  @@map("supplier_products")
 }

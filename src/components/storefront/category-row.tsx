@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowUpRight, House, Smartphone, Shirt, Sparkles, Armchair, Dumbbell, Shapes, Star } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { House, Smartphone, Shirt, Sparkles, Armchair, Dumbbell, Shapes, Star } from "lucide-react";
 
 type Category = { id: string; name: string; slug: string; iconName: string | null; imageUrl: string | null };
-const icons = [Shapes, Smartphone, Shirt, House, Sparkles, Armchair, Dumbbell];
+const icons: LucideIcon[] = [Shapes, Smartphone, Shirt, House, Sparkles, Armchair, Dumbbell];
 
 export function CategoryRow({ categories }: { categories: Category[] }) {
   return <section aria-label="Shop by category" className="py-1">

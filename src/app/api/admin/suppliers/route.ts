@@ -27,16 +27,25 @@ async function adminResponse() {
 export async function GET() {
   const denied = await adminResponse();
   if (denied) return denied;
-  const data = await prisma.supplier.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true, name: true, slug: true, region: true, countryCode: true,
-      status: true, contactEmail: true, contactPhone: true, websiteUrl: true,
-      approvedAt: true, createdAt: true, updatedAt: true,
-      _count: { select: { products: true } },
-    },
-  });
-  return NextResponse.json({ success: true, data });
+
+  try {
+    const data = await prisma.supplier.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, name: true, slug: true, region: true, countryCode: true,
+        status: true, contactEmail: true, contactPhone: true, websiteUrl: true,
+        approvedAt: true, createdAt: true, updatedAt: true,
+        _count: { select: { products: true } },
+      },
+    });
+    return NextResponse.json({ success: true, data });
+  } catch (error) {
+    console.error("GET /api/admin/suppliers failed", error);
+    return NextResponse.json(
+      { success: false, error: "Unable to load suppliers." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {

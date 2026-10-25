@@ -19,7 +19,7 @@ const jsonLd = {
       "@type": "Organization",
       name: "MaliHub Kenya",
       url: APP_URL,
-      logo: `${APP_URL}/icons/logo.png`,
+      logo: `${APP_URL}/icons/logo.svg`,
     },
     {
       "@type": "WebSite",

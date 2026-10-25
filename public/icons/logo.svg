@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">MaliHub shopping bag logo</title>
+  <rect width="120" height="120" rx="24" fill="#11100f"/>
+  <path d="M39 39v-7a21 21 0 0 1 42 0v7" fill="none" stroke="#ef7d32" stroke-width="7" stroke-linecap="round"/>
+  <path d="M24 42a5 5 0 0 1 5-5h62a5 5 0 0 1 5 5l5 52a7 7 0 0 1-7 8H26a7 7 0 0 1-7-8z" fill="#f5efe3"/>
+  <path d="M24 42a5 5 0 0 1 5-5h62a5 5 0 0 1 5 5L60 69z" fill="#ef7d32"/>
+  <path d="M37 54v35l23-18 23 18V54L60 73z" fill="#11100f"/>
+  <path d="M49 91l11-9 11 9" fill="none" stroke="#ef7d32" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

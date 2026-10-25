@@ -32,11 +32,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({ success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
-  if (!supplier) return NextResponse.json({ success: false, error: "Supplier not found." }, { status: 404 });
-
   const v = parsed.data;
   try {
+    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
+    if (!supplier) return NextResponse.json({ success: false, error: "Supplier not found." }, { status: 404 });
+
     const data = await prisma.supplierProduct.create({
       data: {
         supplierId,

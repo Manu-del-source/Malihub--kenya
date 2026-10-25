@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ArrowUpRight } from "lucide-react";
@@ -25,9 +26,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
       <Container className="pt-3 sm:pt-4">
         <div className="site-header-surface flex items-center justify-between rounded-2xl px-3 py-2.5 sm:rounded-full sm:px-5">
           <Link href="/" className="group flex shrink-0 items-center gap-2.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="MaliHub home">
-            <span aria-hidden className="brand-mark flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-[#17110a] transition-transform group-hover:rotate-[-5deg]">
-              M
-            </span>
+            <Image src="/icons/logo.svg" alt="" aria-hidden width={36} height={36} priority className="rounded-xl transition-transform group-hover:rotate-[-5deg]" />
             <span className="font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">
               Mali<span className="text-primary-400">Hub</span>
             </span>

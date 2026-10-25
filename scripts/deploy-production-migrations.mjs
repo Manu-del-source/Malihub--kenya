@@ -2,32 +2,39 @@ import { spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
 /**
- * Apply additive Prisma migrations only in the Vercel Production build.
- * Preview builds must not mutate a production database if environments were
- * accidentally pointed at the same connection string.
- *
- * Prefer DIRECT_URL (a direct, unpooled Postgres connection). Older Vercel
- * configurations may not have populated it; in that case use DATABASE_URL.
+ * Production database migrations are a separately approved operation.
+ * A normal Vercel Production build must never mutate the database merely
+ * because a PR was merged. Explicit opt-in is required for an exceptional,
+ * reviewed deployment window.
  */
 if (process.env.VERCEL !== "1" || process.env.VERCEL_ENV !== "production") {
   console.log("[migrations] Skipping automatic migration outside Vercel Production.");
   process.exit(0);
 }
 
+if (process.env.MALIHUB_ALLOW_AUTOMATIC_PRODUCTION_MIGRATIONS !== "true") {
+  console.log(
+    "[migrations] Skipping production migrations: explicit opt-in is not enabled. " +
+      "Apply reviewed migrations as a separate maintenance operation."
+  );
+  process.exit(0);
+}
+
+// Never run production migrations over the pooled DATABASE_URL fallback.
+// A deliberate migration operation must provide a direct/unpooled connection.
 if (!process.env.DIRECT_URL?.trim()) {
-  if (!process.env.DATABASE_URL?.trim()) {
-    console.error("[migrations] Both DIRECT_URL and DATABASE_URL are missing. Configure the Production database connection in Vercel.");
-    process.exit(1);
-  }
-  console.warn("[migrations] DIRECT_URL is empty; falling back to DATABASE_URL for migration. Configure an unpooled DIRECT_URL in Vercel for reliable migrations.");
-  process.env.DIRECT_URL = process.env.DATABASE_URL;
+  console.error(
+    "[migrations] DIRECT_URL is required for an explicitly approved production migration. " +
+      "Refusing to fall back to DATABASE_URL."
+  );
+  process.exit(1);
 }
 
 const command = process.platform === "win32" ? "npx.cmd" : "npx";
 const maxAttempts = 4;
 
 for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-  console.log(`[migrations] Applying pending Prisma migrations (attempt ${attempt}/${maxAttempts})…`);
+  console.log(`[migrations] Applying explicitly approved Prisma migrations (attempt ${attempt}/${maxAttempts})…`);
 
   const result = spawnSync(command, ["prisma", "migrate", "deploy"], {
     encoding: "utf8",

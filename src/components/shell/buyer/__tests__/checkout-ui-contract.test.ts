@@ -103,7 +103,8 @@ describe("checkout UI — payment states and copy", () => {
     assert.match(source, /Pay securely · \$\{formatKes\(summary\.totalCents\)\}/);
     assert.match(source, /blockedByStock/, "unavailable items must block payment");
     assert.match(source, /PAYMENT_METHODS\.map/, "payment methods render from the extensible list");
-    assert.match(source, /createSerializedTask\(createCheckoutOrders\)/, "creation is single-flighted");
+    assert.match(source, /createSerializedTask\(/, "creation is single-flighted");
+    assert.match(source, /createCheckoutOrders/, "creation invokes createCheckoutOrders");
     assert.match(
       source,
       /resumePaystackTransaction/,

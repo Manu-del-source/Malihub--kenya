@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Boxes,
   Heart,
   LayoutDashboard,
   MessageCircle,
@@ -26,6 +27,8 @@ function NavIcon({ label }: { label: string }) {
       return <LayoutDashboard className={className} aria-hidden />;
     case "Products":
       return <Package className={className} aria-hidden />;
+    case "Supplier catalog":
+      return <Boxes className={className} aria-hidden />;
     case "Orders":
     case "My orders":
       return <ShoppingCart className={className} aria-hidden />;
@@ -58,6 +61,8 @@ export function DashboardNavLinks({
         const active =
           pathname === item.href ||
           (item.label === "Products" && pathname.startsWith("/seller/listings")) ||
+          (item.label === "Supplier catalog" &&
+            (pathname.startsWith("/seller/suppliers") || pathname.startsWith("/seller/supplier-catalog"))) ||
           (item.label !== "Dashboard" &&
             item.label !== "Marketplace" &&
             routePrefix !== "/buyer/wishlist" &&

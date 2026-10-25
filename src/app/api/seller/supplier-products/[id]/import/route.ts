@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { KENYA_COUNTIES } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
@@ -124,6 +125,15 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+      (typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "P2002")
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You have already imported this supplier product." },
+        { status: 409 },
+      );
+    }
     console.error("POST /api/seller/supplier-products/[id]/import failed", error);
     return NextResponse.json(
       { success: false, error: "Unable to import supplier product." },

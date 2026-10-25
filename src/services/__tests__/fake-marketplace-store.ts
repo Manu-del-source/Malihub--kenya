@@ -37,6 +37,7 @@ export type ProductRow = {
   sellerId: string;
   ownerId: string;
   categoryId: string;
+  supplierProductId?: string | null;
   title: string;
   slug: string;
   description: string;
@@ -53,6 +54,40 @@ export type ProductRow = {
   favoriteCount: number;
   isFeatured: boolean;
   publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SupplierRow = {
+  id: string;
+  name: string;
+  slug: string;
+  region: "KENYA" | "INTERNATIONAL";
+  countryCode: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  websiteUrl?: string | null;
+  notes?: string | null;
+  approvedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SupplierProductRow = {
+  id: string;
+  supplierId: string;
+  externalProductId?: string | null;
+  title: string;
+  description?: string | null;
+  sku?: string | null;
+  sourceUrl?: string | null;
+  imageUrl?: string | null;
+  costMinor: number;
+  currency: string;
+  availableQuantity?: number | null;
+  isActive: boolean;
+  lastSyncedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -193,6 +228,8 @@ export type Tables = {
   users: Map<string, UserRow>;
   auditLogs: Map<string, AuditLogRow>;
   notifications: Map<string, NotificationRow>;
+  suppliers: Map<string, SupplierRow>;
+  supplierProducts: Map<string, SupplierProductRow>;
 };
 
 export type FakeMarketplaceStore = {
@@ -241,9 +278,23 @@ export type FakeMarketplaceStore = {
   product: {
     findUnique(args: Args): Promise<unknown>;
     findUniqueOrThrow(args: Args): Promise<unknown>;
+    findFirst(args?: Args): Promise<unknown>;
     findMany(args?: Args): Promise<unknown[]>;
     update(args: Args): Promise<unknown>;
     updateMany(args: Args): Promise<{ count: number }>;
+    count(args?: Args): Promise<number>;
+    create(args: Args): Promise<unknown>;
+  };
+  supplier: {
+    findUnique(args: Args): Promise<unknown>;
+    findFirst(args?: Args): Promise<unknown>;
+    findMany(args?: Args): Promise<unknown[]>;
+    create(args: Args): Promise<unknown>;
+  };
+  supplierProduct: {
+    findUnique(args: Args): Promise<unknown>;
+    findFirst(args?: Args): Promise<unknown>;
+    findMany(args?: Args): Promise<unknown[]>;
     count(args?: Args): Promise<number>;
     create(args: Args): Promise<unknown>;
   };
@@ -332,7 +383,12 @@ function matchesProductWhere(row: ProductRow, where: Args | undefined): boolean 
     if (idWhere.in && !idWhere.in.includes(row.id)) return false;
     if (idWhere.not !== undefined && row.id !== idWhere.not) return false;
   }
-  if (typeof where.sellerId === "string" && row.sellerId !== where.sellerId) return false;
+  if (where.sellerId && row.sellerId !== where.sellerId) return false;
+  if (typeof where.supplierProductId === "string" && row.supplierProductId !== where.supplierProductId) return false;
+  if (where.supplierProductId && typeof where.supplierProductId === "object" && "in" in where.supplierProductId) {
+    const list = (where.supplierProductId as { in: string[] }).in;
+    if (!row.supplierProductId || !list.includes(row.supplierProductId)) return false;
+  }
   if (typeof where.ownerId === "string" && row.ownerId !== where.ownerId) return false;
   if (typeof where.status === "string" && row.status !== where.status) return false;
   if (where.status && typeof where.status === "object") {
@@ -415,6 +471,8 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     users: new Map(),
     auditLogs: new Map(),
     notifications: new Map(),
+    suppliers: new Map(),
+    supplierProducts: new Map(),
   };
 
   // Rows are mutated in place, so the snapshot must clone every ROW, not just
@@ -561,7 +619,19 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     if (!select) return { ...row };
     const out: Record<string, unknown> = {};
     for (const [key, wanted] of Object.entries(select)) {
-      if (wanted) out[key] = (row as Record<string, unknown>)[key];
+      if (!wanted) continue;
+      const val = (row as Record<string, unknown>)[key];
+      if (
+        typeof wanted === "object" &&
+        wanted !== null &&
+        "select" in wanted &&
+        typeof val === "object" &&
+        val !== null
+      ) {
+        out[key] = project(val, wanted.select as Args);
+      } else {
+        out[key] = val;
+      }
     }
     return out;
   }
@@ -758,12 +828,35 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (!row) throw new PrismaKnownError("P2025", "product to update not found");
         return { ...row };
       },
+      async findFirst(args = {}) {
+        store.operations.push("product.findFirst");
+        const where = args.where as Args | undefined;
+        const row = [...tables.products.values()].find((r) =>
+          matchesProductWhere(r, where)
+        );
+        if (!row) return null;
+        const select = args.select as Args | undefined;
+        if (select) {
+          return project(row, select);
+        }
+        const include = args.include as Args | undefined;
+        if (include && (include.images || include.category || include.seller)) {
+          return attachProduct(row);
+        }
+        return { ...row };
+      },
       async findMany(args = {}) {
         store.operations.push("product.findMany");
         const where = args.where as Args | undefined;
         const rows = [...tables.products.values()].filter((row) =>
           matchesProductWhere(row, where)
         );
+        const select = args.select as Args | undefined;
+        if (select) {
+          const projected = rows.map((r) => project(r, select));
+          const take = args.take as number | undefined;
+          return take !== undefined ? projected.slice(0, take) : projected;
+        }
         const include = args.include as Args | undefined;
         const mapped = include
           ? rows.map((r) => attachProduct(r))
@@ -828,6 +921,21 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         const data = args.data as Args & {
           images?: { create?: Array<Record<string, unknown>> };
         };
+        const supplierProductId = data.supplierProductId ? String(data.supplierProductId) : null;
+        if (supplierProductId) {
+          for (const other of tables.products.values()) {
+            if (
+              other.sellerId === String(data.sellerId) &&
+              other.supplierProductId === supplierProductId &&
+              other.status !== "REMOVED"
+            ) {
+              throw new PrismaKnownError(
+                "P2002",
+                "Unique constraint failed on products.products_seller_supplier_product_unique"
+              );
+            }
+          }
+        }
         const row: ProductRow = {
           // UUID on purpose: the API routes validate product ids with zod's
           // `.uuid()`, and this fake must clear the same gate a real row would.
@@ -835,6 +943,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           sellerId: String(data.sellerId),
           ownerId: String(data.ownerId),
           categoryId: String(data.categoryId),
+          supplierProductId,
           title: String(data.title),
           slug: String(data.slug),
           description: String(data.description ?? ""),
@@ -871,6 +980,186 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           };
           tables.productImages.set(imageRow.id, imageRow);
         }
+        const select = args.select as Args | undefined;
+        if (select) {
+          return project(row, select);
+        }
+        return { ...row };
+      },
+    },
+
+    supplier: {
+      async findUnique(args) {
+        store.operations.push("supplier.findUnique");
+        const id = (args.where as { id: string }).id;
+        const row = tables.suppliers.get(id);
+        if (!row) return null;
+        const select = args.select as Args | undefined;
+        return select ? project(row, select) : { ...row };
+      },
+      async findFirst(args = {}) {
+        store.operations.push("supplier.findFirst");
+        const where = args.where as Args | undefined;
+        for (const row of tables.suppliers.values()) {
+          if (where?.id && row.id !== where.id) continue;
+          if (where?.status && row.status !== where.status) continue;
+          const select = args.select as Args | undefined;
+          return select ? project(row, select) : { ...row };
+        }
+        return null;
+      },
+      async findMany(_args = {}) {
+        store.operations.push("supplier.findMany");
+        return [...tables.suppliers.values()].map((r) => ({ ...r }));
+      },
+      async create(args) {
+        store.operations.push("supplier.create");
+        const data = args.data as Args;
+        const row: SupplierRow = {
+          id: String(data.id ?? randomUUID()),
+          name: String(data.name),
+          slug: String(data.slug),
+          region: (data.region as "KENYA" | "INTERNATIONAL") ?? "KENYA",
+          countryCode: String(data.countryCode ?? "KE"),
+          status: (data.status as "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED") ?? "PENDING",
+          contactEmail: (data.contactEmail as string | null) ?? null,
+          contactPhone: (data.contactPhone as string | null) ?? null,
+          websiteUrl: (data.websiteUrl as string | null) ?? null,
+          notes: (data.notes as string | null) ?? null,
+          approvedAt: (data.approvedAt as Date | null) ?? null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        tables.suppliers.set(row.id, row);
+        return { ...row };
+      },
+    },
+
+    supplierProduct: {
+      async findUnique(args) {
+        store.operations.push("supplierProduct.findUnique");
+        const id = (args.where as { id: string }).id;
+        const row = tables.supplierProducts.get(id);
+        if (!row) return null;
+        const supplier = tables.suppliers.get(row.supplierId);
+        const enriched = { ...row, supplier: supplier ? { ...supplier } : null };
+        const select = args.select as Args | undefined;
+        return select ? project(enriched, select) : enriched;
+      },
+      async findFirst(args = {}) {
+        store.operations.push("supplierProduct.findFirst");
+        const where = args.where as Args | undefined;
+        for (const row of tables.supplierProducts.values()) {
+          if (where?.id && row.id !== where.id) continue;
+          if (where?.isActive !== undefined && row.isActive !== where.isActive) continue;
+          const supplier = tables.suppliers.get(row.supplierId);
+          if (where?.supplier && typeof where.supplier === "object") {
+            const sw = where.supplier as { status?: string; region?: string };
+            if (sw.status && (!supplier || supplier.status !== sw.status)) continue;
+            if (sw.region && (!supplier || supplier.region !== sw.region)) continue;
+          }
+          const enriched = { ...row, supplier: supplier ? { ...supplier } : null };
+          const select = args.select as Args | undefined;
+          return select ? project(enriched, select) : enriched;
+        }
+        return null;
+      },
+      async findMany(args = {}) {
+        store.operations.push("supplierProduct.findMany");
+        const where = args.where as Args | undefined;
+        let rows = [...tables.supplierProducts.values()].filter((row) => {
+          if (where?.id && row.id !== where.id) return false;
+          if (where?.isActive !== undefined && row.isActive !== where.isActive) return false;
+          const supplier = tables.suppliers.get(row.supplierId);
+          if (where?.supplier && typeof where.supplier === "object") {
+            const sw = where.supplier as { status?: string; region?: string };
+            if (sw.status && (!supplier || supplier.status !== sw.status)) return false;
+            if (sw.region && (!supplier || supplier.region !== sw.region)) return false;
+          }
+          if (where?.OR && Array.isArray(where.OR)) {
+            const matchesOr = where.OR.some((clause: Args) => {
+              if (clause.title && typeof clause.title === "object") {
+                const contains = String((clause.title as { contains: string }).contains).toLowerCase();
+                if (row.title.toLowerCase().includes(contains)) return true;
+              }
+              if (clause.description && typeof clause.description === "object") {
+                const contains = String((clause.description as { contains: string }).contains).toLowerCase();
+                if (row.description?.toLowerCase().includes(contains)) return true;
+              }
+              if (clause.sku && typeof clause.sku === "object") {
+                const contains = String((clause.sku as { contains: string }).contains).toLowerCase();
+                if (row.sku?.toLowerCase().includes(contains)) return true;
+              }
+              return false;
+            });
+            if (!matchesOr) return false;
+          }
+          return true;
+        });
+        const skip = (args.skip as number | undefined) ?? 0;
+        const take = args.take as number | undefined;
+        rows = rows.slice(skip, take !== undefined ? skip + take : undefined);
+        const select = args.select as Args | undefined;
+        return rows.map((row) => {
+          const supplier = tables.suppliers.get(row.supplierId);
+          const enriched = { ...row, supplier: supplier ? { ...supplier } : null };
+          return select ? project(enriched, select) : enriched;
+        });
+      },
+      async count(args = {}) {
+        store.operations.push("supplierProduct.count");
+        const where = args.where as Args | undefined;
+        return [...tables.supplierProducts.values()].filter((row) => {
+          if (where?.id && row.id !== where.id) return false;
+          if (where?.isActive !== undefined && row.isActive !== where.isActive) return false;
+          const supplier = tables.suppliers.get(row.supplierId);
+          if (where?.supplier && typeof where.supplier === "object") {
+            const sw = where.supplier as { status?: string; region?: string };
+            if (sw.status && (!supplier || supplier.status !== sw.status)) return false;
+            if (sw.region && (!supplier || supplier.region !== sw.region)) return false;
+          }
+          if (where?.OR && Array.isArray(where.OR)) {
+            const matchesOr = where.OR.some((clause: Args) => {
+              if (clause.title && typeof clause.title === "object") {
+                const contains = String((clause.title as { contains: string }).contains).toLowerCase();
+                if (row.title.toLowerCase().includes(contains)) return true;
+              }
+              if (clause.description && typeof clause.description === "object") {
+                const contains = String((clause.description as { contains: string }).contains).toLowerCase();
+                if (row.description?.toLowerCase().includes(contains)) return true;
+              }
+              if (clause.sku && typeof clause.sku === "object") {
+                const contains = String((clause.sku as { contains: string }).contains).toLowerCase();
+                if (row.sku?.toLowerCase().includes(contains)) return true;
+              }
+              return false;
+            });
+            if (!matchesOr) return false;
+          }
+          return true;
+        }).length;
+      },
+      async create(args) {
+        store.operations.push("supplierProduct.create");
+        const data = args.data as Args;
+        const row: SupplierProductRow = {
+          id: String(data.id ?? randomUUID()),
+          supplierId: String(data.supplierId),
+          externalProductId: (data.externalProductId as string | null) ?? null,
+          title: String(data.title),
+          description: (data.description as string | null) ?? null,
+          sku: (data.sku as string | null) ?? null,
+          sourceUrl: (data.sourceUrl as string | null) ?? null,
+          imageUrl: (data.imageUrl as string | null) ?? null,
+          costMinor: Number(data.costMinor ?? 0),
+          currency: String(data.currency ?? "KES"),
+          availableQuantity: (data.availableQuantity as number | null) ?? null,
+          isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+          lastSyncedAt: (data.lastSyncedAt as Date | null) ?? null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        tables.supplierProducts.set(row.id, row);
         return { ...row };
       },
     },
@@ -1563,8 +1852,13 @@ export function seedUser(
   return row;
 }
 
-export function seedCategory(store: FakeMarketplaceStore, slug = "electronics"): CategoryRow {
-  const row: CategoryRow = { id: nextId("cat"), name: slug, slug };
+export function seedCategory(
+  store: FakeMarketplaceStore,
+  slugOrOverrides: string | { name?: string; slug?: string } = "electronics"
+): CategoryRow {
+  const slug = typeof slugOrOverrides === "string" ? slugOrOverrides : slugOrOverrides.slug ?? "electronics";
+  const name = typeof slugOrOverrides === "string" ? slugOrOverrides : slugOrOverrides.name ?? slug;
+  const row: CategoryRow = { id: nextId("cat"), name, slug };
   store.tables.categories.set(row.id, row);
   return row;
 }
@@ -1594,6 +1888,7 @@ export function seedProduct(
     sellerId: overrides.sellerId,
     ownerId: overrides.ownerId,
     categoryId: overrides.categoryId,
+    supplierProductId: overrides.supplierProductId ?? null,
     title: overrides.title ?? "Test listing",
     slug: overrides.slug ?? `test-listing-${randomUUID().slice(0, 8)}`,
     description: overrides.description ?? "A listing used by the test suite.",
@@ -1677,5 +1972,53 @@ export function seedPayment(
     updatedAt: overrides.updatedAt ?? new Date(),
   };
   store.tables.payments.set(row.id, row);
+  return row;
+}
+
+export function seedSupplier(
+  store: FakeMarketplaceStore,
+  overrides?: Partial<SupplierRow>
+): SupplierRow {
+  const row: SupplierRow = {
+    id: overrides?.id ?? randomUUID(),
+    name: overrides?.name ?? "Nairobi Direct Supplies",
+    slug: overrides?.slug ?? "nairobi-direct-supplies",
+    region: overrides?.region ?? "KENYA",
+    countryCode: overrides?.countryCode ?? "KE",
+    status: overrides?.status ?? "APPROVED",
+    contactEmail: overrides?.contactEmail ?? "info@nairobisupplies.co.ke",
+    contactPhone: overrides?.contactPhone ?? "+254700000000",
+    websiteUrl: overrides?.websiteUrl ?? "https://nairobisupplies.co.ke",
+    notes: overrides?.notes ?? "Verified Kenyan dropshipping supplier",
+    approvedAt: overrides?.approvedAt ?? new Date(),
+    createdAt: overrides?.createdAt ?? new Date(),
+    updatedAt: overrides?.updatedAt ?? new Date(),
+  };
+  store.tables.suppliers.set(row.id, row);
+  return row;
+}
+
+export function seedSupplierProduct(
+  store: FakeMarketplaceStore,
+  overrides: Partial<SupplierProductRow> & { supplierId: string }
+): SupplierProductRow {
+  const row: SupplierProductRow = {
+    id: overrides.id ?? randomUUID(),
+    supplierId: overrides.supplierId,
+    externalProductId: overrides.externalProductId ?? null,
+    title: overrides.title ?? "Wireless Bluetooth Earbuds",
+    description: overrides.description ?? "High quality wireless earbuds with noise cancellation.",
+    sku: overrides.sku ?? "SKU-EARBUDS-01",
+    sourceUrl: overrides.sourceUrl ?? "https://nairobisupplies.co.ke/p/earbuds",
+    imageUrl: overrides.imageUrl ?? "https://example.com/earbuds.jpg",
+    costMinor: overrides.costMinor ?? 150_000,
+    currency: overrides.currency ?? "KES",
+    availableQuantity: overrides.availableQuantity !== undefined ? overrides.availableQuantity : 50,
+    isActive: overrides.isActive ?? true,
+    lastSyncedAt: overrides.lastSyncedAt ?? new Date(),
+    createdAt: overrides.createdAt ?? new Date(),
+    updatedAt: overrides.updatedAt ?? new Date(),
+  };
+  store.tables.supplierProducts.set(row.id, row);
   return row;
 }

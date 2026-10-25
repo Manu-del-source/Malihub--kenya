@@ -5,7 +5,7 @@
 - [ ] Report listing control is visible on product details on desktop and mobile.
 - [ ] Report reasons and optional details are understandable.
 - [ ] Signed-out users receive a clear sign-in instruction.
-- [ ] Confirm hello@smartbiz365.site receives mail and is monitored for MaliHub requests.
+- [ ] Confirm support@malihubke.online receives mail and is monitored for MaliHub requests.
 - [ ] Terms and Privacy pages remain reachable from the footer.
 
 ## Operational readiness

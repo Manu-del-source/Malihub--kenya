@@ -196,3 +196,14 @@ migration is accepted.
   refresh, fulfilment exceptions, disputes and returns.
 - A legal/commercial decision on who funds supplier purchases and how supplier
   refunds are reconciled.
+
+
+## Production deployment status update — 2026-10-25
+
+A later Vercel production deployment for commit `83a33a55ba0eccaa48dfa6053789954752ffc4da` ran after PR #61 was merged. Its build log reported nine migrations found and explicitly logged:
+
+`Applying migration `20261025120000_dropshipping_supplier_governance``
+
+The same deployment completed successfully. The build log also warned that `DIRECT_URL` was empty and that the migration runner fell back to the pooled `DATABASE_URL`. Therefore, the earlier statement that production migration status was unverified is superseded by this deployment evidence: the production build attempted and reported applying this migration. The exact database state must still be confirmed with a read-only migration-state query before any further database operation.
+
+No follow-up migration, data repair, production environment change, or redeployment should be run as part of this PR. See PR #64 for a guard that disables automatic production migrations by default and refuses pooled-URL fallback when explicit opt-in is enabled.

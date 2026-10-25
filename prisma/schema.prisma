@@ -198,6 +198,96 @@ enum SupplierRegion {
   INTERNATIONAL
 }
 
+/// Supplier catalog items are NOT public because they were submitted. An
+/// administrator must approve each item before verified sellers can import it.
+enum SupplierProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  REMOVED
+}
+
+/// A last-known snapshot. UNKNOWN means MaliHub has never verified this item's
+/// stock; it is never a reservation and never a guarantee of availability.
+enum SupplierStockStatus {
+  UNKNOWN
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum StockVerificationMethod {
+  MANUAL
+  SUPPLIER_API
+  SUPPLIER_FEED
+  SUPPLIER_EMAIL
+}
+
+/// Who is commercially responsible for paying the supplier. UNDEFINED means
+/// the business decision has NOT been approved; no automated payment is used.
+enum SupplierPaymentResponsibility {
+  UNDEFINED
+  SELLER
+  PLATFORM
+  SUPPLIER_CREDIT
+}
+
+enum SupplierFulfilmentStatus {
+  AWAITING_PAYMENT
+  AWAITING_SUPPLIER_CONFIRMATION
+  CONFIRMED
+  ORDERED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum SupplierCostStatus {
+  ESTIMATED
+  CONFIRMED
+  FAILED
+}
+
+enum SupplierPurchaseStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum SupplierReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  ITEM_RETURNED
+  REFUND_PENDING
+  RESOLVED
+  CANCELLED
+}
+
+enum SupplierReturnReason {
+  DAMAGED
+  INCORRECT
+  COUNTERFEIT
+  UNDELIVERED
+  OTHER
+}
+
+enum ReturnResponsibility {
+  SUPPLIER
+  SELLER
+  COURIER
+  BUYER
+  PLATFORM
+  UNDETERMINED
+}
+
 // ─── Marketplace payments (Phase 9) ────────────────────────────────────────
 // Four concerns kept as four models, deliberately not folded into `Payment`:
 // a Payment is "did the buyer's money arrive"; a Settlement is "what does the
@@ -402,6 +492,17 @@ model User {
   refundsInitiated Refund[] @relation("RefundInitiator")
   buyerProtectionCases BuyerProtectionCase[] @relation("ProtectionCaseBuyer")
   protectionEvidence BuyerProtectionEvidence[]
+  supplierFulfilments SupplierFulfilment[]
+  suppliersVerified Supplier[] @relation("SupplierVerifiedBy")
+  supplierProductsReviewed SupplierProduct[] @relation("SupplierProductReviewedBy")
+  supplierProductVerifications SupplierProductVerification[] @relation("SupplierProductVerifiedBy")
+  supplierFulfilmentCostsConfirmed SupplierFulfilment[] @relation("SupplierFulfilmentCostConfirmedBy")
+  supplierPurchasesConfirmed SupplierPurchase[] @relation("SupplierPurchaseConfirmedBy")
+  supplierPurchasesPaid SupplierPurchase[] @relation("SupplierPurchasePaidBy")
+  supplierPurchasesReconciled SupplierPurchase[] @relation("SupplierPurchaseReconciledBy")
+  supplierReturnsApproved SupplierReturnRequest[] @relation("SupplierReturnApprovedBy")
+  supplierReturnsResolved SupplierReturnRequest[] @relation("SupplierReturnResolvedBy")
+  supplierReturnRequests SupplierReturnRequest[] @relation("SupplierReturnBuyer")
 
   @@map("users")
 }
@@ -453,6 +554,9 @@ model Seller {
   settlements     Settlement[]
   payouts         Payout[]
   commissionRules CommissionRule[]
+  supplierFulfilments SupplierFulfilment[]
+  supplierPurchases SupplierPurchase[]
+  supplierListingCosts SupplierListingCost[]
 
   @@index([verificationStatus])
   @@map("sellers")
@@ -519,6 +623,8 @@ model Product {
   campaignProducts CampaignProduct[]
   supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id], onDelete: SetNull)
   supplierProductId String? @map("supplier_product_id") @db.Uuid
+  supplierListingCost SupplierListingCost?
+  supplierFulfilments SupplierFulfilment[]
   // Note: Uniqueness for (sellerId, supplierProductId) where supplierProductId IS NOT NULL
   // and status != 'REMOVED' is enforced at the database level via a partial unique index
   // in prisma/migrations/20261025110000_unique_seller_supplier_product/migration.sql
@@ -588,6 +694,9 @@ model Order {
   refunds    Refund[]
   shipment   OrderShipment?
   protectionCase BuyerProtectionCase?
+  supplierFulfilments SupplierFulfilment[]
+  supplierPurchases SupplierPurchase[]
+  supplierReturns SupplierReturnRequest[]
   @@index([sellerId])
   @@index([status])
   @@map("orders")
@@ -602,11 +711,20 @@ model OrderItem {
   totalCents      Int      @map("total_cents")
   createdAt       DateTime @default(now()) @map("created_at")
 
+  /// Snapshot of the supplier source at checkout. The FK can be cleared by a
+  /// future supplier-product deletion, but the title/SKU remain as history.
+  supplierProductId String? @map("supplier_product_id") @db.Uuid
+  supplierProductTitle String? @map("supplier_product_title")
+  supplierSku String? @map("supplier_sku")
+
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supplierProduct SupplierProduct? @relation("SupplierProductOrderItems", fields: [supplierProductId], references: [id], onDelete: SetNull)
+  supplierFulfilment SupplierFulfilment?
 
   @@index([orderId])
   @@index([productId])
+  @@index([supplierProductId])
   @@map("order_items")
 }
 
@@ -984,6 +1102,7 @@ model Refund {
   payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
   initiatedBy User    @relation("RefundInitiator", fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+  supplierReturn SupplierReturnRequest?
 
   @@index([paymentId])
   @@index([orderId])
@@ -1371,6 +1490,7 @@ model BuyerProtectionCase {
   order    Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   buyer    User                     @relation("ProtectionCaseBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
   evidence BuyerProtectionEvidence[]
+  supplierReturns SupplierReturnRequest[]
 
   @@index([status, openedAt])
   @@index([buyerId, openedAt])
@@ -1405,15 +1525,41 @@ model Supplier {
   region         SupplierRegion
   countryCode    String         @default("KE") @map("country_code") @db.VarChar(2)
   status         SupplierStatus @default(PENDING)
+  /// Admin-only business and contact data. Never selected into seller or buyer
+  /// responses; registration/KRA identifiers require manual verification.
+  legalName      String?        @map("legal_name")
+  registrationNumber String?    @map("registration_number")
+  kraPin         String?        @map("kra_pin")
+  contactName    String?        @map("contact_name")
   contactEmail   String?        @map("contact_email")
   contactPhone   String?        @map("contact_phone")
+  physicalAddress String?       @map("physical_address")
   websiteUrl     String?        @map("website_url")
   notes          String?
+  verificationNotes String?     @map("verification_notes")
+  verifiedById   String?        @map("verified_by_id") @db.Uuid
+  verifiedBy     User?          @relation("SupplierVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
   approvedAt     DateTime?      @map("approved_at")
+  submittedAt    DateTime       @default(now()) @map("submitted_at")
+  statusChangedAt DateTime?     @map("status_changed_at")
+  statusReason   String?        @map("status_reason")
+  /// Operational commercial terms, admin-only. Empty means unverified.
+  deliveryCounties String[]     @default([]) @map("delivery_counties")
+  dispatchEstimateMinDays Int?  @map("dispatch_estimate_min_days")
+  dispatchEstimateMaxDays Int?  @map("dispatch_estimate_max_days")
+  deliveryEstimateMinDays Int?  @map("delivery_estimate_min_days")
+  deliveryEstimateMaxDays Int?  @map("delivery_estimate_max_days")
+  returnTerms    String?        @map("return_terms")
+  paymentTerms   String?        @map("payment_terms")
+  paymentResponsibility SupplierPaymentResponsibility @default(UNDEFINED) @map("payment_responsibility")
+  commercialTermsVerifiedAt DateTime? @map("commercial_terms_verified_at")
+  commercialTermsNote String?   @map("commercial_terms_note")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
   products SupplierProduct[]
+  fulfilments SupplierFulfilment[]
+  purchases SupplierPurchase[]
 
   @@index([status, region])
   @@index([countryCode, status])
@@ -1433,19 +1579,274 @@ model SupplierProduct {
   sku               String?
   sourceUrl          String?  @map("source_url")
   imageUrl           String?  @map("image_url")
+  /// Confidential supplier cost in the supplier's currency. Admin only.
   costMinor         Int      @map("cost_minor")
   currency          String   @default("KES") @db.VarChar(3)
+  /// Known supplier delivery charge, or null when not agreed/verified.
+  deliveryChargeMinor Int?   @map("delivery_charge_minor")
   availableQuantity Int?     @map("available_quantity")
   isActive          Boolean  @default(true) @map("is_active")
+  approvalStatus    SupplierProductStatus @default(DRAFT) @map("approval_status")
+  submittedAt       DateTime? @map("submitted_at")
+  reviewedAt        DateTime? @map("reviewed_at")
+  reviewedById      String?  @map("reviewed_by_id") @db.Uuid
+  reviewedBy        User?    @relation("SupplierProductReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote        String?  @map("review_note")
+  /// Stock freshness. `stockVerifiedAt` is the last HUMAN or feed check, not a
+  /// live inventory guarantee. `lastSyncedAt` is retained for legacy feeds.
+  stockStatus       SupplierStockStatus @default(UNKNOWN) @map("stock_status")
+  stockVerifiedAt   DateTime? @map("stock_verified_at")
+  verificationMethod StockVerificationMethod? @map("verification_method")
+  costStatus        SupplierCostStatus @default(ESTIMATED) @map("cost_status")
+  costVerifiedAt    DateTime? @map("cost_verified_at")
+  deliveryChargeVerifiedAt DateTime? @map("delivery_charge_verified_at")
+  manualRefreshRequired Boolean @default(true) @map("manual_refresh_required")
+  feedAdapterKey    String?  @map("feed_adapter_key")
+  lastVerificationNote String? @map("last_verification_note")
+  removedAt         DateTime? @map("removed_at")
   lastSyncedAt      DateTime? @map("last_synced_at")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   supplier Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   products Product[]
+  orderItems OrderItem[] @relation("SupplierProductOrderItems")
+  verifications SupplierProductVerification[]
+  fulfilments SupplierFulfilment[]
+  listingCosts SupplierListingCost[]
 
   @@unique([supplierId, externalProductId])
   @@index([supplierId, isActive])
   @@index([isActive, title])
+  @@index([approvalStatus, isActive])
+  @@index([stockVerifiedAt])
   @@map("supplier_products")
+}
+
+// ─── Dropshipping operations (Phase 2+) ────────────────────────────────────
+// Additive tables. Supplier costs, contacts, purchase references and delivery
+// evidence are never returned by buyer-facing queries. All money is integer
+// minor units; no exchange-rate conversion is performed by the application.
+
+/// One manual (or later adapter-driven) stock/price verification. Append-only
+/// history; the latest row is mirrored onto `SupplierProduct` for fast reads.
+model SupplierProductVerification {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplierProductId String   @map("supplier_product_id") @db.Uuid
+  stockStatus       SupplierStockStatus @map("stock_status")
+  availableQuantity Int?     @map("available_quantity")
+  costMinor         Int      @map("cost_minor")
+  currency          String   @default("KES") @db.VarChar(3)
+  deliveryChargeMinor Int?   @map("delivery_charge_minor")
+  method            StockVerificationMethod @default(MANUAL)
+  sourceReference   String?  @map("source_reference")
+  verifiedById      String?  @map("verified_by_id") @db.Uuid
+  verifiedBy        User?    @relation("SupplierProductVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt        DateTime @default(now()) @map("verified_at")
+  note              String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  supplierProduct SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+
+  @@index([supplierProductId, verifiedAt])
+  @@map("supplier_product_verifications")
+}
+
+/// Seller-visible cost/profit snapshot for one imported listing. Recomputed
+/// when supplier cost/delivery terms or configured fees change; retail price
+/// is NEVER changed automatically. Never select this row for buyers.
+model SupplierListingCost {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId         String   @unique @map("product_id") @db.Uuid
+  supplierProductId String   @map("supplier_product_id") @db.Uuid
+  sellerId          String   @map("seller_id") @db.Uuid
+  retailPriceCents  Int      @map("retail_price_cents")
+  supplierCostMinor Int      @map("supplier_cost_minor")
+  supplierDeliveryChargeMinor Int @default(0) @map("supplier_delivery_charge_minor")
+  sellerFulfilmentCostCents Int @default(0) @map("seller_fulfilment_cost_cents")
+  platformFeeCents  Int      @default(0) @map("platform_fee_cents")
+  paymentFeeCents   Int      @default(0) @map("payment_fee_cents")
+  taxCents          Int      @default(0) @map("tax_cents")
+  estimatedCostCents Int     @map("estimated_cost_cents")
+  estimatedProfitCents Int   @map("estimated_profit_cents")
+  marginBps         Int      @map("margin_bps")
+  currency          String   @default("KES") @db.VarChar(3)
+  isEstimate        Boolean  @default(true) @map("is_estimate")
+  configVersion     String   @map("config_version")
+  warnings          String[] @default([])
+  calculatedAt      DateTime @default(now()) @map("calculated_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierProduct SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Restrict)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([supplierProductId])
+  @@index([sellerId])
+  @@map("supplier_listing_costs")
+}
+
+/// One supplier fulfilment task per supplier-sourced order item. The unique
+/// `orderItemId` is the idempotency key: retries of verified payment events
+/// cannot create duplicate supplier orders. Multiple suppliers per customer
+/// order are supported because each item gets its own row.
+model SupplierFulfilment {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reference         String   @unique
+  orderId           String   @map("order_id") @db.Uuid
+  orderItemId       String   @unique @map("order_item_id") @db.Uuid
+  sellerId          String   @map("seller_id") @db.Uuid
+  supplierId        String   @map("supplier_id") @db.Uuid
+  supplierProductId String   @map("supplier_product_id") @db.Uuid
+  productId         String   @map("product_id") @db.Uuid
+  buyerId           String   @map("buyer_id") @db.Uuid
+  status            SupplierFulfilmentStatus @default(AWAITING_PAYMENT)
+  quantity          Int
+  unitRetailCents   Int      @map("unit_retail_cents")
+  unitCostMinor     Int      @map("unit_cost_minor")
+  currency          String   @default("KES") @db.VarChar(3)
+  deliveryChargeMinor Int    @default(0) @map("delivery_charge_minor")
+  totalCostMinor    Int      @map("total_cost_minor")
+  costStatus        SupplierCostStatus @default(ESTIMATED) @map("cost_status")
+  costConfirmedAt   DateTime? @map("cost_confirmed_at")
+  costConfirmedById String?  @map("cost_confirmed_by_id") @db.Uuid
+  costConfirmedBy   User?    @relation("SupplierFulfilmentCostConfirmedBy", fields: [costConfirmedById], references: [id], onDelete: SetNull)
+  supplierReference String?  @map("supplier_reference")
+  purchaseReference String?  @map("purchase_reference")
+  carrierName       String?  @map("carrier_name")
+  trackingNumber    String?  @map("tracking_number")
+  trackingUrl       String?  @map("tracking_url")
+  dispatchedAt      DateTime? @map("dispatched_at")
+  deliveredAt       DateTime? @map("delivered_at")
+  deliveryEvidenceNote String? @map("delivery_evidence_note")
+  failureReason     String?  @map("failure_reason")
+  expectedDispatchAt DateTime? @map("expected_dispatch_at")
+  lastStatusChangedAt DateTime @default(now()) @map("last_status_changed_at")
+  statusReason      String?  @map("status_reason")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierProduct SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  buyer User @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  events SupplierFulfilmentEvent[]
+  purchase SupplierPurchase?
+  returnRequest SupplierReturnRequest?
+
+  @@index([orderId])
+  @@index([sellerId, status, updatedAt])
+  @@index([supplierId, status])
+  @@index([status, expectedDispatchAt])
+  @@map("supplier_fulfilments")
+}
+
+/// Append-only, idempotency-keyed status timeline. Metadata must contain only
+/// non-confidential status facts (never supplier contact data or credentials).
+model SupplierFulfilmentEvent {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fulfilmentId      String   @map("fulfilment_id") @db.Uuid
+  fromStatus        SupplierFulfilmentStatus? @map("from_status")
+  toStatus          SupplierFulfilmentStatus @map("to_status")
+  action            String
+  actorUserId       String?  @map("actor_user_id") @db.Uuid
+  actorRole         String?  @map("actor_role")
+  idempotencyKey    String   @unique @map("idempotency_key")
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  fulfilment SupplierFulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+
+  @@index([fulfilmentId, createdAt])
+  @@map("supplier_fulfilment_events")
+}
+
+/// Manual supplier purchase record. Nothing here calls a payment provider or
+/// moves money; confirmation is an audited human action. One row per
+/// fulfilment, with a deterministic idempotency key.
+model SupplierPurchase {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fulfilmentId      String   @unique @map("fulfilment_id") @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  sellerId          String   @map("seller_id") @db.Uuid
+  supplierId        String   @map("supplier_id") @db.Uuid
+  amountMinor       Int      @map("amount_minor")
+  currency          String   @default("KES") @db.VarChar(3)
+  costStatus        SupplierCostStatus @default(ESTIMATED) @map("cost_status")
+  paymentResponsibility SupplierPaymentResponsibility @default(UNDEFINED) @map("payment_responsibility")
+  paymentTerms      String?  @map("payment_terms")
+  status            SupplierPurchaseStatus @default(PENDING_CONFIRMATION)
+  purchaseReference String?  @unique @map("purchase_reference")
+  idempotencyKey    String   @unique @map("idempotency_key")
+  confirmedById     String?  @map("confirmed_by_id") @db.Uuid
+  confirmedBy       User?    @relation("SupplierPurchaseConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedAt       DateTime? @map("confirmed_at")
+  paidById          String?  @map("paid_by_id") @db.Uuid
+  paidBy            User?    @relation("SupplierPurchasePaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  paidAt            DateTime? @map("paid_at")
+  paymentReference  String?  @map("payment_reference")
+  failureReason     String?  @map("failure_reason")
+  refundAmountMinor Int      @default(0) @map("refund_amount_minor")
+  reconciledAt      DateTime? @map("reconciled_at")
+  reconciledById    String?  @map("reconciled_by_id") @db.Uuid
+  reconciledBy      User?    @relation("SupplierPurchaseReconciledBy", fields: [reconciledById], references: [id], onDelete: SetNull)
+  reconciliationNote String? @map("reconciliation_note")
+  cancelledAt       DateTime? @map("cancelled_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  fulfilment SupplierFulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("supplier_purchases")
+}
+
+/// Return/cancellation request for one supplier-fulfilled line. Extends the
+/// existing BuyerProtectionCase and Refund models; it never creates a second
+/// refund or payout path.
+model SupplierReturnRequest {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fulfilmentId      String   @unique @map("fulfilment_id") @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  buyerId           String   @map("buyer_id") @db.Uuid
+  status            SupplierReturnStatus @default(REQUESTED)
+  reason            SupplierReturnReason
+  reasonNote        String?  @map("reason_note")
+  evidenceNote      String?  @map("evidence_note")
+  responsibility    ReturnResponsibility @default(UNDETERMINED)
+  returnShippingParty String? @map("return_shipping_party")
+  idempotencyKey    String   @unique @map("idempotency_key")
+  refundId          String?  @unique @map("refund_id") @db.Uuid
+  protectionCaseId  String?  @map("protection_case_id") @db.Uuid
+  requestedAt       DateTime @default(now()) @map("requested_at")
+  approvedAt        DateTime? @map("approved_at")
+  approvedById      String?  @map("approved_by_id") @db.Uuid
+  approvedBy        User?    @relation("SupplierReturnApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedAt        DateTime? @map("rejected_at")
+  returnedAt        DateTime? @map("returned_at")
+  refundPendingAt   DateTime? @map("refund_pending_at")
+  resolvedAt        DateTime? @map("resolved_at")
+  resolvedById      String?  @map("resolved_by_id") @db.Uuid
+  resolvedBy        User?    @relation("SupplierReturnResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolutionNote    String?  @map("resolution_note")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  fulfilment SupplierFulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  buyer User @relation("SupplierReturnBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  refund Refund? @relation(fields: [refundId], references: [id], onDelete: SetNull)
+  protectionCase BuyerProtectionCase? @relation(fields: [protectionCaseId], references: [id], onDelete: SetNull)
+
+  @@index([status, requestedAt])
+  @@index([orderId])
+  @@map("supplier_return_requests")
 }

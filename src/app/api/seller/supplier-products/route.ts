@@ -1,16 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import type { Prisma, SupplierRegion } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireActiveActor, logSafeError } from "@/lib/dropshipping/http";
+import { SELLER_SUPPLIER_PRODUCT_SELECT } from "@/lib/dropshipping/selects";
+import { readDropshippingConfig } from "@/lib/dropshipping/config";
+import { classifySupplierAvailability } from "@/lib/dropshipping/availability";
 
+/**
+ * Seller catalog — approved products only, with an explicit stock-freshness
+ * classification. Supplier cost, delivery charge, contact details, internal
+ * notes, feed configuration and review notes are never selected here.
+ */
 export async function GET(request: NextRequest) {
-  const user = (await getCurrentUser())?.user;
-  if (!user) return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
-  if (!user.isActive || user.isBanned) return NextResponse.json({ success: false, error: "Account access denied." }, { status: 403 });
+  const guard = await requireActiveActor();
+  if (!guard.ok) return guard.response;
 
   try {
     const seller = await prisma.seller.findUnique({
-      where: { userId: user.id },
+      where: { userId: guard.actor.id },
       select: { id: true, verificationStatus: true },
     });
     if (!seller) return NextResponse.json({ success: false, error: "Seller setup required." }, { status: 403 });
@@ -21,12 +28,13 @@ export async function GET(request: NextRequest) {
     const region: SupplierRegion | undefined =
       rawRegion === "KENYA" || rawRegion === "INTERNATIONAL" ? rawRegion : undefined;
 
-    const page = Math.max(1, parseInt(searchParams?.get("page") || "1", 10) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams?.get("limit") || "24", 10) || 24));
+    const page = Math.max(1, Number.parseInt(searchParams?.get("page") || "1", 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(searchParams?.get("limit") || "24", 10) || 24));
     const skip = (page - 1) * limit;
 
     const where: Prisma.SupplierProductWhereInput = {
       isActive: true,
+      approvalStatus: "APPROVED",
       supplier: {
         status: "APPROVED",
         ...(region ? { region } : {}),
@@ -50,17 +58,12 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         select: {
-          id: true,
-          title: true,
-          description: true,
-          sku: true,
-          sourceUrl: true,
-          imageUrl: true,
-          currency: true,
-          availableQuantity: true,
-          lastSyncedAt: true,
+          ...SELLER_SUPPLIER_PRODUCT_SELECT,
           supplier: {
-            select: { id: true, name: true, region: true, countryCode: true },
+            select: {
+              ...SELLER_SUPPLIER_PRODUCT_SELECT.supplier.select,
+              status: true,
+            },
           },
         },
       }),
@@ -84,24 +87,31 @@ export async function GET(request: NextRequest) {
         .map((item) => [item.supplierProductId, { id: item.id, slug: item.slug, status: item.status }]),
     );
 
+    const config = readDropshippingConfig();
     const items = supplierProducts.map((product) => ({
       ...product,
+      availability: classifySupplierAvailability({
+        supplierStatus: product.supplier.status,
+        approvalStatus: product.approvalStatus,
+        isActive: product.isActive ?? true,
+        stockStatus: product.stockStatus,
+        availableQuantity: product.availableQuantity,
+        stockVerifiedAt: product.stockVerifiedAt,
+        lastSyncedAt: product.lastSyncedAt,
+        maxAgeHours: config.stockMaxAgeHours,
+      }),
       importedListing: importedMap.get(product.id) || null,
     }));
 
     return NextResponse.json({
       success: true,
       data: items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit) || 1,
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
       sellerVerified: seller.verificationStatus === "VERIFIED",
+      stockPolicy: { maxAgeHours: config.stockMaxAgeHours, isSnapshot: true, isGuaranteed: false },
     });
   } catch (error) {
-    console.error("GET /api/seller/supplier-products failed", error);
+    logSafeError("GET /api/seller/supplier-products failed", error);
     return NextResponse.json(
       { success: false, error: "Unable to load supplier catalog." },
       { status: 500 },

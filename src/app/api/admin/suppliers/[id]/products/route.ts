@@ -1,66 +1,139 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { z } from "zod";
-import { getCurrentUser, isAdministratorRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import type { Prisma, SupplierProductStatus } from "@prisma/client";
+import { supplierProductCreateSchema, uuidSchema } from "@/lib/validations/dropshipping";
 import { verifySameOrigin } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
+import { logAuditEvent } from "@/services/audit-service";
+import {
+  isPrismaErrorCode,
+  logSafeError,
+  requireAdminActor,
+} from "@/lib/dropshipping/http";
+import { ADMIN_SUPPLIER_PRODUCT_SELECT } from "@/lib/dropshipping/selects";
 
-const schema = z.object({
-  title: z.string().trim().min(2).max(200),
-  description: z.string().trim().max(5000).optional(),
-  sku: z.string().trim().max(120).optional(),
-  externalProductId: z.string().trim().max(200).optional(),
-  sourceUrl: z.string().trim().url().max(2048).optional(),
-  imageUrl: z.string().trim().url().max(2048).optional(),
-  costMinor: z.number().int().nonnegative().max(2_000_000_000),
-  currency: z.string().trim().length(3).transform((v) => v.toUpperCase()),
-  availableQuantity: z.number().int().nonnegative().nullable().optional(),
-});
+/**
+ * Supplier product submissions. A product is NEVER seller-visible merely
+ * because it was submitted: it starts DRAFT or PENDING_REVIEW and an admin
+ * must approve it with verified stock/cost/delivery information.
+ */
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const guard = await requireAdminActor();
+  if (!guard.ok) return guard.response;
+  const { id } = await context.params;
+  if (!uuidSchema.safeParse(id).success) {
+    return NextResponse.json({ success: false, error: "Invalid supplier id." }, { status: 400 });
+  }
+  const params = request.nextUrl.searchParams;
+  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+  const limit = Math.min(50, Math.max(1, Number.parseInt(params.get("limit") ?? "20", 10) || 20));
+  const status = params.get("status");
+  const where: Prisma.SupplierProductWhereInput = {
+    supplierId: id,
+    ...(status && ["DRAFT", "PENDING_REVIEW", "APPROVED", "REJECTED", "SUSPENDED", "REMOVED"].includes(status)
+      ? { approvalStatus: status as SupplierProductStatus }
+      : {}),
+  };
+  try {
+    const [total, data] = await Promise.all([
+      prisma.supplierProduct.count({ where }),
+      prisma.supplierProduct.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: ADMIN_SUPPLIER_PRODUCT_SELECT,
+      }),
+    ]);
+    return NextResponse.json({
+      success: true,
+      data,
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+    });
+  } catch (error) {
+    logSafeError("GET /api/admin/suppliers/[id]/products failed", error);
+    return NextResponse.json({ success: false, error: "Unable to load supplier products." }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const csrf = verifySameOrigin(request);
   if (csrf) return csrf;
-  const user = (await getCurrentUser())?.user;
-  if (!user) return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
-  if (!isAdministratorRole(user.role) || !user.isActive || user.isBanned) {
-    return NextResponse.json({ success: false, error: "Administrator access is required." }, { status: 403 });
-  }
+  const guard = await requireAdminActor();
+  if (!guard.ok) return guard.response;
 
   const { id: supplierId } = await context.params;
-  const body = await request.json().catch(() => null);
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors }, { status: 400 });
+  if (!uuidSchema.safeParse(supplierId).success) {
+    return NextResponse.json({ success: false, error: "Invalid supplier id." }, { status: 400 });
   }
-
+  const parsed = supplierProductCreateSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
   const v = parsed.data;
+  const optional = (value?: string) => (value && value.length > 0 ? value : null);
+  const approvalStatus: SupplierProductStatus = v.submitForReview ? "PENDING_REVIEW" : "DRAFT";
+
   try {
-    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { id: true, status: true },
+    });
     if (!supplier) return NextResponse.json({ success: false, error: "Supplier not found." }, { status: 404 });
+    if (supplier.status === "REJECTED" || supplier.status === "SUSPENDED") {
+      return NextResponse.json(
+        { success: false, error: "Products cannot be submitted for a rejected or suspended supplier." },
+        { status: 409 },
+      );
+    }
 
     const data = await prisma.supplierProduct.create({
       data: {
         supplierId,
         title: v.title,
-        description: v.description || null,
-        sku: v.sku || null,
-        externalProductId: v.externalProductId || null,
-        sourceUrl: v.sourceUrl || null,
-        imageUrl: v.imageUrl || null,
+        description: optional(v.description),
+        sku: optional(v.sku),
+        externalProductId: optional(v.externalProductId),
+        sourceUrl: optional(v.sourceUrl),
+        imageUrl: optional(v.imageUrl),
         costMinor: v.costMinor,
         currency: v.currency,
+        deliveryChargeMinor: v.deliveryChargeMinor ?? null,
         availableQuantity: v.availableQuantity ?? null,
+        isActive: true,
+        approvalStatus,
+        submittedAt: v.submitForReview ? new Date() : null,
+        stockStatus: "UNKNOWN",
+        costStatus: "ESTIMATED",
+        manualRefreshRequired: true,
       },
       select: {
-        id: true, supplierId: true, title: true, sku: true,
-        currency: true, availableQuantity: true, isActive: true, createdAt: true,
+        id: true, supplierId: true, title: true, sku: true, currency: true,
+        availableQuantity: true, isActive: true, approvalStatus: true, createdAt: true,
       },
     });
+    if (v.submitForReview) {
+      await logAuditEvent({
+        action: "supplier_product.submitted",
+        actorId: guard.actor.id,
+        actorEmail: guard.actor.email,
+        targetType: "supplier_product",
+        targetId: data.id,
+        metadata: { supplierId, approvalStatus },
+      }).catch(() => undefined);
+    }
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      return NextResponse.json({ success: false, error: "This external product ID already exists for the supplier." }, { status: 409 });
+    if (isPrismaErrorCode(error, "P2002")) {
+      return NextResponse.json(
+        { success: false, error: "This external product ID already exists for the supplier." },
+        { status: 409 },
+      );
     }
-    console.error("POST /api/admin/suppliers/[id]/products failed", error);
+    logSafeError("POST /api/admin/suppliers/[id]/products failed", error);
     return NextResponse.json({ success: false, error: "Unable to create supplier product." }, { status: 500 });
   }
 }

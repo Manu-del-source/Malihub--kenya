@@ -153,7 +153,15 @@ export async function checkoutCart(
   const productIds = cartRows.map((row) => row.productId);
   const products = await db.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, sellerId: true, status: true, quantity: true, title: true },
+    select: {
+      id: true,
+      sellerId: true,
+      status: true,
+      quantity: true,
+      title: true,
+      supplierProductId: true,
+      supplierProduct: { select: { title: true, sku: true } },
+    },
   });
   const byId = new Map<string, (typeof products)[number]>(
     products.map((p) => [p.id, p])
@@ -234,6 +242,9 @@ export async function checkoutCart(
           quantity: number;
           unitPriceCents: number;
           totalCents: number;
+          supplierProductId: string | null;
+          supplierProductTitle: string | null;
+          supplierSku: string | null;
         }> = [];
 
         for (const item of items) {
@@ -256,17 +267,26 @@ export async function checkoutCart(
 
           const fresh = await tx.product.findUnique({
             where: { id: item.productId },
-            select: { priceCents: true },
+            select: {
+              priceCents: true,
+              supplierProductId: true,
+              supplierProduct: { select: { title: true, sku: true } },
+            },
           });
           if (!fresh) throw new OrderError("A listing in your cart no longer exists.", "unavailable");
 
           const lineTotal = fresh.priceCents * item.quantity;
           subtotalCents += lineTotal;
+          // Snapshot the supplier source at checkout. A later supplier-product
+          // removal or price change must not rewrite what the buyer ordered.
           itemData.push({
             productId: item.productId,
             quantity: item.quantity,
             unitPriceCents: fresh.priceCents,
             totalCents: lineTotal,
+            supplierProductId: fresh.supplierProductId,
+            supplierProductTitle: fresh.supplierProduct?.title ?? null,
+            supplierSku: fresh.supplierProduct?.sku ?? null,
           });
         }
 

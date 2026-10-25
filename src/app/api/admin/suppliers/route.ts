@@ -1,79 +1,125 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { z } from "zod";
-import { getCurrentUser, isAdministratorRole } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import type { Prisma, SupplierStatus } from "@prisma/client";
+import { supplierCreateSchema } from "@/lib/validations/dropshipping";
 import { verifySameOrigin } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
+import { logAuditEvent } from "@/services/audit-service";
+import {
+  isPrismaErrorCode,
+  logSafeError,
+  requireAdminActor,
+} from "@/lib/dropshipping/http";
+import { ADMIN_SUPPLIER_SELECT } from "@/lib/dropshipping/selects";
 
-const schema = z.object({
-  name: z.string().trim().min(2).max(120),
-  slug: z.string().trim().min(2).max(140).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  region: z.enum(["KENYA", "INTERNATIONAL"]),
-  countryCode: z.string().trim().length(2).transform((v) => v.toUpperCase()),
-  contactEmail: z.string().trim().email().max(254).optional().or(z.literal("")),
-  contactPhone: z.string().trim().max(40).optional().or(z.literal("")),
-  websiteUrl: z.string().trim().url().max(2048).optional().or(z.literal("")),
-  notes: z.string().trim().max(2000).optional(),
-});
+/**
+ * Admin-only supplier registry. Creating a supplier ALWAYS starts PENDING;
+ * there is no public registration endpoint and no supplier-provided status.
+ * Business identifiers and contact details are returned only to administrators.
+ */
 
-async function adminResponse() {
-  const user = (await getCurrentUser())?.user;
-  if (!user) return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
-  if (!isAdministratorRole(user.role) || !user.isActive || user.isBanned) {
-    return NextResponse.json({ success: false, error: "Administrator access is required." }, { status: 403 });
-  }
-  return null;
-}
+export async function GET(request: NextRequest) {
+  const guard = await requireAdminActor();
+  if (!guard.ok) return guard.response;
 
-export async function GET() {
-  const denied = await adminResponse();
-  if (denied) return denied;
+  const params = request.nextUrl.searchParams;
+  const status = params.get("status");
+  const q = params.get("q")?.trim() ?? "";
+  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+  const limit = Math.min(50, Math.max(1, Number.parseInt(params.get("limit") ?? "20", 10) || 20));
+  const where: Prisma.SupplierWhereInput = {
+    ...(status && ["PENDING", "APPROVED", "REJECTED", "SUSPENDED"].includes(status)
+      ? { status: status as SupplierStatus }
+      : {}),
+    ...(q
+      ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
+      : {}),
+  };
 
   try {
-    const data = await prisma.supplier.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true, name: true, slug: true, region: true, countryCode: true,
-        status: true, contactEmail: true, contactPhone: true, websiteUrl: true,
-        approvedAt: true, createdAt: true, updatedAt: true,
-        _count: { select: { products: true } },
-      },
+    const [total, data] = await Promise.all([
+      prisma.supplier.count({ where }),
+      prisma.supplier.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: ADMIN_SUPPLIER_SELECT,
+      }),
+    ]);
+    return NextResponse.json({
+      success: true,
+      data,
+      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
-    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error("GET /api/admin/suppliers failed", error);
-    return NextResponse.json(
-      { success: false, error: "Unable to load suppliers." },
-      { status: 500 },
-    );
+    logSafeError("GET /api/admin/suppliers failed", error);
+    return NextResponse.json({ success: false, error: "Unable to load suppliers." }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   const csrf = verifySameOrigin(request);
   if (csrf) return csrf;
-  const denied = await adminResponse();
-  if (denied) return denied;
+  const guard = await requireAdminActor();
+  if (!guard.ok) return guard.response;
+
   const body = await request.json().catch(() => null);
-  const parsed = schema.safeParse(body);
+  const parsed = supplierCreateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
   }
   const v = parsed.data;
+  const emptyToNull = (value?: string) => (value && value.length > 0 ? value : null);
+
   try {
     const data = await prisma.supplier.create({
       data: {
-        name: v.name, slug: v.slug, region: v.region, countryCode: v.countryCode,
-        contactEmail: v.contactEmail || null, contactPhone: v.contactPhone || null,
-        websiteUrl: v.websiteUrl || null, notes: v.notes || null, status: "PENDING",
+        name: v.name,
+        slug: v.slug,
+        region: v.region,
+        countryCode: v.countryCode,
+        status: "PENDING",
+        legalName: emptyToNull(v.legalName),
+        registrationNumber: emptyToNull(v.registrationNumber),
+        kraPin: emptyToNull(v.kraPin),
+        contactName: emptyToNull(v.contactName),
+        contactEmail: emptyToNull(v.contactEmail),
+        contactPhone: emptyToNull(v.contactPhone),
+        physicalAddress: emptyToNull(v.physicalAddress),
+        websiteUrl: emptyToNull(v.websiteUrl),
+        notes: emptyToNull(v.notes),
+        verificationNotes: emptyToNull(v.verificationNotes),
+        deliveryCounties: v.deliveryCounties,
+        dispatchEstimateMinDays: v.dispatchEstimateMinDays ?? null,
+        dispatchEstimateMaxDays: v.dispatchEstimateMaxDays ?? null,
+        deliveryEstimateMinDays: v.deliveryEstimateMinDays ?? null,
+        deliveryEstimateMaxDays: v.deliveryEstimateMaxDays ?? null,
+        returnTerms: emptyToNull(v.returnTerms),
+        paymentTerms: emptyToNull(v.paymentTerms),
+        paymentResponsibility: v.paymentResponsibility,
+        commercialTermsNote: emptyToNull(v.commercialTermsNote),
+        submittedAt: new Date(),
+        statusChangedAt: new Date(),
       },
-      select: { id: true, name: true, slug: true, region: true, countryCode: true, status: true, createdAt: true },
+      select: { id: true, name: true, slug: true, status: true, createdAt: true },
     });
+    await logAuditEvent({
+      action: "supplier.created",
+      actorId: guard.actor.id,
+      actorEmail: guard.actor.email,
+      targetType: "supplier",
+      targetId: data.id,
+      metadata: { status: "PENDING", region: v.region },
+    }).catch(() => undefined);
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+    if (isPrismaErrorCode(error, "P2002")) {
       return NextResponse.json({ success: false, error: "Supplier slug already exists." }, { status: 409 });
     }
-    console.error("POST /api/admin/suppliers failed", error);
+    logSafeError("POST /api/admin/suppliers failed", error);
     return NextResponse.json({ success: false, error: "Unable to create supplier." }, { status: 500 });
   }
 }

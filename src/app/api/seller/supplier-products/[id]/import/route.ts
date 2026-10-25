@@ -1,21 +1,32 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
-import { z } from "zod";
-import { KENYA_COUNTIES } from "@/lib/constants";
-import { getCurrentUser } from "@/lib/auth";
+import { importSchema, uuidSchema } from "@/lib/validations/dropshipping";
 import { verifySameOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/utils";
+import {
+  isPrismaErrorCode,
+  logSafeError,
+  requireActiveActor,
+  requireVerifiedSeller,
+} from "@/lib/dropshipping/http";
+import { classifySupplierAvailability } from "@/lib/dropshipping/availability";
+import { readDropshippingConfig } from "@/lib/dropshipping/config";
+import { storeSupplierListingCost } from "@/services/dropshipping-pricing-service";
+import { logAuditEvent } from "@/services/audit-service";
 
-const importSchema = z.object({
-  categorySlug: z.string().trim().min(1).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  priceCents: z.number().int().min(100).max(2_000_000_000),
-  county: z.enum([...KENYA_COUNTIES] as [string, ...string[]]),
-  town: z.string().trim().min(2).max(80),
-  quantity: z.number().int().min(1).max(9999).default(1),
-});
-
+/**
+ * Imports an APPROVED supplier product as the seller's own unpublished DRAFT.
+ *
+ * Safety properties:
+ *  - session, active account, verified seller and same-origin checks first;
+ *  - UUID + Zod validation before any database read;
+ *  - supplier AND supplier-product approval are re-checked at write time;
+ *  - a stale/unknown stock snapshot is allowed only with an explicit caveat;
+ *  - a partial unique index plus P2002 handling makes concurrent imports safe;
+ *  - the private cost snapshot is stored in a separate seller-scoped table and
+ *    never returned to buyers or other sellers. Nothing is published or paid.
+ */
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -23,13 +34,8 @@ export async function POST(
   const csrf = verifySameOrigin(request);
   if (csrf) return csrf;
 
-  const user = (await getCurrentUser())?.user;
-  if (!user) {
-    return NextResponse.json({ success: false, error: "Sign in required." }, { status: 401 });
-  }
-  if (!user.isActive || user.isBanned) {
-    return NextResponse.json({ success: false, error: "Account access denied." }, { status: 403 });
-  }
+  const guard = await requireActiveActor();
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const parsed = importSchema.safeParse(body);
@@ -41,29 +47,38 @@ export async function POST(
   }
 
   try {
-    const seller = await prisma.seller.findUnique({
-      where: { userId: user.id },
-      select: { id: true, verificationStatus: true },
-    });
-    if (!seller) {
-      return NextResponse.json({ success: false, error: "Seller setup required." }, { status: 403 });
-    }
-    if (seller.verificationStatus !== "VERIFIED") {
+    const seller = await requireVerifiedSeller(prisma, guard.actor);
+    if (seller instanceof NextResponse) return seller;
+
+    const { id: supplierProductId } = await context.params;
+    // An invalid id is indistinguishable from a missing one: both are 404 with
+    // the same copy, so this route cannot be used to probe supplier products.
+    if (!uuidSchema.safeParse(supplierProductId).success) {
       return NextResponse.json(
-        { success: false, error: "Seller verification is required before importing supplier products." },
-        { status: 403 },
+        { success: false, error: "Supplier product is unavailable or its supplier is not approved." },
+        { status: 404 },
       );
     }
 
-    const { id: supplierProductId } = await context.params;
     const [source, category, existing] = await Promise.all([
       prisma.supplierProduct.findFirst({
-        where: { id: supplierProductId, isActive: true, supplier: { status: "APPROVED" } },
+        where: {
+          id: supplierProductId,
+          isActive: true,
+          approvalStatus: "APPROVED",
+          supplier: { status: "APPROVED" },
+        },
         select: {
           id: true,
           title: true,
           description: true,
-          supplier: { select: { name: true } },
+          currency: true,
+          stockStatus: true,
+          availableQuantity: true,
+          stockVerifiedAt: true,
+          lastSyncedAt: true,
+          costStatus: true,
+          supplier: { select: { name: true, status: true, deliveryEstimateMaxDays: true } },
         },
       }),
       prisma.category.findUnique({
@@ -92,9 +107,26 @@ export async function POST(
       );
     }
 
+    const availability = classifySupplierAvailability({
+      supplierStatus: source.supplier.status,
+      approvalStatus: "APPROVED",
+      isActive: true,
+      stockStatus: source.stockStatus,
+      availableQuantity: source.availableQuantity,
+      stockVerifiedAt: source.stockVerifiedAt,
+      lastSyncedAt: source.lastSyncedAt,
+      maxAgeHours: readDropshippingConfig().stockMaxAgeHours,
+    });
+    if (!availability.canImport) {
+      return NextResponse.json(
+        { success: false, error: "This supplier product is not currently available for import.", availability },
+        { status: 409 },
+      );
+    }
+
     const product = await prisma.product.create({
       data: {
-        ownerId: user.id,
+        ownerId: guard.actor.id,
         sellerId: seller.id,
         categoryId: category.id,
         supplierProductId: source.id,
@@ -116,25 +148,61 @@ export async function POST(
       select: { id: true, title: true, slug: true, status: true, priceCents: true, createdAt: true },
     });
 
+    // Best effort: a pricing failure must not lose the draft, but the seller
+    // is told the estimate could not be produced. No raw cost is returned.
+    let pricing: {
+      estimatedGrossProfitCents: number;
+      marginBps: number;
+      isEstimate: boolean;
+      warnings: string[];
+    } | null = null;
+    try {
+      const breakdown = await storeSupplierListingCost(prisma, {
+        productId: product.id,
+        supplierProductId: source.id,
+        sellerId: seller.id,
+        categoryId: category.id,
+        retailPriceCents: parsed.data.priceCents,
+        sellerFulfilmentCostCents: parsed.data.sellerFulfilmentCostCents,
+      });
+      pricing = {
+        estimatedGrossProfitCents: breakdown.estimatedGrossProfitCents,
+        marginBps: breakdown.marginBps,
+        isEstimate: breakdown.isEstimate,
+        warnings: breakdown.warnings,
+      };
+    } catch (error) {
+      logSafeError("Supplier listing cost snapshot failed", error);
+    }
+
+    await logAuditEvent({
+      action: "listing.created",
+      actorId: guard.actor.id,
+      actorEmail: guard.actor.email,
+      targetType: "product",
+      targetId: product.id,
+      metadata: { status: "DRAFT", supplierProductId: source.id, availability: availability.level },
+    }).catch(() => undefined);
+
     return NextResponse.json(
       {
         success: true,
         data: product,
-        message: "Imported as a draft. Add an approved product image and verify details before publishing.",
+        pricing,
+        availability,
+        message:
+          "Imported as a draft. Add an approved product image, verify stock with the supplier, and review the estimated margin before publishing.",
       },
       { status: 201 },
     );
   } catch (error) {
-    if (
-      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
-      (typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "P2002")
-    ) {
+    if (isPrismaErrorCode(error, "P2002")) {
       return NextResponse.json(
         { success: false, error: "You have already imported this supplier product." },
         { status: 409 },
       );
     }
-    console.error("POST /api/seller/supplier-products/[id]/import failed", error);
+    logSafeError("POST /api/seller/supplier-products/[id]/import failed", error);
     return NextResponse.json(
       { success: false, error: "Unable to import supplier product." },
       { status: 500 },

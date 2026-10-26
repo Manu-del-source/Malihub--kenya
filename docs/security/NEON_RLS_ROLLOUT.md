@@ -59,3 +59,21 @@ The earlier validation work used isolated branch
 `br-jolly-scene-aqruvu1f`. The existing `products_public_read_active` policy
 on that branch should be independently inspected and tested before relying on
 it. It is not evidence that the rest of the schema is protected.
+
+
+## Validation-branch blocker discovered
+
+The dedicated `malihub_app_rls` role on validation branch
+`br-jolly-scene-aqruvu1f` was queried directly. PostgreSQL reports
+`rolsuper = false`, `rolbypassrls = true`, and `rolcanlogin = true`.
+This role **must not be used for RLS enforcement tests** because
+`BYPASSRLS` defeats row-level security. An attempt to change it to
+`NOBYPASSRLS` was rejected with `permission denied to alter role`; the
+available connection does not have the necessary role-management authority.
+
+Before any policy validation, an appropriately privileged database owner must
+create or alter a dedicated non-owner runtime role with `NOBYPASSRLS`, grant
+only the necessary schema/table/sequence privileges, and verify the role flags
+from PostgreSQL. This must happen only on the isolated validation branch until
+the test plan passes. Do not change the production runtime role or production
+environment variables as part of this PR.

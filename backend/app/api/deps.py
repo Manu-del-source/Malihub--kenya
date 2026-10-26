@@ -84,6 +84,7 @@ __all__ = [
     "RateLimiter",
     "StorageService",
     "get_auth_context",
+    "get_authenticated_db_session",
     "get_database",
     "get_db_session",
     "get_email_service",

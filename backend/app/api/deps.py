@@ -27,7 +27,13 @@ key in this schema.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.db import get_database, get_db_session, get_optional_db_session
+from app.core.rls_context import set_rls_user_context
 from app.core.identity import (
     ApplicationIdentity,
     IdentityResolver,
@@ -46,6 +52,27 @@ from app.services.email_service import EmailService, get_email_service
 from app.services.payment_service import PaymentService, get_payment_service
 from app.services.rate_limit import RateLimiter, get_rate_limiter, rate_limit_dependency
 from app.services.storage_service import StorageService, get_storage_service
+
+async def get_authenticated_db_session(
+    auth_context: AuthContext = Depends(get_auth_context),
+) -> AsyncIterator[AsyncSession]:
+    """Yield a session with transaction-local RLS identity for authenticated routes.
+
+    Protected routes must opt into this dependency instead of get_db_session.
+    It uses only the internal user id from the verified AuthContext, never a
+    client-supplied id. The transaction-local setting is cleared on commit or
+    rollback when the underlying request-scoped database session closes.
+    """
+    async for session in get_db_session():
+        if not auth_context.subject:
+            # Authenticated provider identities without a MaliHub account must
+            # not be allowed to enter an RLS-scoped application data path.
+            from app.core.errors import UnauthorizedError
+
+            raise UnauthorizedError("A MaliHub application account is required")
+        await set_rls_user_context(session, auth_context.subject)
+        yield session
+
 
 __all__ = [
     "ApplicationIdentity",

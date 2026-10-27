@@ -2,16 +2,25 @@
 
 ## Dependency advisory
 
-`npm audit` reports **three high-severity entries and no critical entries** for
+`npm audit` reports **one high-severity entry and no critical entries** for
 GHSA-mrhx-c7xc-m3w5, an oversized-collection validation issue that can exhaust
-memory by producing many validation errors. They are one underlying issue, not
-three independent vulnerabilities:
+memory by producing many validation errors:
 
 | Affected entry | Exposure and mitigation | Remaining fix |
 | --- | --- | --- |
-| `zod@3.24.1` | Used by application schemas. Listing images and supplier county lists now reject oversized arrays **before** validating their elements. This does not limit the size of the HTTP body itself. | Upgrade the application and its Zod 3 consumers to a patched Zod release after compatibility testing. Enforce a request-body size limit at the ingress in the meantime. |
-| `@cloudinary-util/url-loader@5.10.4` | Depends on Zod 3. MaliHub uses the Cloudinary upload widget, not the loader's image transformation API; avoid passing untrusted, unbounded transformation arrays to it. | Upgrade with `next-cloudinary` after testing. The suggested `next-cloudinary@7` requires Next 16 and is not a compatible patch for this Next 15 app. |
-| `next-cloudinary@6.16.0` | Carries the loader dependency above. | Same as the loader; do not force a major upgrade without testing the upload widget and Next compatibility. |
+| `zod@3.24.1` | Used by application schemas. Listing images and supplier county lists reject oversized arrays **before** validating their elements. This does not limit the size of the HTTP body itself or prove that every possible Zod input is protected. | Upgrade the application and its Zod 3 consumers to a patched release after compatibility testing. Enforce a request-body size limit at the ingress in the meantime. |
+
+The two Cloudinary entries previously inherited the same Zod issue through
+`@cloudinary-util/url-loader@5.10.4`. A narrowly scoped override selects
+`6.3.2` only for `next-cloudinary@6.16.0`; the newer loader no longer depends
+on Zod. This is outside the loader range declared by `next-cloudinary`, and the
+loader's non-widget APIs changed. MaliHub currently uses only `CldUploadWidget`.
+The widget option, event and signature callbacks were compared across versions,
+and regression tests exercise both app upload components with a simulated SDK.
+Real listing and chat uploads must still be tested with the staging preset. Do
+not adopt other loader APIs without reviewing compatibility; remove the override
+when a vendor-supported compatible upgrade is available. `next-cloudinary@7`
+requires Next 16 and is not a compatible patch for this Next 15 app.
 
 The Neon Auth SDK's pinned Zod 4 dependency is overridden to `4.6.7` and is no
 longer reported by the advisory. The mocked-upstream SDK auth regression tests

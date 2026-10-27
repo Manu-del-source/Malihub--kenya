@@ -10,6 +10,9 @@
     "postcss": "8.5.29",
     "@neondatabase/auth": {
       "zod": "4.6.7"
+    },
+    "next-cloudinary": {
+      "@cloudinary-util/url-loader": "6.3.2"
     }
   },
   "scripts": {
@@ -81,6 +84,7 @@
     "postcss": "8.5.29",
     "prettier": "3.4.2",
     "prettier-plugin-tailwindcss": "0.6.9",
+    "react-test-renderer": "19.0.0",
     "tsx": "4.23.15"
   },
   "prisma": {

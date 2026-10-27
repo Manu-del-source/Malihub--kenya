@@ -575,7 +575,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     const seller = tables.sellers.get(product.sellerId);
     const category = tables.categories.get(product.categoryId);
     return {
-      ...product,
+      ...withSupplierProduct(product),
       images,
       seller: seller
         ? {
@@ -676,7 +676,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         typeof val === "object" &&
         val !== null
       ) {
-        out[key] = project(val, wanted.select as Args);
+        out[key] = Array.isArray(val)
+          ? val.map((item) => project(item, wanted.select as Args))
+          : project(val, wanted.select as Args);
       } else {
         out[key] = val;
       }
@@ -762,7 +764,8 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (args.include || args.select) {
           return rows.map((row) => {
             const product = tables.products.get(row.productId)!;
-            return { ...row, product: attachProduct(product, 1) };
+            const enriched = { ...row, product: attachProduct(product, 1) };
+            return args.select ? project(enriched, args.select as Args) : enriched;
           });
         }
         return rows.map((row) => ({ ...row }));
@@ -869,7 +872,12 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           return attachProduct(row);
         }
         const select = args.select as Args | undefined;
-        return select ? project(withSupplierProduct(row), select) : { ...row };
+        return select
+          ? project(
+              select.images || select.category || select.seller ? attachProduct(row) : withSupplierProduct(row),
+              select
+            )
+          : { ...row };
       },
       async findUniqueOrThrow(args) {
         store.operations.push("product.findUniqueOrThrow");
@@ -886,7 +894,10 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (!row) return null;
         const select = args.select as Args | undefined;
         if (select) {
-          return project(withSupplierProduct(row), select);
+          return project(
+            select.images || select.category || select.seller ? attachProduct(row) : withSupplierProduct(row),
+            select
+          );
         }
         const include = args.include as Args | undefined;
         if (include && (include.images || include.category || include.seller)) {
@@ -902,7 +913,12 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         );
         const select = args.select as Args | undefined;
         if (select) {
-          const projected = rows.map((r) => project(withSupplierProduct(r), select));
+          const projected = rows.map((r) =>
+            project(
+              select.images || select.category || select.seller ? attachProduct(r) : withSupplierProduct(r),
+              select
+            )
+          );
           const take = args.take as number | undefined;
           return take !== undefined ? projected.slice(0, take) : projected;
         }

@@ -5,6 +5,7 @@ import { verifySameOrigin } from "@/lib/csrf";
 import { listingSchema, searchParamsSchema } from "@/lib/validations/listing";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { searchListings } from "@/services/search-service";
+import { toPublicListingPage } from "@/lib/api-dtos";
 import { createListing, ListingServiceError } from "@/services/listing-service";
 
 export async function GET(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   const result = await searchListings(parsed.data);
-  return NextResponse.json({ success: true, data: result });
+  return NextResponse.json({ success: true, data: toPublicListingPage(result) });
 }
 
 export async function POST(request: NextRequest) {

@@ -46,20 +46,29 @@ export type CartStore = Pick<PrismaClient, "cartItem" | "product">;
 
 /** Cart row + the listing relation every cart view needs. */
 const CART_INCLUDE = {
+  id: true,
+  productId: true,
+  quantity: true,
   product: {
-    include: {
-      images: { orderBy: { sortOrder: "asc" as const }, take: 1 },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      status: true,
+      priceCents: true,
+      quantity: true,
+      images: { orderBy: { sortOrder: "asc" as const }, take: 1, select: { url: true } },
       // `id` is included alongside the display fields because checkout groups
       // the cart by seller (the order service creates one order per seller —
       // see `checkoutCart`) and the grouping key must come from the product
       // row, never from the client.
-      seller: { select: { id: true, businessName: true, verificationStatus: true } },
+      seller: { select: { id: true, businessName: true } },
     },
   },
-} satisfies Prisma.CartItemInclude;
+} satisfies Prisma.CartItemSelect;
 
 export type CartItemWithProduct = Prisma.CartItemGetPayload<{
-  include: typeof CART_INCLUDE;
+  select: typeof CART_INCLUDE;
 }>;
 
 export type CartLine = {
@@ -109,7 +118,7 @@ export async function getCart(db: CartStore, userId: string): Promise<CartView> 
   const rows = await db.cartItem.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
-    include: CART_INCLUDE,
+    select: CART_INCLUDE,
   });
 
   const items: CartLine[] = rows.map((row: CartItemWithProduct) => {

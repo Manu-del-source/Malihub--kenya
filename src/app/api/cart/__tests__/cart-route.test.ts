@@ -111,6 +111,12 @@ describe("GET /api/cart", () => {
     const ownPayload = await own.json();
     assert.equal(ownPayload.data.itemCount, 1);
     assert.equal(ownPayload.data.subtotalCents, 200_000);
+    const productDto = ownPayload.data.items[0].product;
+    assert.equal(productDto.ownerId, undefined);
+    assert.equal(productDto.sellerId, undefined);
+    assert.equal(productDto.supplierProductId, undefined);
+    assert.equal(productDto.images[0]?.cloudinaryId, undefined);
+    assert.equal(productDto.title, product.title);
   });
 });
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
+import { toPublicListingPage } from "@/lib/api-dtos";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await searchListings(parsed.data);
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({ success: true, data: toPublicListingPage(result) });
   } catch (error) {
     console.error("GET /api/search failed", error);
     return NextResponse.json({ success: false, error: "Search failed. Please try again." }, { status: 500 });

@@ -111,6 +111,23 @@ beforeEach(() => {
 });
 
 describe("GET /api/products/[id] — drafts are not public", () => {
+  it("returns a public DTO without ownership, supplier, or storage identifiers", async () => {
+    const product = seedListing("ACTIVE");
+    const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {
+      params: Promise.resolve({ id: product.id }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    const listing = payload.data;
+    assert.equal(listing.ownerId, undefined);
+    assert.equal(listing.sellerId, undefined);
+    assert.equal(listing.supplierProductId, undefined);
+    assert.equal(listing.images[0]?.cloudinaryId, undefined);
+    assert.equal(listing.seller.id, undefined);
+    assert.equal(listing.title, product.title);
+    assert.equal(listing.quantity, product.quantity);
+  });
+
   it("answers 404 to an anonymous visitor for a draft listing", async () => {
     const product = seedListing("DRAFT");
     const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {

@@ -71,7 +71,7 @@ export async function ProductDetail({
       <div className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
         <div className="min-w-0 space-y-5">
           <section className="rounded-2xl border border-border/80 bg-card p-3 shadow-sm sm:p-4">
-            <ListingGallery images={product.images} title={product.title} />
+            <ListingGallery images={product.images.map(({ url }) => ({ url }))} title={product.title} />
           </section>
 
           <section className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-5">

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { canViewListing, isPublicListingStatus } from "@/lib/listing-visibility";
 import { listingSchema } from "@/lib/validations/listing";
+import { toPublicListing, type PublicListingInput } from "@/lib/api-dtos";
 import { updateListing, deleteListing, ListingServiceError } from "@/services/listing-service";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,10 +12,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const product = await prisma.product.findUnique({
     where: { id },
-    include: {
-      images: { orderBy: { sortOrder: "asc" } },
-      category: true,
-      seller: { select: { verificationStatus: true } },
+    select: {
+      id: true, ownerId: true, categoryId: true, title: true, slug: true,
+      description: true, priceCents: true, isNegotiable: true, condition: true, brand: true,
+      quantity: true, county: true, subCounty: true, status: true,
+      isFeatured: true, publishedAt: true,
+      images: { orderBy: { sortOrder: "asc" }, select: { id: true, url: true, sortOrder: true, isPrimary: true } },
+      category: { select: { id: true, name: true, slug: true, iconName: true, imageUrl: true } },
+      seller: { select: { businessName: true, slug: true, logoUrl: true, verificationStatus: true, ratingAverage: true, county: true } },
     },
   });
 
@@ -35,7 +40,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  return NextResponse.json({ success: true, data: product });
+  return NextResponse.json({ success: true, data: toPublicListing(product as unknown as PublicListingInput) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

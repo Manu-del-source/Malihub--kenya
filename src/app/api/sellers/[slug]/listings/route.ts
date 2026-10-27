@@ -25,9 +25,27 @@ export async function GET(
 
   const listings = await prisma.product.findMany({
     where: { sellerId: seller.id, status: "ACTIVE" },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, category: true },
+    select: {
+      id: true, title: true, slug: true, description: true, priceCents: true, isNegotiable: true,
+      condition: true, brand: true, quantity: true, county: true, subCounty: true, status: true,
+      isFeatured: true, publishedAt: true,
+      images: { orderBy: { sortOrder: "asc" }, take: 1, select: { id: true, url: true, sortOrder: true, isPrimary: true } },
+      category: { select: { id: true, name: true, slug: true, iconName: true, imageUrl: true } },
+    },
     orderBy: { publishedAt: "desc" },
   });
 
-  return NextResponse.json({ success: true, data: { seller, listings } });
+  return NextResponse.json({
+    success: true,
+    data: {
+      seller: {
+        businessName: seller.businessName,
+        verificationStatus: seller.verificationStatus,
+        ratingAverage: seller.ratingAverage,
+        ratingCount: seller.ratingCount,
+        county: seller.county,
+      },
+      listings,
+    },
+  });
 }

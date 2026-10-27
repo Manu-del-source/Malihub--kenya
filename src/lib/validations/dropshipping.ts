@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import { KENYA_COUNTIES } from "@/lib/constants";
+import { boundedArray } from "@/lib/validations/bounded-array";
 
 export const uuidSchema = z.string().trim().uuid();
 const optionalText = (max: number) => z.string().trim().max(max).optional();
@@ -12,6 +13,8 @@ const optionalEmail = z.string().trim().email().max(254).optional().or(z.literal
 const optionalUrl = z.string().trim().url().max(2048).optional().or(z.literal(""));
 const days = z.number().int().min(0).max(365).nullable().optional();
 const money = z.number().int().min(0).max(2_000_000_000);
+
+export const deliveryCountiesSchema = boundedArray(z.array(z.enum(KENYA_COUNTIES)).max(47), 47);
 
 export const supplierCreateSchema = z
   .object({
@@ -29,7 +32,7 @@ export const supplierCreateSchema = z
     websiteUrl: optionalUrl,
     notes: optionalText(2000),
     verificationNotes: optionalText(2000),
-    deliveryCounties: z.array(z.enum(KENYA_COUNTIES)).max(47).optional().default([]),
+    deliveryCounties: deliveryCountiesSchema.optional().default([]),
     dispatchEstimateMinDays: days,
     dispatchEstimateMaxDays: days,
     deliveryEstimateMinDays: days,

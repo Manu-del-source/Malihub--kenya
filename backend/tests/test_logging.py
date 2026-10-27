@@ -500,7 +500,8 @@ def test_safe_extra_output_survives_the_real_logging_call() -> None:
         logger.handlers = []
 
 
-def test_uvicorn_handshake_and_access_handlers_never_receive_ticket_values() -> None:
+@pytest.mark.parametrize("query_key", ["ticket", "TICKET", "%74icket", "tic%6Bet", "%74%69%63%6b%65%74"])
+def test_uvicorn_handshake_and_access_handlers_never_receive_ticket_values(query_key: str) -> None:
     """Uvicorn has its own handlers, so root-handler redaction is not enough."""
     import io
 
@@ -519,7 +520,7 @@ def test_uvicorn_handshake_and_access_handlers_never_receive_ticket_values() -> 
         logger.setLevel(logging.INFO)
         logger.propagate = False
         try:
-            target = f"/api/v1/chat/ws?ticket={ticket}&other=ok"
+            target = f"/api/v1/chat/ws?{query_key}={ticket}&other=ok"
             if name == "uvicorn.access":
                 logger.info('%s - "%s %s HTTP/%s" %d', "client", "GET", target, "1.1", 101)
             else:

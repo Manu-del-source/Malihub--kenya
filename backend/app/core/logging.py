@@ -150,9 +150,12 @@ _ASSIGNMENT_PATTERN = re.compile(
     r"private[-_]?key|client[-_]?secret|webhook[-_]?secret|authorization)"
     r"(\s*[:=]\s*)(['\"]?)([^\s'\";,}]{8,})"
 )
-# A one-use WebSocket ticket is a bearer credential. Uvicorn's handshake
-# logger includes the request target, including its query string.
-_TICKET_QUERY_PATTERN = re.compile(r"(?i)([?&]ticket=)[^&\s\"']+")
+# A one-use WebSocket ticket is a bearer credential. Uvicorn logs the raw
+# request target, while Starlette URL-decodes parameter names. An encoded key
+# such as `%74icket` is therefore still a valid ticket and must be scrubbed.
+_TICKET_QUERY_PATTERN = re.compile(
+    r"(?i)([?&](?:t|%74)(?:i|%69)(?:c|%63)(?:k|%6b)(?:e|%65)(?:t|%74)=)[^&\s\"']+"
+)
 _DSN_PATTERN = re.compile(r"(?i)\b(postgres(?:ql)?(?:\+\w+)?|redis(?:s)?|amqps?|mysql)://[^\s'\"<>]*")
 
 

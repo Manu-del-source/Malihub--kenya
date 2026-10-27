@@ -7,7 +7,10 @@
   },
   "overrides": {
     "sharp": "0.35.5",
-    "postcss": "8.5.29"
+    "postcss": "8.5.29",
+    "@neondatabase/auth": {
+      "zod": "4.6.7"
+    }
   },
   "scripts": {
     "dev": "next dev --turbopack",

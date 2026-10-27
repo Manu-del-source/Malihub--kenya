@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/constants";
 import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
+import { boundedArray } from "@/lib/validations/bounded-array";
 
 const categorySlug = z.enum(
   DEFAULT_CATEGORIES.map((c) => c.slug) as [string, ...string[]]
@@ -41,10 +42,13 @@ export const listingSchema = z.object({
   county: z.enum(KENYA_COUNTIES, { errorMap: () => ({ message: "Select a county" }) }),
   town: z.string().trim().min(2, "Enter a town or area").max(80),
   contactPreference: z.enum(["CALL", "WHATSAPP", "CHAT", "ANY"]).default("ANY"),
-  images: z
-    .array(listingImageSchema)
-    .min(1, "Add at least one photo")
-    .max(MAX_LISTING_IMAGES, `Up to ${MAX_LISTING_IMAGES} photos`),
+  images: boundedArray(
+    z.array(listingImageSchema)
+      .min(1, "Add at least one photo")
+      .max(MAX_LISTING_IMAGES, `Up to ${MAX_LISTING_IMAGES} photos`),
+    MAX_LISTING_IMAGES,
+    `Up to ${MAX_LISTING_IMAGES} photos`
+  ),
   status: z.enum(["DRAFT", "ACTIVE"]).default("DRAFT"),
 });
 

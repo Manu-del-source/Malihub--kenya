@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import type { SupplierStatus } from "@prisma/client";
-import { supplierStatusSchema, uuidSchema } from "@/lib/validations/dropshipping";
+import { deliveryCountiesSchema, supplierStatusSchema, uuidSchema } from "@/lib/validations/dropshipping";
 import { verifySameOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { logAuditEvent } from "@/services/audit-service";
@@ -10,7 +10,6 @@ import {
   logSafeError,
   requireAdminActor,
 } from "@/lib/dropshipping/http";
-import { KENYA_COUNTIES } from "@/lib/constants";
 
 /** Explicit supplier approval lifecycle. A status change is never a no-op. */
 const STATUS_TRANSITIONS: Record<string, readonly string[]> = {
@@ -28,7 +27,7 @@ const termsSchema = z.object({
   contactEmail: z.string().trim().email().max(254).optional(),
   contactPhone: z.string().trim().max(40).optional(),
   physicalAddress: z.string().trim().max(500).optional(),
-  deliveryCounties: z.array(z.enum(KENYA_COUNTIES)).max(47).optional(),
+  deliveryCounties: deliveryCountiesSchema.optional(),
   dispatchEstimateMinDays: z.number().int().min(0).max(365).nullable().optional(),
   dispatchEstimateMaxDays: z.number().int().min(0).max(365).nullable().optional(),
   deliveryEstimateMinDays: z.number().int().min(0).max(365).nullable().optional(),

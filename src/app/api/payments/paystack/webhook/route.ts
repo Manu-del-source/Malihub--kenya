@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: { received: true } }, { status: 200 });
   } catch (error) {
-    console.error("POST /api/payments/paystack/webhook failed", error);
+    logServerError("POST /api/payments/paystack/webhook failed", error);
     return NextResponse.json(
       { success: false, error: "Something went wrong." },
       { status: 500 }

@@ -111,6 +111,23 @@ beforeEach(() => {
 });
 
 describe("GET /api/products/[id] — drafts are not public", () => {
+  it("returns a public DTO without ownership, supplier, or storage identifiers", async () => {
+    const product = seedListing("ACTIVE");
+    const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {
+      params: Promise.resolve({ id: product.id }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    const listing = payload.data;
+    assert.equal(listing.ownerId, undefined);
+    assert.equal(listing.sellerId, undefined);
+    assert.equal(listing.supplierProductId, undefined);
+    assert.equal(listing.images[0]?.cloudinaryId, undefined);
+    assert.equal(listing.seller.id, undefined);
+    assert.equal(listing.title, product.title);
+    assert.equal(listing.quantity, product.quantity);
+  });
+
   it("answers 404 to an anonymous visitor for a draft listing", async () => {
     const product = seedListing("DRAFT");
     const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {
@@ -162,6 +179,33 @@ describe("GET /api/products/[id] — drafts are not public", () => {
     assert.equal(response.status, 200);
     const payload = await response.json();
     assert.equal(payload.data.title, product.title);
+  });
+
+  it("returns the public fields, not supplier, owner, seller-private or storage metadata", async () => {
+    const product = seedListing("ACTIVE");
+    product.supplierProductId = "internal-supplier-product";
+    store.tables.productImages.set("image-1", {
+      id: "image-1", productId: product.id, url: "https://images.example/item.jpg",
+      cloudinaryId: "private-storage-id", sortOrder: 0, isPrimary: true,
+    });
+    const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {
+      params: Promise.resolve({ id: product.id }),
+    });
+    const { data } = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.title, product.title);
+    assert.equal(data.description, product.description);
+    assert.equal(data.priceCents, product.priceCents);
+    assert.equal(data.category.slug, "electronics");
+    assert.equal(data.images[0].url, "https://images.example/item.jpg");
+    assert.equal(data.seller.businessName, "Test Shop");
+    for (const key of ["ownerId", "supplierProductId", "supplierProduct", "costMinor"]) {
+      assert.equal(key in data, false, key);
+    }
+    assert.deepEqual(Object.keys(data.images[0]).sort(), ["id", "isPrimary", "sortOrder", "url"]);
+    assert.equal(data.images[0].cloudinaryId, undefined);
+    assert.equal("userId" in data.seller, false);
+    assert.equal("idDocumentUrl" in data.seller, false);
   });
 
   it("answers 404 for an id that does not exist", async () => {

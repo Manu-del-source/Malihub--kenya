@@ -8,9 +8,9 @@ import { NOTIFICATION_ICONS } from "@/lib/notification-icons";
 import { useNotifications } from "@/hooks/use-notifications";
 import { markNotificationReadAction } from "@/app/(dashboard)/notifications/actions";
 import { timeAgo, cn } from "@/utils";
-import type { Notification } from "@/types";
+import type { NotificationView } from "@/types";
 
-function NotificationRow({ notification }: { notification: Notification }) {
+function NotificationRow({ notification }: { notification: NotificationView }) {
   const Icon = NOTIFICATION_ICONS[notification.type] ?? Info;
 
   async function handleClick() {

@@ -40,7 +40,7 @@ export default async function AdminSellersPage({
   await requireAdministrator();
 
   const parsed = parseListParams(adminSellerListSchema, await searchParams);
-  const filters = parsed ?? { page: 1 };
+  const filters = parsed;
 
   const { sellers, total, pageSize } = await listAdminSellers(filters);
   const current = { q: filters.q ?? "", verification: filters.verification ?? "" };

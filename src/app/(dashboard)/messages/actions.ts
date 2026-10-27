@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/safe-log";
+
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -39,7 +41,7 @@ function toResult<T>(fn: () => Promise<T>): Promise<ApiResult<T>> {
       if (error instanceof ChatServiceError) {
         return { success: false as const, error: error.message };
       }
-      console.error("Chat action failed", error);
+      logServerError("Chat action failed", error);
       return { success: false as const, error: "Something went wrong. Please try again." };
     });
 }

@@ -52,7 +52,7 @@ export default async function AdminOrdersPage({
   await requireAdministrator();
 
   const parsed = parseListParams(adminOrderListSchema, await searchParams);
-  const filters = parsed ?? { page: 1 };
+  const filters = parsed;
 
   const { orders, total, pageSize } = await listAdminOrders(filters);
   const current = { q: filters.q ?? "", status: filters.status ?? "" };

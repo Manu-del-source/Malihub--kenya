@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { logServerError } from "@/lib/safe-log";
 
 let client: Resend | null = null;
 
@@ -22,7 +23,7 @@ export async function sendEmail(params: {
 }): Promise<void> {
   const resend = getClient();
   if (!resend) {
-    console.warn(`[email] RESEND_API_KEY not set — skipped "${params.subject}" to ${params.to}`);
+    console.warn("[email] RESEND_API_KEY not set — email skipped");
     return;
   }
 
@@ -31,6 +32,6 @@ export async function sendEmail(params: {
   try {
     await resend.emails.send({ from, to: params.to, subject: params.subject, react: params.react });
   } catch (error) {
-    console.error(`[email] Failed to send "${params.subject}" to ${params.to}`, error);
+    logServerError("[email] Send failed", error);
   }
 }

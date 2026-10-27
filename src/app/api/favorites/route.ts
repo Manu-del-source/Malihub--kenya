@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof ListingServiceError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-    console.error("POST /api/favorites failed", error);
+    logServerError("POST /api/favorites failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

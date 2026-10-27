@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Server-only Paystack REST client.
@@ -77,6 +77,36 @@ export class PaystackClientError extends Error {
 }
 
 type ApiEnvelope<T> = { status: boolean; message?: string; data?: T };
+
+/** Provider status strings are untrusted; never interpolate arbitrary text
+ * into logs, audit records, or buyer-visible errors. */
+export function safePaystackStatus(value: string): string {
+  return ["success", "failed", "abandoned", "pending", "default"].includes(value)
+    ? value
+    : "unrecognized";
+}
+
+/** Only bounded, well-formed currency codes belong in audit metadata. */
+export function safePaystackCurrency(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Z]{3}$/.test(value) ? value : null;
+}
+
+/** Correlate an untrusted reported reference without publishing its contents. */
+export function paystackReferenceFingerprint(value: unknown): string | null {
+  return typeof value === "string" && value.length <= 200
+    ? createHash("sha256").update(value).digest("hex")
+    : null;
+}
+
+/** Checkout identifiers are data, never arbitrary provider text or objects. */
+export function isPaystackAccessCode(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(value) &&
+    !/^sk_(?:live|test)_/i.test(value);
+}
+
+export function isPaystackReference(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9.=-]{1,100}$/.test(value);
+}
 
 export type PaystackInitializeResult = {
   authorization_url: string;
@@ -185,17 +215,17 @@ export function createPaystackClient(config: PaystackConfig): PaystackClient {
       } catch {
         throw new PaystackClientError("Paystack returned an invalid checkout URL.", "invalid_response");
       }
-      if (url.protocol !== "https:" || url.hostname !== "checkout.paystack.com") {
+      if (url.protocol !== "https:" || url.hostname !== "checkout.paystack.com" || url.username || url.password) {
         throw new PaystackClientError("Paystack returned an untrusted checkout URL.", "invalid_response");
       }
-      if (!data.access_code || !data.reference) {
+      if (!isPaystackAccessCode(data.access_code) || !isPaystackReference(data.reference)) {
         throw new PaystackClientError("Paystack response is missing transaction identifiers.", "invalid_response");
       }
       return data;
     },
 
     async verifyTransaction(reference) {
-      if (!/^[A-Za-z0-9.=-]{1,100}$/.test(reference)) {
+      if (!isPaystackReference(reference)) {
         throw new PaystackClientError("Invalid transaction reference.", "invalid_response");
       }
       const data = await request<PaystackVerifiedTransaction>(

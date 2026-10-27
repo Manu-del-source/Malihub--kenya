@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 
 import type { Message } from "@prisma/client";
 import { getRedis } from "@/lib/redis";
@@ -42,7 +43,7 @@ export function publishChatEvent(event: ChatRealtimeOutgoingEvent): void {
   try {
     redis = getRedis();
   } catch (error) {
-    console.warn("[chat-events] redis unavailable; realtime event dropped", error);
+    logServerError("[chat-events] redis unavailable; realtime event dropped", error);
     return;
   }
   if (!redis) return;
@@ -50,6 +51,6 @@ export function publishChatEvent(event: ChatRealtimeOutgoingEvent): void {
   void redis
     .publish(CHAT_EVENTS_CHANNEL, JSON.stringify(event))
     .catch((error) => {
-      console.warn("[chat-events] publish failed; realtime event dropped", error);
+      logServerError("[chat-events] publish failed; realtime event dropped", error);
     });
 }

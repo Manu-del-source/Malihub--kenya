@@ -2,9 +2,11 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import type { ListingCardData } from "@/components/marketplace/listing-card";
+import type { ProductWithRelations } from "@/types";
+import { toListingCardData } from "@/lib/mappers";
 
 type SearchPage = { items: ListingCardData[]; nextCursor: string | null; hasMore: boolean };
-type SearchApiResponse = { success: true; data: SearchPage };
+type SearchApiResponse = { success: true; data: Omit<SearchPage, "items"> & { items: ProductWithRelations[] } };
 
 export function useSearchListings(searchParamsString: string, initialPage?: SearchPage) {
   return useInfiniteQuery({
@@ -16,7 +18,7 @@ export function useSearchListings(searchParamsString: string, initialPage?: Sear
       const res = await fetch(`/api/search?${params.toString()}`);
       if (!res.ok) throw new Error("Search request failed");
       const json = (await res.json()) as SearchApiResponse;
-      return json.data;
+      return { ...json.data, items: json.data.items.map((item) => toListingCardData(item)) };
     },
     initialPageParam: "",
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

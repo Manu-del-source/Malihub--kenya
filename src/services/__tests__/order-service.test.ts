@@ -231,8 +231,8 @@ describe("buyer orders — scoped to the session's user", () => {
 
     assert.equal(ordersA.length, 1);
     assert.equal(ordersB.length, 1);
-    assert.equal(ordersA[0]!.buyerId, BUYER_A);
-    assert.equal(ordersB[0]!.buyerId, BUYER_B);
+    assert.equal(store.tables.orders.get(ordersA[0]!.id)!.buyerId, BUYER_A);
+    assert.equal(store.tables.orders.get(ordersB[0]!.id)!.buyerId, BUYER_B);
     assert.notEqual(ordersA[0]!.id, ordersB[0]!.id);
   });
 
@@ -306,5 +306,48 @@ describe("seller orders — scoped to the caller's own sellers row", () => {
     assert.equal(other.totalOrders, 0);
 
     assert.equal(await service.getSellerSalesSnapshot(db, "nobody"), null);
+  });
+});
+
+describe("order response minimization", () => {
+  it("keeps supplier snapshots server-side for buyer and seller views", async () => {
+    const { product } = seedSellerListing("seller-1");
+    seedCartItem(store, BUYER_A, product.id, 2);
+    const { orders } = await service.checkoutCart(db, BUYER_A);
+    const orderId = orders[0]!.id;
+    const item = [...store.tables.orderItems.values()][0]!;
+    item.supplierProductId = "internal-supplier-product";
+    item.supplierProductTitle = "internal-supplier-title";
+    item.supplierSku = "internal-supplier-sku";
+    Object.assign(store.tables.orders.get(orderId)!, { notes: "private-fulfilment-note" });
+    store.tables.productImages.set("photo", {
+      id: "photo", productId: product.id, url: "https://images.example/item.jpg",
+      cloudinaryId: "private-storage-id", sortOrder: 0, isPrimary: true,
+    });
+
+    const buyer = await service.getBuyerOrder(db, BUYER_A, orderId);
+    const seller = await service.getSellerOrder(db, "seller-1", orderId);
+    assert.ok(buyer);
+    assert.ok(seller);
+    for (const view of [buyer, seller]) {
+      assert.equal(view.orderNumber, orders[0]!.orderNumber);
+      assert.equal(view.totalCents, 200_000);
+      assert.equal(view.items[0]!.quantity, 2);
+      assert.equal(view.items[0]!.product.title, product.title);
+      assert.deepEqual(view.items[0]!.product.images, [{ url: "https://images.example/item.jpg" }]);
+      assert.equal("notes" in view, false);
+      assert.equal("buyerId" in view, false);
+      for (const key of ["supplierProductId", "supplierProductTitle", "supplierSku"]) {
+        assert.equal(key in view.items[0]!, false, key);
+      }
+    }
+    assert.equal(buyer.seller.businessName, "seller-1 shop");
+    assert.equal("buyer" in buyer, false);
+    assert.equal(seller.buyer.profile?.fullName, "Emmanuel Yegon");
+    assert.equal("seller" in seller, false);
+    assert.equal(await service.getBuyerOrder(db, BUYER_B, orderId), null);
+    assert.equal(await service.getSellerOrder(db, "another-seller", orderId), null);
+    // Checkout's supplier snapshot still exists for trusted fulfilment code.
+    assert.equal(item.supplierSku, "internal-supplier-sku");
   });
 });

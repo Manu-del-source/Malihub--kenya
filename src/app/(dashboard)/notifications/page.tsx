@@ -4,6 +4,7 @@ import { Container } from "@/components/ui/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NOTIFICATION_VIEW_SELECT, toNotificationView } from "@/lib/notifications/notification-view";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
 
@@ -26,6 +27,7 @@ export default async function NotificationsPage() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
+    select: NOTIFICATION_VIEW_SELECT,
   });
 
   const hasUnread = notifications.some((n: (typeof notifications)[number]) => !n.isRead);
@@ -44,7 +46,7 @@ export default async function NotificationsPage() {
           description="Messages, favorites, orders, and reviews will show up here."
         />
       ) : (
-        <NotificationCenterList notifications={notifications} />
+        <NotificationCenterList notifications={notifications.map(toNotificationView)} />
       )}
     </Container>
   );

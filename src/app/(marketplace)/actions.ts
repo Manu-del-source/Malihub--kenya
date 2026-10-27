@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/safe-log";
+
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { recordListingView, toggleFavorite, createReport, ListingServiceError } from "@/services/listing-service";
@@ -30,7 +32,7 @@ export async function toggleFavoriteAction(
     if (error instanceof ListingServiceError) {
       return { success: false, error: error.message };
     }
-    console.error("toggleFavoriteAction failed", error);
+    logServerError("toggleFavoriteAction failed", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }
@@ -50,7 +52,7 @@ export async function reportListingAction(
     await createReport(user.id, productId, reason, details);
     return { success: true, data: null };
   } catch (error) {
-    console.error("reportListingAction failed", error);
+    logServerError("reportListingAction failed", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }

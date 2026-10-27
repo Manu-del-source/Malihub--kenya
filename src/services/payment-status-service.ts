@@ -59,13 +59,10 @@ const ATTEMPT_SELECT = {
   provider: true,
   amountCents: true,
   customerReference: true,
-  providerTransactionId: true,
   providerReference: true,
   retryCount: true,
   createdAt: true,
   paidAt: true,
-  failureCode: true,
-  failureReason: true,
 } satisfies Prisma.PaymentSelect;
 
 type AttemptRow = {
@@ -74,13 +71,10 @@ type AttemptRow = {
   provider: string;
   amountCents: number;
   customerReference: string;
-  providerTransactionId: string | null;
   providerReference: string | null;
   retryCount: number;
   createdAt: Date;
   paidAt: Date | null;
-  failureCode: string | null;
-  failureReason: string | null;
 };
 
 /**
@@ -129,13 +123,10 @@ export async function readBuyerPaymentSnapshot(
           provider: latest.provider,
           amountCents: latest.amountCents,
           customerReference: latest.customerReference,
-          providerTransactionId: latest.providerTransactionId,
           providerReference: latest.providerReference,
           retryCount: latest.retryCount,
           createdAt: latest.createdAt.toISOString(),
           paidAt: latest.paidAt ? latest.paidAt.toISOString() : null,
-          failureCode: latest.failureCode,
-          failureReason: latest.failureReason,
         }
       : null,
     attempts: {

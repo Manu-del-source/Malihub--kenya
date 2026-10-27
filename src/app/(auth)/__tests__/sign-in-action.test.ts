@@ -393,7 +393,7 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
     const original = store.user.findUnique;
     store.user.findUnique = async (args: { where: { id?: string; authUserId?: string } }) => {
       if (args.where.authUserId) {
-        throw new Error("The column `users.auth_user_id` does not exist in the current database.");
+        throw new Error("The column `users.auth_user_id` does not exist; synthetic-private-secret");
       }
       return original(args);
     };
@@ -415,8 +415,8 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
         (args) => typeof args[0] === "string" && args[0].includes("Failed to provision application rows")
       );
       assert.ok(provisioningLog, "the provisioning failure is logged server-side");
-      assert.match(JSON.stringify(provisioningLog), /auth_user_id/, "log keeps the underlying cause");
-      assert.doesNotMatch(JSON.stringify(logged), /Password1/, "the password is never logged");
+      assert.doesNotMatch(JSON.stringify(provisioningLog), /auth_user_id/, "raw database errors must not be logged");
+      assert.doesNotMatch(JSON.stringify(logged), /Password1|synthetic-private-secret/, "credentials and database messages are never logged");
     } finally {
       console.error = originalError;
       store.user.findUnique = original;

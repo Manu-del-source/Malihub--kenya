@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/utils";
 import { notifyUser } from "@/modules/notifications";
@@ -176,7 +177,7 @@ export async function markListingSold(productId: string, ownerId: string) {
         title: "A saved listing just sold",
         body: `"${product.title}" — one of your favorites — has been marked as sold.`,
         linkUrl: `/products/${product.slug}`,
-      }).catch((error) => console.error("Failed to send LISTING_SOLD notification", error))
+      }).catch((error) => logServerError("Failed to send LISTING_SOLD notification", error))
     )
   );
 }
@@ -287,7 +288,7 @@ export async function toggleFavorite(userId: string, productId: string) {
       title: "Someone favorited your listing",
       body: `Your listing "${product.title}" was just saved to a buyer's favorites.`,
       linkUrl: `/products/${product.slug}`,
-    }).catch((error) => console.error("Failed to send NEW_FAVORITE notification", error));
+    }).catch((error) => logServerError("Failed to send NEW_FAVORITE notification", error));
   }
 
   return { favorited: true };

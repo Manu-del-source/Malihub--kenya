@@ -67,7 +67,6 @@ export function AvatarUpload({
       onChange(url);
       if (inputRef.current) inputRef.current.value = "";
     } catch (error) {
-      console.error(error);
       // A `TypeError` is a network failure (fetch couldn't complete) — show
       // the friendly copy. Anything else is the server's own message
       // (validation, rate limit, storage hiccup), safe to surface as-is.

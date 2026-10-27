@@ -1,6 +1,8 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_PRODUCT_SELECT, toPublicProduct } from "@/lib/catalog/public-product";
 import { verifySameOrigin } from "@/lib/csrf";
 import { canViewListing, isPublicListingStatus } from "@/lib/listing-visibility";
 import { listingSchema } from "@/lib/validations/listing";
@@ -9,33 +11,35 @@ import { updateListing, deleteListing, ListingServiceError } from "@/services/li
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      images: { orderBy: { sortOrder: "asc" } },
-      category: true,
-      seller: { select: { verificationStatus: true } },
-    },
-  });
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      // ownerId is needed for the authorization check, never for the response.
+      select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true },
+    });
 
-  if (!product) {
-    return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
-  }
-
-  // Keep the anonymous fast path for genuinely public listings. An ACTIVE or
-  // SOLD listing from a non-verified seller is not public; only then do we
-  // resolve the viewer to check owner/admin access.
-  const publicAndVerified =
-    isPublicListingStatus(product.status) &&
-    product.seller.verificationStatus === "VERIFIED";
-  if (!publicAndVerified) {
-    const viewer = (await getCurrentUser())?.user;
-    if (!canViewListing(product, viewer)) {
+    if (!product) {
       return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
     }
-  }
 
-  return NextResponse.json({ success: true, data: product });
+    // Keep the anonymous fast path for genuinely public listings. An ACTIVE or
+    // SOLD listing from a non-verified seller is not public; only then do we
+    // resolve the viewer to check owner/admin access.
+    const publicAndVerified =
+      isPublicListingStatus(product.status) &&
+      product.seller.verificationStatus === "VERIFIED";
+    if (!publicAndVerified) {
+      const viewer = (await getCurrentUser())?.user;
+      if (!canViewListing(product, viewer)) {
+        return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
+      }
+    }
+
+    return NextResponse.json({ success: true, data: toPublicProduct(product) });
+  } catch (error) {
+    logServerError("GET /api/products/[id] failed", error);
+    return NextResponse.json({ success: false, error: "Couldn't load listing." }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -81,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (error instanceof ListingServiceError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 403 });
     }
-    console.error("PATCH /api/products/[id] failed", error);
+    logServerError("PATCH /api/products/[id] failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }
@@ -103,7 +107,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (error instanceof ListingServiceError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 403 });
     }
-    console.error("DELETE /api/products/[id] failed", error);
+    logServerError("DELETE /api/products/[id] failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

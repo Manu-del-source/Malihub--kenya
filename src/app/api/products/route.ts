@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,8 +15,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid query parameters" }, { status: 400 });
   }
 
-  const result = await searchListings(parsed.data);
-  return NextResponse.json({ success: true, data: result });
+  try {
+    const result = await searchListings(parsed.data);
+    return NextResponse.json({ success: true, data: result });
+  } catch (error) {
+    logServerError("GET /api/products failed", error);
+    return NextResponse.json({ success: false, error: "Couldn't load listings." }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof ListingServiceError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-    console.error("POST /api/products failed", error);
+    logServerError("POST /api/products failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

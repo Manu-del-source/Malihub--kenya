@@ -23,7 +23,13 @@ export function isOwnCloudinaryUrl(url: string): boolean {
 
   try {
     const parsed = new URL(url);
-    if (parsed.hostname !== "res.cloudinary.com") return false;
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.hostname !== "res.cloudinary.com" ||
+      parsed.port ||
+      parsed.username ||
+      parsed.password
+    ) return false;
     return parsed.pathname.startsWith(`/${cloudName}/`);
   } catch {
     return false;
@@ -36,9 +42,9 @@ export function isOwnCloudinaryUrl(url: string): boolean {
  * A Cloudinary delivery URL is
  * `https://res.cloudinary.com/<cloud>/<resource-type>/...` — the segment
  * after the cloud name is the resource type (`image`, `raw`, `video`). Only
- * `image` is accepted here: a `/raw/` or `/video/` URL would let an unsigned
- * preset upload (or a dashboard misconfiguration) serve arbitrary files from
- * our own CDN hostname, which the bare `isOwnCloudinaryUrl` check would pass.
+ * `/image/upload/` is accepted: raw/video deliveries can serve other file
+ * types, while `/image/fetch/` can proxy content that was not uploaded to
+ * our account.
  */
 export function isOwnCloudinaryImageUrl(url: string): boolean {
   if (!isOwnCloudinaryUrl(url)) return false;
@@ -47,7 +53,8 @@ export function isOwnCloudinaryImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const afterCloud = parsed.pathname.slice(`/${cloudName}/`.length);
-    return afterCloud.split("/")[0] === "image";
+    const segments = afterCloud.split("/");
+    return segments[0] === "image" && segments[1] === "upload";
   } catch {
     return false;
   }

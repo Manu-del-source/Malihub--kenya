@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 
 import { Prisma } from "@prisma/client";
 import type {
@@ -651,7 +652,7 @@ export async function setSellerVerificationStatus(params: {
     title: titles[params.decision],
     body: bodies[params.decision],
     linkUrl: "/account",
-  }).catch((error) => console.error("Failed to notify seller of verification decision", error));
+  }).catch((error) => logServerError("Failed to notify seller of verification decision", error));
 
   await logAuditEvent({
     action: rule.audit,
@@ -866,7 +867,7 @@ export async function deleteAdminListing(params: {
     title: "Your listing was removed",
     body: `“${product.title}” was removed from the MaliHub marketplace by an administrator.`,
     linkUrl: "/seller/listings",
-  }).catch((error) => console.error("Failed to notify owner about admin listing removal", error));
+  }).catch((error) => logServerError("Failed to notify owner about admin listing removal", error));
 
   return { id: product.id, title: product.title, slug: product.slug };
 }
@@ -914,7 +915,7 @@ export async function moderateListing(params: {
       rule.to === "ACTIVE" ? "is now live" : `is now ${rule.to.toLowerCase().replace(/_/g, "-")}`
     }.${params.note ? ` Note from the MaliHub team: ${params.note}` : ""}`,
     linkUrl: "/seller/listings",
-  }).catch((error) => console.error("Failed to notify seller of listing moderation", error));
+  }).catch((error) => logServerError("Failed to notify seller of listing moderation", error));
 
   await logAuditEvent({
     action: rule.audit,

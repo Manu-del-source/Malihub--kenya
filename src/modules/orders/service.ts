@@ -2,6 +2,7 @@ import "server-only";
 
 import { customAlphabet } from "nanoid";
 import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
+import { estimateCountyDelivery } from "@/modules/orders/delivery-pricing";
 
 /**
  * Orders — the buyer → cart → order → order-items → seller foundation.
@@ -128,6 +129,7 @@ export type CheckoutResult = {
 export type CheckoutDeliveryDetails = {
   county: string;
   address: string;
+  acceptedFeeCents?: number;
 };
 
 export async function checkoutCart(
@@ -142,6 +144,20 @@ export async function checkoutCart(
 
   if (cartRows.length === 0) {
     throw new OrderError("Your cart is empty.", "empty_cart");
+  }
+
+  let deliveryFeeCents = 0;
+  if (delivery) {
+    let estimate;
+    try {
+      estimate = estimateCountyDelivery(delivery.county);
+    } catch (error) {
+      throw new OrderError(error instanceof Error ? error.message : "Delivery pricing is unavailable.", "unavailable");
+    }
+    if (!Number.isSafeInteger(delivery.acceptedFeeCents) || delivery.acceptedFeeCents !== estimate.feeCents) {
+      throw new OrderError("Delivery fee changed or was not accepted. Review the delivery estimate and try again.", "unavailable");
+    }
+    deliveryFeeCents = estimate.feeCents;
   }
 
   for (const row of cartRows) {
@@ -297,11 +313,11 @@ export async function checkoutCart(
             sellerId,
             status: "PENDING",
             subtotalCents,
-            // No platform fees are added at this phase — commission and
-            // payment fees belong to the future settlement step, which
-            // adjusts the row that already exists rather than the total a
-            // buyer was quoted.
-            totalCents: subtotalCents,
+            // Delivery is a server-calculated, buyer-accepted snapshot.
+            // Platform/payment fees are handled separately by settlement.
+            deliveryFeeCents,
+            deliveryFeeStatus: "ESTIMATED",
+            totalCents: subtotalCents + deliveryFeeCents,
             ...(delivery
               ? { deliveryCounty: delivery.county, deliveryAddress: delivery.address }
               : {}),
@@ -314,6 +330,8 @@ export async function checkoutCart(
             status: true,
             subtotalCents: true,
             totalCents: true,
+            deliveryFeeCents: true,
+            deliveryFeeStatus: true,
           },
         });
         created.push(order);

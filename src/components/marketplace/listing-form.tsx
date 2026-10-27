@@ -127,6 +127,24 @@ export function ListingForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField id="size" label="Size (optional)" error={errors.size?.message}>
+          <Input id="size" placeholder="e.g. 8, 42, M" {...register("size")} />
+        </FormField>
+        <FormField id="sizeSystem" label="Size system" error={errors.sizeSystem?.message}>
+          <select id="sizeSystem" className={selectClass} {...register("sizeSystem")}>
+            <option value="">Not applicable</option>
+            <option value="UK">UK shoe size</option>
+            <option value="US">US shoe size</option>
+            <option value="EU">EU shoe size</option>
+            <option value="CLOTHING">Clothing size</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </FormField>
+      </div>
+      <FormField id="availableSizes" label="Available sizes (optional)" error={errors.availableSizes?.message}>
+        <Input id="availableSizes" placeholder="e.g. UK 7, UK 8, UK 9 or S, M, L" {...register("availableSizes")} />
+      </FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField id="brand" label="Brand (optional)" error={errors.brand?.message}>
           <Input id="brand" placeholder="e.g. Samsung, Nike, Sony" {...register("brand")} />
         </FormField>

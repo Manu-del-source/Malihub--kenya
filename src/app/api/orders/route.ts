@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const county = typeof body?.deliveryCounty === "string" ? body.deliveryCounty.trim() : "";
   const address = typeof body?.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
+  const acceptedFeeCents = body?.acceptedDeliveryFeeCents;
 
   if (!county || county.length > 80 || !address || address.length < 5 || address.length > 300) {
     return NextResponse.json(
@@ -72,8 +73,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!Number.isSafeInteger(acceptedFeeCents) || acceptedFeeCents < 0) {
+    return NextResponse.json(
+      { success: false, error: "Review and accept the delivery fee before continuing.", code: "delivery_fee_not_accepted" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const result = await checkoutCart(prisma, user.id, { county, address });
+    const result = await checkoutCart(prisma, user.id, { county, address, acceptedFeeCents });
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
     if (error instanceof OrderError) {

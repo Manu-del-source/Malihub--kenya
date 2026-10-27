@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,6 +68,9 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
   const [stage, setStage] = useState<Stage>("review");
   const [deliveryCounty, setDeliveryCounty] = useState(initialDeliveryCounty ?? "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryEstimate, setDeliveryEstimate] = useState<{ feeCents: number; county: string } | null>(null);
+  const [deliveryEstimateError, setDeliveryEstimateError] = useState<string | null>(null);
+  const [deliveryFeeAccepted, setDeliveryFeeAccepted] = useState(false);
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
 
   const [error, setError] = useState<string | null>(null);
@@ -81,12 +84,41 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
         createCheckoutOrders({
           county: deliveryCounty.trim(),
           address: deliveryAddress.trim(),
+          acceptedFeeCents: deliveryEstimate?.feeCents ?? -1,
         })
       ),
-    [deliveryCounty, deliveryAddress]
+    [deliveryCounty, deliveryAddress, deliveryEstimate]
   );
 
   const blockedByStock = summary.unavailableCount > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    setDeliveryEstimate(null);
+    setDeliveryFeeAccepted(false);
+    setDeliveryEstimateError(null);
+    const county = deliveryCounty.trim();
+    if (!county) return;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/orders/delivery-estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ county }),
+        });
+        const body = await response.json().catch(() => null);
+        if (cancelled) return;
+        if (!response.ok || body?.success !== true || !Number.isSafeInteger(body?.data?.feeCents) || body.data.feeCents < 0) {
+          setDeliveryEstimateError(typeof body?.error === "string" ? body.error : "Delivery estimate is unavailable.");
+          return;
+        }
+        setDeliveryEstimate({ feeCents: body.data.feeCents, county: body.data.county });
+      } catch {
+        if (!cancelled) setDeliveryEstimateError("Could not load the delivery estimate. Please try again.");
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [deliveryCounty]);
 
   async function handlePay() {
     if (stage !== "review") return;
@@ -95,6 +127,10 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
     const address = deliveryAddress.trim();
     if (!county || !address || address.length < 5) {
       setError("Enter your delivery county and a full delivery address before continuing.");
+      return;
+    }
+    if (!deliveryEstimate || deliveryEstimate.county.toLowerCase() !== county.toLowerCase() || !deliveryFeeAccepted) {
+      setError("Review and accept the current delivery estimate before continuing.");
       return;
     }
 
@@ -199,6 +235,17 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
                 />
                 <span className="mt-1 block text-xs font-normal text-muted-foreground">Up to 300 characters. Do not enter your M-Pesa PIN or payment credentials.</span>
               </label>
+            </div>
+            <div className="mt-3 rounded-lg border border-border p-3 text-sm" aria-live="polite">
+              {deliveryEstimate ? (
+                <>
+                  <p>Estimated delivery fee: <strong>{formatKes(deliveryEstimate.feeCents)}</strong></p>
+                  <label className="mt-2 flex items-start gap-2">
+                    <input type="checkbox" checked={deliveryFeeAccepted} onChange={(event) => setDeliveryFeeAccepted(event.target.checked)} />
+                    <span>I accept this delivery estimate. The final fee may be replaced by a confirmed seller/courier quote, which must be accepted before payment.</span>
+                  </label>
+                </>
+              ) : <p className="text-muted-foreground">{deliveryEstimateError ?? "Enter your county to calculate the delivery estimate."}</p>}
             </div>
             <div className="mt-5 border-t border-border pt-4">
               <h3 className="text-sm font-medium">Your contact details</h3>

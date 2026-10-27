@@ -596,6 +596,9 @@ model Product {
   isNegotiable   Boolean          @default(false) @map("is_negotiable")
   condition      ProductCondition
   brand          String?
+  size           String?
+  sizeSystem     String?          @map("size_system")
+  availableSizes String?          @map("available_sizes")
   quantity       Int              @default(1)
   contactPreference ContactPreference @default(ANY) @map("contact_preference")
   county         String
@@ -668,6 +671,11 @@ model Order {
   status        OrderStatus @default(PENDING)
   subtotalCents Int         @map("subtotal_cents")
   totalCents    Int         @map("total_cents")
+  deliveryFeeCents Int      @default(0) @map("delivery_fee_cents")
+  deliveryFeeStatus String  @default("ESTIMATED") @map("delivery_fee_status")
+  deliveryQuoteCents Int?   @map("delivery_quote_cents")
+  deliveryQuoteNote  String? @map("delivery_quote_note")
+  deliveryQuoteUpdatedAt DateTime? @map("delivery_quote_updated_at")
   deliveryCounty String?    @map("delivery_county")
   deliveryAddress String?   @map("delivery_address")
   notes         String?

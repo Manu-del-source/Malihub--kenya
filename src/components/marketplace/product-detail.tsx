@@ -115,6 +115,8 @@ export async function ProductDetail({
             <div className="mt-5 flex flex-wrap gap-2">
               <Badge>{product.category.name}</Badge>
               {product.brand && <Badge>{product.brand}</Badge>}
+              {product.size && <Badge>Size: {product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</Badge>}
+              {product.availableSizes && <Badge>Available sizes: {product.availableSizes}</Badge>}
             </div>
 
             <div className="mt-5">

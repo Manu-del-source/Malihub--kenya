@@ -56,7 +56,8 @@ export type {
 export type ProductWithRelations = Pick<
   Product,
   | "id" | "slug" | "title" | "description" | "priceCents" | "isNegotiable"
-  | "condition" | "brand" | "quantity" | "contactPreference" | "county"
+  | "condition" | "brand" | "size" | "sizeSystem" | "availableSizes"
+  | "quantity" | "contactPreference" | "county"
   | "subCounty" | "status" | "favoriteCount"
 > & {
   images: Array<Pick<ProductImage, "url">>;

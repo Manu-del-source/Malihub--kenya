@@ -174,8 +174,11 @@ describe("checkout UI — credentials never reach the browser", () => {
     const route = read("src/app/api/orders/route.ts");
     const service = read("src/modules/orders/service.ts");
     assert.match(route, /invalid_delivery_details/, "invalid shipping information must be rejected");
-    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address \}\)/);
+    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address, acceptedFeeCents \}\)/);
     assert.match(service, /deliveryCounty: delivery\.county/);
     assert.match(service, /deliveryAddress: delivery\.address/);
+    assert.match(route, /acceptedDeliveryFeeCents/);
+    assert.match(read(CHECKOUT_VIEW), /deliveryEstimate/);
+    assert.match(read(CHECKOUT_VIEW), /deliveryFeeAccepted/);
   });
 });

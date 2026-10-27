@@ -453,3 +453,31 @@ describe("6 — attempt cap", () => {
     assert.equal(snapshot!.canInitiate, true, "joining the live attempt is never capped");
   });
 });
+
+describe("buyer payment snapshot privacy", () => {
+  it("omits provider failure text, payer details and raw callback payloads", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    seedPayment(store, {
+      orderId: order.id,
+      customerReference: "MH-SAFE-REFERENCE",
+      provider: "PAYSTACK",
+      status: "FAILED",
+      amountCents: order.totalCents,
+      payerReference: "synthetic-payer-private",
+      providerTransactionId: "synthetic-provider-id",
+      failureCode: "synthetic-private-code",
+      failureReason: "synthetic-provider-detail",
+      rawCallbackPayload: { payer: "synthetic-payer-private" },
+      metadata: { internal: "synthetic-internal-detail" },
+    });
+    const snapshot = await statusService.readBuyerPaymentSnapshot(db(), { userId: BUYER_A, orderId: order.id });
+    assert.equal(snapshot!.payment!.status, "FAILED");
+    assert.equal(snapshot!.payment!.amountCents, order.totalCents);
+    assert.equal(snapshot!.payment!.customerReference, "MH-SAFE-REFERENCE");
+    for (const key of ["providerTransactionId", "payerReference", "failureCode", "failureReason", "metadata", "rawCallbackPayload"]) {
+      assert.equal(key in snapshot!.payment!, false, key);
+    }
+    assert.equal(JSON.stringify(snapshot).includes("synthetic-payer-private"), false);
+  });
+});

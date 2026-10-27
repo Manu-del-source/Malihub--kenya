@@ -336,13 +336,10 @@ describe("state honesty — an initiated checkout is never success", () => {
         provider: "PAYSTACK",
         amountCents: 200_000,
         customerReference: "MH-ABC12345",
-        providerTransactionId: "48213",
         providerReference: "MH-ABC12345",
         retryCount: 0,
         createdAt: new Date().toISOString(),
         paidAt: null,
-        failureCode: null,
-        failureReason: null,
       },
     });
     assert.equal(paymentPhaseFromSnapshot(processing), "awaiting");
@@ -353,7 +350,6 @@ describe("state honesty — an initiated checkout is never success", () => {
         ...processing.payment!,
         status: "SUCCESS",
         providerReference: "MH-ABC12345",
-        providerTransactionId: "48213",
         paidAt: new Date().toISOString(),
       },
     });

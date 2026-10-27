@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ success: true, data: { ...snapshot, verification: null } });
   } catch (error) {
-    console.error("GET /api/payments/paystack/verify failed", error);
+    logServerError("GET /api/payments/paystack/verify failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ success: true, data: snapshot });
   } catch (error) {
-    console.error("POST /api/payments/paystack/verify failed", error);
+    logServerError("POST /api/payments/paystack/verify failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

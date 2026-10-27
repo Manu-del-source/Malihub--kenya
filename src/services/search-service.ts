@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SearchParamsInput } from "@/lib/validations/listing";
 import type { ProductWithRelations, PaginatedResult } from "@/types";
+import { PUBLIC_PRODUCT_SELECT, toPublicProduct } from "@/lib/catalog/public-product";
 
 const SORT_COLUMNS = {
   newest: { column: "created_at", direction: "DESC" as const },
@@ -26,22 +27,6 @@ function decodeCursor(cursor: string): Cursor | null {
     return null;
   }
 }
-
-const PRODUCT_INCLUDE = {
-  images: { orderBy: { sortOrder: "asc" as const } },
-  category: true,
-  seller: {
-    select: {
-      id: true,
-      businessName: true,
-      slug: true,
-      logoUrl: true,
-      verificationStatus: true,
-      ratingAverage: true,
-      county: true,
-    },
-  },
-};
 
 /**
  * Two-step search: (1) a raw SQL query does full-text matching, filtering,
@@ -126,8 +111,10 @@ export async function searchListings(
   }
 
   const products = await prisma.product.findMany({
-    where: { id: { in: ids } },
-    include: PRODUCT_INCLUDE,
+    // Re-check visibility when hydrating: a listing/seller may have changed
+    // since the raw search query ran.
+    where: { id: { in: ids }, status: "ACTIVE", seller: { verificationStatus: "VERIFIED" }, category: { slug: { notIn: ["vehicles", "property"] } } },
+    select: PUBLIC_PRODUCT_SELECT,
   });
 
   const byId = new Map<string, (typeof products)[number]>(
@@ -140,14 +127,16 @@ export async function searchListings(
   const last = pageRows[pageRows.length - 1];
   const nextCursor = hasMore && last ? encodeCursor(last.sort_value, last.id) : null;
 
-  return { items, nextCursor, hasMore };
+  return { items: items.map(toPublicProduct), nextCursor, hasMore };
 }
 
 export async function getListingBySlug(slug: string) {
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { slug, category: { slug: { notIn: ["vehicles", "property"] } } },
-    include: PRODUCT_INCLUDE,
+    // ownerId is used only by server-side visibility/contact checks.
+    select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true },
   });
+  return product ? { ...toPublicProduct(product), ownerId: product.ownerId } : null;
 }
 
 /**
@@ -159,14 +148,15 @@ export async function getListingById(productId: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
     return null;
   }
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { id: productId, category: { slug: { not: "vehicles" } } },
-    include: PRODUCT_INCLUDE,
+    select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true },
   });
+  return product ? { ...toPublicProduct(product), ownerId: product.ownerId } : null;
 }
 
 export async function getSimilarListings(productId: string, categoryId: string, county: string) {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       id: { not: productId },
       status: "ACTIVE",
@@ -174,10 +164,11 @@ export async function getSimilarListings(productId: string, categoryId: string, 
       seller: { verificationStatus: "VERIFIED" },
       OR: [{ categoryId }, { county }],
     },
-    include: PRODUCT_INCLUDE,
+    select: PUBLIC_PRODUCT_SELECT,
     orderBy: { publishedAt: "desc" },
     take: 8,
   });
+  return products.map(toPublicProduct);
 }
 
 /** Trigram-powered type-ahead over titles (uses the pg_trgm index from

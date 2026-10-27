@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +27,7 @@ export async function GET() {
     const orders = await listBuyerOrders(prisma, user.id);
     return NextResponse.json({ success: true, data: orders });
   } catch (error) {
-    console.error("GET /api/orders failed", error);
+    logServerError("GET /api/orders failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
         { status }
       );
     }
-    console.error("POST /api/orders failed", error);
+    logServerError("POST /api/orders failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

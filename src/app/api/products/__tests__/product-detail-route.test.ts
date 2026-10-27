@@ -164,6 +164,32 @@ describe("GET /api/products/[id] — drafts are not public", () => {
     assert.equal(payload.data.title, product.title);
   });
 
+  it("returns the public fields, not supplier, owner, seller-private or storage metadata", async () => {
+    const product = seedListing("ACTIVE");
+    product.supplierProductId = "internal-supplier-product";
+    store.tables.productImages.set("image-1", {
+      id: "image-1", productId: product.id, url: "https://images.example/item.jpg",
+      cloudinaryId: "private-storage-id", sortOrder: 0, isPrimary: true,
+    });
+    const response = await route.GET(new NextRequest(`http://localhost/api/products/${product.id}`), {
+      params: Promise.resolve({ id: product.id }),
+    });
+    const { data } = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.title, product.title);
+    assert.equal(data.description, product.description);
+    assert.equal(data.priceCents, product.priceCents);
+    assert.equal(data.category.slug, "electronics");
+    assert.equal(data.images[0].url, "https://images.example/item.jpg");
+    assert.equal(data.seller.businessName, "Test Shop");
+    for (const key of ["ownerId", "supplierProductId", "supplierProduct", "costMinor"]) {
+      assert.equal(key in data, false, key);
+    }
+    assert.deepEqual(Object.keys(data.images[0]), ["url"]);
+    assert.equal("userId" in data.seller, false);
+    assert.equal("idDocumentUrl" in data.seller, false);
+  });
+
   it("answers 404 for an id that does not exist", async () => {
     const response = await route.GET(
       new NextRequest("http://localhost/api/products/11111111-2222-4333-8444-555555555555"),

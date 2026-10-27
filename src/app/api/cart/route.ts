@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
@@ -40,7 +41,7 @@ function errorResponse(error: unknown, fallback: string, status = 400) {
       { status: error.code === "not_found" ? 404 : status }
     );
   }
-  console.error(error);
+  logServerError("Cart request failed", error);
   return NextResponse.json({ success: false, error: fallback }, { status: 500 });
 }
 

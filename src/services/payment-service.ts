@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 
 import type { Prisma, PrismaClient } from "@prisma/client";
 import {
@@ -475,9 +476,7 @@ export async function settleSuccessfulPayment(
   ) {
     breadcrumbs.push(
       ensureSupplierFulfilmentsForPaidOrder(db, payment.orderId).catch((error) => {
-        console.error("Supplier fulfilment post-payment creation failed", {
-          code: typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "unexpected",
-        });
+        logServerError("Supplier fulfilment post-payment creation failed", error);
         return logAuditEvent({
           action: "supplier_fulfilment.creation_failed",
           actorId: PAYMENT_SYSTEM_ACTOR_ID,

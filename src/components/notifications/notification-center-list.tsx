@@ -5,10 +5,10 @@ import { Info } from "lucide-react";
 import { NOTIFICATION_ICONS } from "@/lib/notification-icons";
 import { markNotificationReadAction } from "@/app/(dashboard)/notifications/actions";
 import { timeAgo, cn } from "@/utils";
-import type { Notification } from "@/types";
+import type { NotificationView } from "@/types";
 
-export function NotificationCenterList({ notifications }: { notifications: Notification[] }) {
-  async function handleClick(notification: Notification) {
+export function NotificationCenterList({ notifications }: { notifications: NotificationView[] }) {
+  async function handleClick(notification: NotificationView) {
     if (!notification.isRead) await markNotificationReadAction(notification.id);
   }
 

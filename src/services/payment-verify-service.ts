@@ -4,6 +4,9 @@ import {
   createPaystackClient,
   PaystackClientError,
   resolvePaystackConfig,
+  safePaystackStatus,
+  safePaystackCurrency,
+  paystackReferenceFingerprint,
   type PaystackClient,
   type PaystackConfigSource,
 } from "@/lib/payments/paystack";
@@ -233,13 +236,13 @@ export async function verifyPaystackPaymentStatus(
     // claim the webhook path uses — a FAILED claim, never a silent drop.
     console.warn("[payments] Paystack reports a non-success status", {
       paymentId: payment.id,
-      rawStatus: status.status,
+      status: safePaystackStatus(status.status),
     });
     const claim = await db.$transaction(async (tx) =>
       claimPaymentFailure(
         tx,
         payment,
-        { to: "FAILED", code: null, reason: `Paystack reported status "${status.status}".` },
+        { to: "FAILED", code: null, reason: `Paystack reported status "${safePaystackStatus(status.status)}".` },
         undefined
       )
     );
@@ -254,7 +257,7 @@ export async function verifyPaystackPaymentStatus(
   if (status.reference !== payment.customerReference &&
       status.reference !== (payment.metadata as { paystack?: { providerReference?: unknown } } | null)?.paystack?.providerReference) {
     await logMismatchAudit(db, payment, "reference", {
-      reportedReference: status.reference,
+      reportedReferenceFingerprint: paystackReferenceFingerprint(status.reference),
       expectedReference: payment.customerReference,
     });
     return { outcome: "verification_mismatch", detail: "reference" };
@@ -268,7 +271,7 @@ export async function verifyPaystackPaymentStatus(
   }
   if (status.currency !== payment.currency) {
     await logMismatchAudit(db, payment, "currency", {
-      reportedCurrency: status.currency,
+      reportedCurrency: safePaystackCurrency(status.currency),
       expectedCurrency: payment.currency,
     });
     return { outcome: "verification_mismatch", detail: "currency" };

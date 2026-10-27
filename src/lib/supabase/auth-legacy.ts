@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 
 import { prisma } from "@/lib/prisma";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -166,10 +167,7 @@ export async function supabaseProvisionUserRows(
   try {
     await supabaseEnsureUserProvisioned(authIdentityFromSupabaseUser(user));
   } catch (error) {
-    console.error(`[legacy-supabase-auth] failed to provision rows on ${context}`, {
-      userId: user.id,
-      error,
-    });
+    logServerError(`[legacy-supabase-auth] failed to provision rows on ${context}`, error);
   }
 }
 
@@ -299,10 +297,7 @@ export async function supabaseCompleteUserProfile(
   try {
     await syncSupabaseAppMetadata(identity.id);
   } catch (error) {
-    console.error("[legacy-supabase-auth] failed to sync app_metadata", {
-      userId: identity.id,
-      error,
-    });
+    logServerError("[legacy-supabase-auth] failed to sync app_metadata", error);
   }
 
   return { role, wantsToSell };

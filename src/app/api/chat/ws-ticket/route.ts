@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getRedis } from "@/lib/redis";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { WS_TICKET_KEY_PREFIX } from "@/lib/chat/protocol";
+import { resolveChatWebSocketBase } from "@/lib/chat/ws-config";
 
 /**
  * One-shot WebSocket tickets for the FastAPI chat realtime surface.
@@ -63,8 +64,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_CHAT_WS_BASE_URL;
-  if (!baseUrl) {
+  const wsBase = resolveChatWebSocketBase(process.env.NEXT_PUBLIC_CHAT_WS_BASE_URL);
+  if (!wsBase) {
     // Realtime is not configured on this deployment. Chat keeps working over
     // HTTP — the client treats this as "realtime unavailable" and stops
     // retrying until the next page interaction.
@@ -137,11 +138,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const wsBase = baseUrl.replace(/\/+$/, "");
+  const endpoint = `${wsBase.toString().replace(/\/+$/, "")}/api/v1/chat/ws`;
+  const wsUrl = new URL(endpoint);
+  wsUrl.searchParams.set("ticket", ticket);
   return NextResponse.json({
     success: true,
     data: {
-      url: `${wsBase}/api/v1/chat/ws?ticket=${ticket}`,
+      url: wsUrl.toString(),
     },
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }

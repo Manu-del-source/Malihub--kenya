@@ -98,7 +98,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // served just because authentication could not be evaluated.
     console.error("[auth] session validation failed; failing closed", {
       protected: isProtected,
-      error: error instanceof Error ? error.name : typeof error,
+      kind: error instanceof Error ? "error" : "non_error",
     });
     if (!isProtected) return NextResponse.next();
     return NextResponse.redirect(new URL(loginUrl, request.url));

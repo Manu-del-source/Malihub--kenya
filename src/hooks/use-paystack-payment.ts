@@ -111,7 +111,7 @@ export function usePaystackPayment({
           setMessage("This order was cancelled, so there is nothing to pay.");
         } else {
           setPhaseBoth("failed");
-          setMessage(next.payment?.failureReason ?? "Payment was not completed. You can try again.");
+          setMessage("Payment was not completed. You can try again.");
         }
         return true;
       }

@@ -498,3 +498,35 @@ def test_safe_extra_output_survives_the_real_logging_call() -> None:
         assert record.msg == "all reserved names"
     finally:
         logger.handlers = []
+
+
+def test_uvicorn_handshake_and_access_handlers_never_receive_ticket_values() -> None:
+    """Uvicorn has its own handlers, so root-handler redaction is not enough."""
+    import io
+
+    from uvicorn.logging import AccessFormatter
+
+    configure_logging(level="INFO", log_format="json", force=True)
+    ticket = "a" * 64  # synthetic one-shot ticket
+    for name in ("uvicorn.error", "uvicorn.access"):
+        logger = logging.getLogger(name)
+        old_handlers, old_level, old_propagate = logger.handlers[:], logger.level, logger.propagate
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        if name == "uvicorn.access":
+            handler.setFormatter(AccessFormatter('%(message)s', use_colors=False))
+        logger.handlers = [handler]
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        try:
+            target = f"/api/v1/chat/ws?ticket={ticket}&other=ok"
+            if name == "uvicorn.access":
+                logger.info('%s - "%s %s HTTP/%s" %d', "client", "GET", target, "1.1", 101)
+            else:
+                logger.info('%s - "WebSocket %s" [accepted]', "client", target)
+            output = stream.getvalue()
+            assert ticket not in output
+            assert "[REDACTED]" in output
+            assert "other=ok" in output
+        finally:
+            logger.handlers, logger.level, logger.propagate = old_handlers, old_level, old_propagate

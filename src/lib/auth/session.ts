@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
@@ -112,12 +113,7 @@ export const getAuthContext = cache(async (): Promise<AuthContext> => {
     // this is NOT "signed out" — and it must not be read as "no privileges"
     // either, because a guard that treats it that way would let an outage
     // downgrade an admin instead of failing closed.
-    console.error("Failed to read MaliHub application state for an authenticated session", {
-      // The provider's user id is safe to log; it is not a credential.
-      authUserId: identity.authUserId,
-      sessionId: identity.sessionId,
-      error: error instanceof Error ? error.name : typeof error,
-    });
+    logServerError("Failed to read MaliHub application state for an authenticated session", error);
     return { identity, user: null, failure: authFailure("app_database_unavailable") };
   }
 });

@@ -35,14 +35,17 @@ export async function ProductDetail({
 }) {
   const user = (await getCurrentUser())?.user;
 
+  const shareWhatsapp = product.contactPreference === "WHATSAPP" || product.contactPreference === "ANY";
   const [isFavorited, similar, sellerProfile] = await Promise.all([
     user
       ? prisma.wishlist
           .findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } })
           .then((w: unknown) => !!w)
       : Promise.resolve(false),
-    getSimilarListings(product.id, product.categoryId, product.county),
-    prisma.profile.findUnique({ where: { userId: product.ownerId }, select: { whatsapp: true } }),
+    getSimilarListings(product.id, product.category.id, product.county),
+    shareWhatsapp
+      ? prisma.profile.findUnique({ where: { userId: product.ownerId }, select: { whatsapp: true } })
+      : Promise.resolve(null),
   ]);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";

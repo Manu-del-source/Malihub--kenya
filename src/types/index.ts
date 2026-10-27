@@ -52,11 +52,23 @@ export type {
   AuditLog,
 };
 
-/** Product with its common includes — the shape most listing UIs consume. */
-export type ProductWithRelations = Product & {
-  images: ProductImage[];
-  category: Category;
-  seller: Pick<Seller, "id" | "businessName" | "slug" | "logoUrl" | "verificationStatus" | "ratingAverage" | "county">;
+/** Public catalog shape. This is intentionally not a full Prisma Product. */
+export type ProductWithRelations = Pick<
+  Product,
+  | "id" | "slug" | "title" | "description" | "priceCents" | "isNegotiable"
+  | "condition" | "brand" | "quantity" | "contactPreference" | "county"
+  | "subCounty" | "status" | "favoriteCount"
+> & {
+  images: Array<Pick<ProductImage, "url">>;
+  category: Pick<Category, "id" | "name" | "slug">;
+  seller: Pick<Seller, "businessName" | "slug" | "logoUrl" | "verificationStatus" | "ratingCount" | "county"> & {
+    ratingAverage: number;
+  };
+};
+
+/** Notification fields required by the signed-in viewer's UI. */
+export type NotificationView = Pick<Notification, "id" | "type" | "title" | "body" | "linkUrl" | "isRead"> & {
+  createdAt: Date | string;
 };
 
 /** Standard success/error envelope returned by Route Handlers and Server Actions. */

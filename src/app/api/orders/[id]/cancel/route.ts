@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Anything unexpected (a Prisma error, a lost connection) is logged
     // server-side and reported as a generic 500. The client never sees a
     // database message, a stack, or a query.
-    console.error("POST /api/orders/[id]/cancel failed", error);
+    logServerError("POST /api/orders/[id]/cancel failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

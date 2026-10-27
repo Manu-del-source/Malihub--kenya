@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/safe-log";
+
 import { revalidatePath } from "next/cache";
 import { requireOnboardedActionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +35,7 @@ export async function startSellingAction(): Promise<
     if (error instanceof AuthServiceError) {
       return { success: false, error: error.message };
     }
-    console.error("startSellingAction failed", error);
+    logServerError("startSellingAction failed", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }

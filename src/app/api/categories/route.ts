@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -26,7 +27,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error("GET /api/categories failed", error);
+    logServerError("GET /api/categories failed", error);
     return NextResponse.json({ success: false, error: "Couldn't load categories." }, { status: 500 });
   }
 }

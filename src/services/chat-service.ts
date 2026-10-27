@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/services/notification-service";
 import { publishChatEvent, toMessageRow } from "@/services/chat-realtime-events";
@@ -128,7 +129,7 @@ export async function sendMessage(params: {
     title: `New message from ${sender?.fullName || "a MaliHub user"}`,
     body: params.content ? params.content.slice(0, 120) : "Sent you a photo",
     linkUrl: `/messages/${params.chatId}`,
-  }).catch((error) => console.error("Failed to send NEW_MESSAGE notification", error));
+  }).catch((error) => logServerError("Failed to send NEW_MESSAGE notification", error));
 
   // Realtime fan-out AFTER the write committed. The database is the source of
   // truth — this is a notification and is dropped (not fatal) if Redis is down.
@@ -245,16 +246,46 @@ export async function isUserBlocked(userA: string, userB: string): Promise<boole
   return !!block;
 }
 
-const CHAT_LIST_INCLUDE = {
+// Only display fields cross the Server Component -> browser boundary. In
+// particular, do not serialize the other participant's archive/deletion
+// state, or full ProductImage rows (which contain storage identifiers).
+const CHAT_LIST_SELECT = {
+  id: true,
+  buyerId: true,
   buyer: { select: { id: true, profile: { select: { fullName: true, avatarUrl: true } } } },
   seller: { select: { id: true, profile: { select: { fullName: true, avatarUrl: true } } } },
-  product: { select: { id: true, title: true, slug: true, images: { take: 1, orderBy: { sortOrder: "asc" as const } } } },
-  messages: { orderBy: { createdAt: "desc" as const }, take: 1 },
-} satisfies Prisma.ChatInclude;
+  product: { select: { title: true } },
+  messages: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { content: true, imageUrl: true, deletedAt: true, createdAt: true },
+  },
+} satisfies Prisma.ChatSelect;
 
-export type ChatListItem = Prisma.ChatGetPayload<{ include: typeof CHAT_LIST_INCLUDE }> & {
-  unreadCount: number;
-};
+type ChatListRow = Prisma.ChatGetPayload<{ select: typeof CHAT_LIST_SELECT }>;
+
+function toChatListItem(chat: ChatListRow, unreadCount: number) {
+  const participant = (user: ChatListRow["buyer"]) => ({
+    id: user.id,
+    profile: user.profile ? { fullName: user.profile.fullName, avatarUrl: user.profile.avatarUrl } : null,
+  });
+  return {
+    id: chat.id,
+    buyerId: chat.buyerId,
+    buyer: participant(chat.buyer),
+    seller: participant(chat.seller),
+    product: chat.product ? { title: chat.product.title } : null,
+    messages: chat.messages.map((message) => ({
+      content: message.content,
+      imageUrl: message.imageUrl,
+      deletedAt: message.deletedAt,
+      createdAt: message.createdAt,
+    })),
+    unreadCount,
+  };
+}
+
+export type ChatListItem = ReturnType<typeof toChatListItem>;
 
 export async function getUserChats(userId: string, includeArchived = false): Promise<ChatListItem[]> {
   const chats = await prisma.chat.findMany({
@@ -281,7 +312,7 @@ export async function getUserChats(userId: string, includeArchived = false): Pro
             },
       ],
     },
-    include: CHAT_LIST_INCLUDE,
+    select: CHAT_LIST_SELECT,
     orderBy: { lastMessageAt: "desc" },
   });
 
@@ -294,10 +325,7 @@ export async function getUserChats(userId: string, includeArchived = false): Pro
     unreadCounts.map((u: { chatId: string; _count: { id: number } }) => [u.chatId, u._count.id])
   );
 
-  return chats.map((chat: (typeof chats)[number]) => ({
-    ...chat,
-    unreadCount: unreadByChat.get(chat.id) ?? 0,
-  }));
+  return chats.map((chat) => toChatListItem(chat, unreadByChat.get(chat.id) ?? 0));
 }
 
 export async function getChatMessages(chatId: string, userId: string, cursor?: string, pageSize = 30) {
@@ -307,6 +335,7 @@ export async function getChatMessages(chatId: string, userId: string, cursor?: s
     where: { chatId },
     orderBy: { createdAt: "desc" },
     take: pageSize + 1,
+    select: { id: true, chatId: true, senderId: true, content: true, imageUrl: true, readAt: true, editedAt: true, deletedAt: true, createdAt: true },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
@@ -314,7 +343,17 @@ export async function getChatMessages(chatId: string, userId: string, cursor?: s
   const page = hasMore ? messages.slice(0, pageSize) : messages;
 
   return {
-    items: page.reverse(),
+    items: page.reverse().map((message) => ({
+      id: message.id,
+      chatId: message.chatId,
+      senderId: message.senderId,
+      content: message.content,
+      imageUrl: message.imageUrl,
+      readAt: message.readAt,
+      editedAt: message.editedAt,
+      deletedAt: message.deletedAt,
+      createdAt: message.createdAt,
+    })),
     nextCursor: hasMore ? page[0]?.id ?? null : null,
     hasMore,
   };

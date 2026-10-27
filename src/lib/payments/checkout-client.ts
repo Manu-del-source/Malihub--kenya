@@ -82,6 +82,8 @@ export type CheckoutOrder = {
   status: string;
   subtotalCents: number;
   totalCents: number;
+  deliveryFeeCents: number;
+  deliveryFeeStatus: string;
 };
 
 /** Paystack InlineJS transaction details returned by the server. */
@@ -156,6 +158,7 @@ function failureFrom(
 export async function createCheckoutOrders(delivery: {
   county: string;
   address: string;
+  acceptedFeeCents: number;
 }): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
   try {
@@ -165,6 +168,7 @@ export async function createCheckoutOrders(delivery: {
       body: JSON.stringify({
         deliveryCounty: delivery.county,
         deliveryAddress: delivery.address,
+        acceptedDeliveryFeeCents: delivery.acceptedFeeCents,
       }),
     });
   } catch {

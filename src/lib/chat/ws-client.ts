@@ -410,7 +410,7 @@ export class ChatSocketManager {
         // Logged, never fatal: the server closes on violations it considers
         // fatal; everything else (e.g. a join we were not part of) is simply
         // denied and the thread keeps working over HTTP.
-        console.warn(`[chat-socket] server error: ${event.code}${event.chatId ? ` (chat ${event.chatId})` : ""}`);
+        console.warn("[chat-socket] server rejected a realtime command");
         break;
       default:
         break;

@@ -302,3 +302,21 @@ describe("upload and profile update", () => {
     assert.equal(res.status, 503);
   });
 });
+
+describe("avatar provider error redaction", () => {
+  it("does not log or return Cloudinary exception contents", async () => {
+    const fakeSecret = "synthetic-cloudinary-secret";
+    calls.uploadError = new Error(`upstream failed ${fakeSecret}`);
+    const logged: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { logged.push(args); };
+    try {
+      const response = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+      assert.equal(response.status, 502);
+      assert.equal(JSON.stringify({ body: await response.json(), logged }).includes(fakeSecret), false);
+      assert.ok(logged.length > 0);
+    } finally {
+      console.error = original;
+    }
+  });
+});

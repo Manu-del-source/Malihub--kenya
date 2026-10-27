@@ -75,17 +75,15 @@ function logProviderError(operationName: string, error: ProviderError): void {
   // data and must not be assumed safe to log.
   console.error("[auth] Neon Auth provider returned an error", {
     operation: operationName,
-    code: error.code,
-    status: error.status,
-    statusText: error.statusText,
+    code: toAuthFailure(error).code,
+    status: typeof error.status === "number" ? error.status : undefined,
   });
 }
 
 function logProviderException(operationName: string, error: unknown): void {
   console.error("[auth] Neon Auth provider call threw", {
     operation: operationName,
-    name: error instanceof Error ? error.name : typeof error,
-    message: error instanceof Error ? error.message : String(error),
+    kind: error instanceof Error ? "error" : "non_error",
   });
 }
 

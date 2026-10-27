@@ -111,6 +111,54 @@ describe("GET /api/cart", () => {
     const ownPayload = await own.json();
     assert.equal(ownPayload.data.itemCount, 1);
     assert.equal(ownPayload.data.subtotalCents, 200_000);
+    const productDto = ownPayload.data.items[0].product;
+    assert.equal(productDto.ownerId, undefined);
+    assert.equal(productDto.sellerId, undefined);
+    assert.equal(productDto.supplierProductId, undefined);
+    assert.equal(productDto.images[0]?.cloudinaryId, undefined);
+    assert.equal(productDto.title, product.title);
+  });
+});
+
+describe("cart response minimization", () => {
+  it("returns buyer display and authoritative totals on reads and mutations, never internal fields", async () => {
+    sessionUser = { id: BUYER_A, email: "a@example.com" };
+    const product = seedActiveListing(5, 100_000);
+    product.supplierProductId = "supplier-private";
+    store.tables.productImages.set("photo", {
+      id: "photo", productId: product.id, url: "https://images.example/item.jpg",
+      cloudinaryId: "storage-private", sortOrder: 0, isPrimary: true,
+    });
+    const add = await route.POST(request("POST", { productId: product.id, quantity: 2, priceCents: 1 }));
+    const added = await add.json();
+    const read = await (await route.GET()).json();
+    const update = await (await route.PATCH(request("PATCH", { productId: product.id, quantity: 3, totalCents: 1 }))).json();
+    for (const payload of [added, read, update]) {
+      const line = payload.data.items[0];
+      assert.equal(line.product.title, product.title);
+      assert.equal(line.product.seller.businessName, "Test Shop");
+      assert.equal(line.product.images[0].url, "https://images.example/item.jpg");
+      assert.equal(line.unitPriceCents, 100_000);
+      assert.equal("ownerId" in line.product, false);
+      assert.equal("supplierProductId" in line.product, false);
+      assert.equal("cloudinaryId" in line.product.images[0], false);
+      assert.equal("userId" in line, false);
+    }
+    assert.equal(update.data.subtotalCents, 300_000);
+    const removed = await (await route.DELETE(request("DELETE", { productId: product.id }))).json();
+    assert.deepEqual(removed.data.items, []);
+  });
+
+  it("does not update or delete a different buyer's cart", async () => {
+    const product = seedActiveListing();
+    store.tables.cartItems.set("foreign", {
+      id: "foreign", userId: BUYER_A, productId: product.id, quantity: 2,
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    sessionUser = { id: BUYER_B, email: "b@example.com" };
+    assert.equal((await route.PATCH(request("PATCH", { productId: product.id, quantity: 3, userId: BUYER_A }))).status, 404);
+    await route.DELETE(request("DELETE", { productId: product.id, userId: BUYER_A }));
+    assert.equal(store.tables.cartItems.get("foreign")!.quantity, 2);
   });
 });
 

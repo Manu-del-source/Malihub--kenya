@@ -26,15 +26,11 @@ export type BuyerPaymentAttempt = {
   amountCents: number;
   /** Our reference (order number, `-R{n}` on retries). Safe to display. */
   customerReference: string;
-  /** Provider checkout id — not a secret, but only shown as a reference. */
-  providerTransactionId: string | null;
   /** The settlement reference the buyer can quote (Paystack reference). */
   providerReference: string | null;
   retryCount: number;
   createdAt: string;
   paidAt: string | null;
-  failureCode: string | null;
-  failureReason: string | null;
 };
 
 export type BuyerPaymentSnapshot = {

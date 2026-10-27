@@ -150,6 +150,12 @@ _ASSIGNMENT_PATTERN = re.compile(
     r"private[-_]?key|client[-_]?secret|webhook[-_]?secret|authorization)"
     r"(\s*[:=]\s*)(['\"]?)([^\s'\";,}]{8,})"
 )
+# A one-use WebSocket ticket is a bearer credential. Uvicorn logs the raw
+# request target, while Starlette URL-decodes parameter names. An encoded key
+# such as `%74icket` is therefore still a valid ticket and must be scrubbed.
+_TICKET_QUERY_PATTERN = re.compile(
+    r"(?i)([?&](?:t|%74)(?:i|%69)(?:c|%63)(?:k|%6b)(?:e|%65)(?:t|%74)=)[^&\s\"']+"
+)
 _DSN_PATTERN = re.compile(r"(?i)\b(postgres(?:ql)?(?:\+\w+)?|redis(?:s)?|amqps?|mysql)://[^\s'\"<>]*")
 
 
@@ -157,6 +163,7 @@ def _scrub_text(text: str) -> str:
     """Remove credentials that made it into a free-form message string."""
     if not text:
         return text
+    text = _TICKET_QUERY_PATTERN.sub(lambda m: f"{m.group(1)}{REDACTED}", text)
     text = _JWT_PATTERN.sub(REDACTED, text)
     text = _KNOWN_SECRET_PATTERN.sub(REDACTED, text)
     text = _BEARER_PATTERN.sub(lambda m: f"{m.group(1)} {REDACTED}", text)
@@ -317,6 +324,26 @@ class RedactionFilter(logging.Filter):
         return True
 
 
+class UvicornQueryRedactionFilter(logging.Filter):
+    """Scrub ticket-bearing request targets without breaking AccessFormatter.
+
+    Uvicorn's access formatter unpacks the original argument tuple; unlike the
+    root filter, this filter must preserve that tuple's shape.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = _scrub_text(record.msg)
+        if isinstance(record.args, tuple):
+            record.args = tuple(_scrub_text(value) if isinstance(value, str) else value for value in record.args)
+        elif isinstance(record.args, dict):
+            record.args = {
+                key: _scrub_text(value) if isinstance(value, str) else value
+                for key, value in record.args.items()
+            }
+        return True
+
+
 class RequestContextFilter(logging.Filter):
     """Attach the current request id (and env/service) to every record."""
 
@@ -444,6 +471,14 @@ def configure_logging(
     handler.addFilter(RedactionFilter())
     root.addHandler(handler)
     root.setLevel(level.upper())
+
+    # Uvicorn owns handlers outside the root logger; a root-handler filter
+    # alone cannot protect its WebSocket handshake/access messages. Attach at
+    # the source, before any of those handlers receive the record.
+    for name in ("uvicorn.error", "uvicorn.access"):
+        target = logging.getLogger(name)
+        if not any(isinstance(item, UvicornQueryRedactionFilter) for item in target.filters):
+            target.addFilter(UvicornQueryRedactionFilter())
 
     # Third-party loggers are noisy at INFO and leak connection strings at
     # DEBUG (SQLAlchemy echoes SQL, including bound parameters).

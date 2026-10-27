@@ -537,10 +537,20 @@ async def test_ws_typing_is_throttled_server_side(ws_client: Any) -> None:
         ws_a.send_json({"type": "typing", "chatId": CHAT_1})  # inside window
         ws_a.send_json({"type": "typing", "chatId": CHAT_1})  # inside window
 
-        # Exactly ONE of the three made it through the server-side window:
-        # the room fan-out publishes every delivered control event, so the
-        # publish count is the throttle's ground truth.
-        assert len(ws_client.redis.published) == baseline + 1
+        # A leave acknowledgement is a processing barrier: without it,
+        # send_json only enqueues frames and this assertion can race the
+        # server (especially while other test suites are running).
+        ws_a.send_json({"type": "leave", "chatId": CHAT_1})
+        while ws_a.receive_json()["type"] != "left":
+            pass  # drain presence/typing echoes before the acknowledgement
+
+        # Exactly ONE of the three typing controls was published. Presence
+        # may also be published when leaving, so count typing frames only.
+        typing_publishes = [
+            payload for _channel, payload in ws_client.redis.published[baseline:]
+            if json.loads(payload).get("type") == "typing"
+        ]
+        assert len(typing_publishes) == 1
 
 
 async def test_ws_oversized_frame_closes_4009(ws_client: Any) -> None:
@@ -580,3 +590,21 @@ async def test_ws_ping_pong(ws_client: Any) -> None:
         ws.receive_json()  # hello
         ws.send_json({"type": "ping"})
         assert ws.receive_json() == {"type": "pong"}
+
+
+async def test_expired_or_spent_ticket_is_rejected_and_valid_ticket_is_user_bound(monkeypatch: Any) -> None:
+    """Redis expiry and GETDEL both return no value; the ticket purpose is fixed."""
+    from app.api.v1.endpoints import chat as chat_endpoint
+
+    redis = FakeRedisClient()
+    gateway = FakeGateway(redis)
+    monkeypatch.setattr(chat_endpoint, "get_redis_gateway", lambda: gateway)
+    key = gateway.key("chat", "ws-ticket", TICKET)
+    redis.store[key] = USER_A
+    assert await chat_endpoint.consume_ticket(TICKET) == USER_A
+    assert await chat_endpoint.consume_ticket(TICKET) is None  # already GETDEL'd
+    redis.store[key] = USER_B
+    del redis.store[key]  # simulate Redis expiry at the issuer's 60-second TTL
+    assert await chat_endpoint.consume_ticket(TICKET) is None
+    redis.store[gateway.key("another-purpose", TICKET)] = USER_B
+    assert await chat_endpoint.consume_ticket(TICKET) is None

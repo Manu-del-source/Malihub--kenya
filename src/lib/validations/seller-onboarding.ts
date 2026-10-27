@@ -10,9 +10,7 @@ import { KENYA_COUNTIES } from "@/lib/constants";
 export const sellerApplicationSchema = z.object({
   businessName: z.string().trim().min(2, "Enter your store or business name").max(100),
   description: z.string().trim().min(30, "Tell buyers a little more about your business (at least 30 characters)").max(1200),
-  county: z.enum(KENYA_COUNTIES, {
-    errorMap: () => ({ message: "Select your county" }),
-  }),
+  county: z.enum(KENYA_COUNTIES, { error: "Select your county" }),
   subCounty: z.string().trim().max(100).optional().or(z.literal("")),
   kraPin: z
     .string()

@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/safe-log";
+
 import { revalidatePath } from "next/cache";
 import { requireAdministratorAction } from "@/lib/auth";
 import {
@@ -61,7 +63,7 @@ function toResult<T>(
       if (error instanceof AdminServiceError) {
         return { success: false as const, error: error.message };
       }
-      console.error("Admin action failed", error);
+      logServerError("Admin action failed", error);
       return {
         success: false as const,
         error: "Something went wrong. Please try again.",

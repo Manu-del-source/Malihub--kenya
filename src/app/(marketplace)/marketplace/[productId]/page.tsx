@@ -24,7 +24,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { productId } = await params;
   const product = await getListingById(productId);
-  if (!product || (product.status !== "ACTIVE" && product.status !== "SOLD")) return {};
+  if (!product || !canViewListing(product, (await getCurrentUser())?.user)) return {};
 
   return {
     title: product.title,

@@ -478,6 +478,32 @@ describe("re-verification gate — Paystack's own API is the final word", () => 
     assert.equal(auditsOf("payment.verification_failed").length, 1);
   });
 
+  it("keeps provider exceptions out of outcomes, logs, and audit metadata", async () => {
+    const { body } = await setup();
+    const fakeSecret = "synthetic-provider-private-secret";
+    const { client } = stubClient({ error: new Error(fakeSecret) });
+    const logged: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { logged.push(args); };
+    try {
+      const outcome = await service.handlePaystackWebhook(db(), { rawBody: body, signature: sign(body), client, env: ENV });
+      assert.equal(outcome.kind, "verification_failed");
+      assert.equal(JSON.stringify({ outcome, logged, audit: auditsOf("payment.verification_failed") }).includes(fakeSecret), false);
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it("bounds untrusted provider status before recording an audit reason", async () => {
+    const { payment, body } = await setup();
+    const fakeSecret = "synthetic-provider-status-secret";
+    const { client } = stubClient({ ok: { status: fakeSecret, reference: payment.customerReference, amount: AMOUNT, currency: "KES" } });
+    const outcome = await service.handlePaystackWebhook(db(), { rawBody: body, signature: sign(body), client, env: ENV });
+    assert.equal(outcome.kind, "verification_failed");
+    assert.equal(JSON.stringify({ outcome, audit: auditsOf("payment.verification_failed") }).includes(fakeSecret), false);
+    assert.match(outcome.kind === "verification_failed" ? outcome.reason : "", /unrecognized/);
+  });
+
   it("never settles when the provider says the transaction is NOT success", async () => {
     const { order, payment, body } = await setup();
     const { client } = stubClient({

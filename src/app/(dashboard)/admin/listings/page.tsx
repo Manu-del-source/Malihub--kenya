@@ -52,7 +52,7 @@ export default async function AdminListingsPage({
   await requireAdministrator();
 
   const parsed = parseListParams(adminListingListSchema, await searchParams);
-  const filters = parsed ?? { page: 1 };
+  const filters = parsed;
 
   const [{ listings, total, pageSize }, categories] = await Promise.all([
     listAdminListings(filters),

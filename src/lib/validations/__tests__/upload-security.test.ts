@@ -70,6 +70,12 @@ describe("isOwnCloudinaryUrl", () => {
     assert.equal(isOwnCloudinaryUrl(EXTERNAL), false);
   });
 
+  it("rejects insecure URLs, credentials, and nonstandard ports", () => {
+    assert.equal(isOwnCloudinaryUrl(OWN_IMAGE.replace("https:", "http:")), false);
+    assert.equal(isOwnCloudinaryUrl(OWN_IMAGE.replace("https://", "https://user@")), false);
+    assert.equal(isOwnCloudinaryUrl(OWN_IMAGE.replace(".com/", ".com:8443/")), false);
+  });
+
   it("fails closed when the cloud name is unconfigured", () => {
     delete process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     assert.equal(isOwnCloudinaryUrl(OWN_IMAGE), false);
@@ -87,6 +93,11 @@ describe("isOwnCloudinaryImageUrl", () => {
 
   it("rejects a /video/ delivery", () => {
     assert.equal(isOwnCloudinaryImageUrl(OWN_VIDEO), false);
+  });
+
+  it("rejects a remote-fetch URL that is not an uploaded image", () => {
+    const fetchUrl = `https://res.cloudinary.com/${CLOUD}/image/fetch/https://example.com/image.jpg`;
+    assert.equal(isOwnCloudinaryImageUrl(fetchUrl), false);
   });
 
   it("rejects a delivery with no recognizable image type segment", () => {

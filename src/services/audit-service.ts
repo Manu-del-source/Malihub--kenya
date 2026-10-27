@@ -1,4 +1,5 @@
 import "server-only";
+import { logServerError } from "@/lib/safe-log";
 import { prisma } from "@/lib/prisma";
 
 /** The fixed vocabulary of things worth an audit trail. Keeping this as a
@@ -119,7 +120,7 @@ export async function logAuditEvent(params: {
       },
     });
   } catch (error) {
-    console.error("[audit] Failed to write audit log entry", params.action, error);
+    logServerError(`[audit] Failed to write audit log entry: ${params.action}`, error);
   }
 }
 

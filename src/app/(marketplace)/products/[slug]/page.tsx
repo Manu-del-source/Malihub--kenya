@@ -22,7 +22,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const product = await getListingBySlug(slug);
-  if (!product) return {};
+  if (!product || !canViewListing(product, (await getCurrentUser())?.user)) return {};
 
   return {
     title: product.title,

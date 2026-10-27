@@ -102,10 +102,12 @@ MALIHUB_AUTH_LINK_UNMAPPED_BY_EMAIL=false
   Console shows).
 - **Server-side only.** Neither may be exposed through `NEXT_PUBLIC_*` — browser
   code talks to MaliHub's own Server Actions, never to the auth service.
-- **The cookie secret signs the SDK's local `session_data` cookie.** Rotating it
-  silently invalidates every active session, which users experience as "MaliHub
-  keeps signing me out". Generate once, store in the secret manager, never derive
-  from a build id.
+- **The cookie secret signs the SDK's local `session_data` cache cookie.**
+  Rotating it invalidates cached signatures, but does **not** itself revoke
+  Neon Auth's upstream session tokens: the SDK can revalidate a token and mint
+  a new cache cookie. If full sign-out is required, revoke upstream sessions
+  separately through Neon Auth/Better Auth. Generate the secret randomly, keep
+  it in the secret manager, and never derive it from a build id.
 - Values shorter than 32 characters, and placeholders copied from `.env.example`
   (`your-…`, `<…>`, `changeme`, anything that is not an `http(s)` URL), are
   **rejected at configuration time** rather than passed to the SDK to throw on at

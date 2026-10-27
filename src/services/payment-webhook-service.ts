@@ -5,6 +5,9 @@ import type { Prisma } from "@prisma/client";
 import {
   createPaystackClient,
   resolvePaystackConfig,
+  safePaystackStatus,
+  safePaystackCurrency,
+  paystackReferenceFingerprint,
   verifyPaystackWebhookSignature,
   type PaystackClient,
   type PaystackConfigSource,
@@ -342,7 +345,7 @@ export async function handlePaystackWebhook(
           provider: "PAYSTACK",
           anomaly: "reference_mismatch",
           via: disagreement.via,
-          reportedReference: reference,
+          reportedReferenceFingerprint: paystackReferenceFingerprint(reference),
           source: "paystack:webhook",
         },
       }).catch(() => undefined);
@@ -403,7 +406,7 @@ export async function handlePaystackWebhook(
         orderId: payment.orderId,
         customerReference: payment.customerReference,
         expectedCurrency: payment.currency,
-        reportedCurrency: typeof data.currency === "string" ? data.currency : null,
+        reportedCurrency: safePaystackCurrency(data.currency),
         source: "paystack:webhook",
       },
     }).catch(() => undefined);
@@ -418,7 +421,7 @@ export async function handlePaystackWebhook(
   let verified: Awaited<ReturnType<PaystackClient["verifyTransaction"]>> | null = null;
   try {
     verified = await client.verifyTransaction(lookupReference);
-  } catch (error) {
+  } catch {
     const recorded = await recordEvent(db, {
       paymentId: payment.id,
       providerEventId,
@@ -428,8 +431,9 @@ export async function handlePaystackWebhook(
       processingStatus: "FAILED",
     });
     if (!recorded) return recoveredDuplicate(db, payment.id);
-    const reason =
-      error instanceof Error ? error.message.slice(0, 300) : "provider verification error";
+    // Never persist a provider/transport exception message: it can contain
+    // request headers, credentials or payer details.
+    const reason = "provider verification error";
     console.error("[payments] Paystack webhook could not be corroborated by the provider API", {
       paymentId: payment.id,
     });
@@ -467,11 +471,11 @@ export async function handlePaystackWebhook(
     if (!recorded) return recoveredDuplicate(db, payment.id);
     const reason =
       verified.status !== "success"
-        ? `provider status "${verified.status}"`
+        ? `provider status "${safePaystackStatus(verified.status)}"`
         : verified.amount !== payment.amountCents
           ? `provider amount ${verified.amount} != expected ${payment.amountCents}`
           : verified.currency !== payment.currency
-            ? `provider currency "${verified.currency}" != expected "${payment.currency}"`
+            ? "provider currency mismatch"
             : "provider reference mismatch";
     console.error("[payments] Paystack verification did not corroborate the webhook", {
       paymentId: payment.id,

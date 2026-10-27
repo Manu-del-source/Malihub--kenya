@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { logServerError } from "@/lib/safe-log";
 import { shouldLinkUnmappedAccountsByEmail } from "@/lib/auth/config";
 import { authIdentityFromProviderSession } from "@/lib/auth/identity";
 import type { AuthIdentity } from "@/lib/auth/types";
@@ -80,14 +81,8 @@ export async function provisionUserRows(
     );
     return { userId, error: null };
   } catch (error) {
-    console.error(`Failed to provision application rows on ${context}`, {
-      authUserId: session.authUserId,
-      // `AuthServiceError` carries user-facing copy and is not a defect;
-      // anything else is logged with its class so production errors are
-      // distinguishable from expected conflicts.
-      kind: error instanceof AuthServiceError ? "expected" : error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    // Database/SDK messages may contain credentials or personal data.
+    logServerError(`Failed to provision application rows on ${context}`, error);
     return { userId: null, error: error as Error };
   }
 }

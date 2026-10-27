@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     const result = await searchListings(parsed.data);
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
-    console.error("GET /api/search failed", error);
+    logServerError("GET /api/search failed", error);
     return NextResponse.json({ success: false, error: "Search failed. Please try again." }, { status: 500 });
   }
 }

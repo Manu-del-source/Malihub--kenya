@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { verifySameOrigin } from "@/lib/csrf";
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
     });
     previousPublicId = profile?.avatarUrl ? publicIdFromOwnAvatarUrl(profile.avatarUrl) : null;
   } catch (error) {
-    console.error("[avatar] could not read current profile", error);
+    logServerError("[avatar] could not read current profile", error);
     return NextResponse.json(
       { success: false, error: "Something went wrong. Please try again." },
       { status: 500 }
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
   try {
     uploaded = await uploadAvatarImage(buffer, mimeTypeFor(kind), userId);
   } catch (error) {
-    console.error("[avatar] cloudinary upload failed", error);
+    logServerError("[avatar] cloudinary upload failed", error);
     if (String(error).includes("not configured")) return notConfigured();
     return NextResponse.json(
       { success: false, error: "Couldn't upload that photo — please try again." },
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
     try {
       await deleteAsset(previousPublicId);
     } catch (error) {
-      console.warn("[avatar] previous-avatar cleanup failed", { error: String(error) });
+      logServerError("[avatar] previous-avatar cleanup failed", error);
     }
   }
 

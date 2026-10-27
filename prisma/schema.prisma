@@ -596,6 +596,9 @@ model Product {
   isNegotiable   Boolean          @default(false) @map("is_negotiable")
   condition      ProductCondition
   brand          String?
+  size           String?
+  sizeSystem     String?          @map("size_system")
+  availableSizes String?          @map("available_sizes")
   quantity       Int              @default(1)
   contactPreference ContactPreference @default(ANY) @map("contact_preference")
   county         String

@@ -13,6 +13,7 @@ import { getSimilarListings } from "@/services/search-service";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatKes } from "@/utils";
+import { productSizeLabels } from "@/lib/product-sizes";
 import type { ProductWithRelations } from "@/types";
 
 /**
@@ -115,8 +116,7 @@ export async function ProductDetail({
             <div className="mt-5 flex flex-wrap gap-2">
               <Badge>{product.category.name}</Badge>
               {product.brand && <Badge>{product.brand}</Badge>}
-              {product.size && <Badge>Size: {product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</Badge>}
-              {product.availableSizes && <Badge>Available sizes: {product.availableSizes}</Badge>}
+              {productSizeLabels(product).map((label) => <Badge key={label}>{label}</Badge>)}
             </div>
 
             <div className="mt-5">

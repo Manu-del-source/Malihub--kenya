@@ -3,17 +3,17 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
+import { checkoutDeliverySchema } from "@/lib/validations/delivery";
 import { checkoutCart, listBuyerOrders, OrderError } from "@/services/order-service";
 
 /**
  * Buyer orders endpoint — the checkout boundary for this phase.
  *
  * `POST /api/orders` converts the caller's cart into PENDING orders (one per
- * seller). The only accepted client fields are delivery county and address;
+ * seller). The client supplies delivery details plus its acknowledgement of
+ * the displayed estimate and seller count; the server re-prices both. Product
  * prices, inventory, seller ids and ownership remain server-derived. Payment
- * collection is NOT part of this route —
- * an order is created in `PENDING` and the future payment flow attaches to
- * that row (see `src/services/order-service.ts`).
+ * is initialized separately against the resulting PENDING order.
  */
 
 export async function GET() {
@@ -24,7 +24,18 @@ export async function GET() {
 
   try {
     const orders = await listBuyerOrders(prisma, user.id);
-    return NextResponse.json({ success: true, data: orders });
+    return NextResponse.json({ success: true, data: orders.map((order) => ({
+      id: order.id, orderNumber: order.orderNumber, status: order.status,
+      subtotalCents: order.subtotalCents, totalCents: order.totalCents,
+      deliveryCounty: order.deliveryCounty, deliveryAddress: order.deliveryAddress,
+      deliveryEstimateCents: order.deliveryEstimateCents, deliveryFeeCents: order.deliveryFeeCents,
+      deliveryFeeStatus: order.deliveryFeeStatus, deliveryFeeAcceptedAt: order.deliveryFeeAcceptedAt,
+      deliveryQuoteCents: order.deliveryQuoteCents, deliveryQuoteNote: order.deliveryQuoteNote,
+      deliveryQuoteUpdatedAt: order.deliveryQuoteUpdatedAt, deliveryQuoteVersion: order.deliveryQuoteVersion,
+      createdAt: order.createdAt, seller: order.seller,
+      items: order.items.map((item) => ({ id: item.id, quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents, totalCents: item.totalCents, product: item.product })),
+    })) });
   } catch (error) {
     console.error("GET /api/orders failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
@@ -58,30 +69,17 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const county = typeof body?.deliveryCounty === "string" ? body.deliveryCounty.trim() : "";
-  const address = typeof body?.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
-  const acceptedFeeCents = body?.acceptedDeliveryFeeCents;
-
-  if (!county || county.length > 80 || !address || address.length < 5 || address.length > 300) {
+  const parsed = checkoutDeliverySchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "Enter a county and a delivery address (5–300 characters) before continuing.",
-        code: "invalid_delivery_details",
-      },
+      { success: false, error: "Enter valid delivery details and review the estimate for each seller.", code: "invalid_delivery_details" },
       { status: 400 }
     );
   }
-
-  if (!Number.isSafeInteger(acceptedFeeCents) || acceptedFeeCents < 0) {
-    return NextResponse.json(
-      { success: false, error: "Review and accept the delivery fee before continuing.", code: "delivery_fee_not_accepted" },
-      { status: 400 }
-    );
-  }
+  const { deliveryCounty: county, deliveryAddress: address, acceptedDeliveryFeeCents: acceptedFeeCents, acceptedSellerCount } = parsed.data;
 
   try {
-    const result = await checkoutCart(prisma, user.id, { county, address, acceptedFeeCents });
+    const result = await checkoutCart(prisma, user.id, { county, address, acceptedFeeCents, acceptedSellerCount });
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
     if (error instanceof OrderError) {

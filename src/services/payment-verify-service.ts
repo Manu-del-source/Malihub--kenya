@@ -3,6 +3,7 @@ import "server-only";
 import {
   createPaystackClient,
   PaystackClientError,
+  paystackDomainMatches,
   resolvePaystackConfig,
   type PaystackClient,
   type PaystackConfigSource,
@@ -41,8 +42,9 @@ import { logAuditEvent } from "@/services/audit-service";
  * ─── Success is corroborated, not assumed ─────────────────────────────────
  * The verify endpoint's `data.status === "success"` is the provider's own
  * authenticated answer, but this service re-checks the reference, the exact
- * integer amount and the currency against the Payment row before any claim —
- * the same rule the webhook pipeline enforces. A success answer for the wrong
+ * integer amount and the currency against the Payment row, and checks the
+ * configured environment, before any claim. The webhook applies the same rule.
+ * A success answer for the wrong
  * amount is a contradiction, audited and refused.
  *
  * ─── Ownership ─────────────────────────────────────────────────────────────
@@ -80,7 +82,7 @@ export type VerifyPaystackStatusResult =
    * line up with the authoritative row. Nothing is settled; the mismatch is
    * audited for human review.
    */
-  | { outcome: "verification_mismatch"; detail: "reference" | "amount" | "currency" };
+  | { outcome: "verification_mismatch"; detail: "reference" | "amount" | "currency" | "environment" };
 
 /** The Prisma slice this service reads/writes. */
 export type VerifyPaymentStore = PaymentStore;
@@ -223,34 +225,22 @@ export async function verifyPaystackPaymentStatus(
     );
   }
 
-  // ─── The provider answered. Now corroborate it against OUR row. ─────────
-  if (status.status !== "success") {
-    if (status.status === "pending" || status.status === "default") {
+  // Only a definitive failed response may release an attempt. In particular,
+  // ongoing/processing/queued, abandoned and unknown provider states must not
+  // be guessed terminal: their checkout might still be payable externally.
+  if (status.status !== "success" && status.status !== "failed") {
+    if (["pending", "default", "ongoing", "processing", "queued", "abandoned"].includes(status.status)) {
       return { outcome: "still_pending" };
     }
-    // "failed"/"abandoned"/anything else: a terminal non-collection per
-    // Paystack's documented vocabulary. Run it through the same conditional
-    // claim the webhook path uses — a FAILED claim, never a silent drop.
-    console.warn("[payments] Paystack reports a non-success status", {
-      paymentId: payment.id,
-      rawStatus: status.status,
-    });
-    const claim = await db.$transaction(async (tx) =>
-      claimPaymentFailure(
-        tx,
-        payment,
-        { to: "FAILED", code: null, reason: `Paystack reported status "${status.status}".` },
-        undefined
-      )
-    );
-    if (claim === "claimed") {
-      await afterTerminalFailure(db, payment, "paystack:status-check", "FAILED");
-    }
-    return { outcome: "verified_failed", paymentApplied: claim === "claimed" };
+    return { outcome: "unknown_status", rawStatus: status.status };
   }
 
-  // Success — but only for the reference we actually asked about, the exact
-  // amount, and the exact currency.
+  // A success OR definitive failure must match the configured environment,
+  // reference, amount and currency before it can change local state.
+  if (!paystackDomainMatches(config.config, status.domain)) {
+    await logMismatchAudit(db, payment, "environment", { reportedDomain: typeof status.domain === "string" ? status.domain : null });
+    return { outcome: "verification_mismatch", detail: "environment" };
+  }
   if (status.reference !== payment.customerReference &&
       status.reference !== (payment.metadata as { paystack?: { providerReference?: unknown } } | null)?.paystack?.providerReference) {
     await logMismatchAudit(db, payment, "reference", {
@@ -272,6 +262,19 @@ export async function verifyPaystackPaymentStatus(
       expectedCurrency: payment.currency,
     });
     return { outcome: "verification_mismatch", detail: "currency" };
+  }
+
+  if (status.status === "failed") {
+    const initialization = (payment.metadata as { paystack?: { initialization?: unknown } } | null)?.paystack?.initialization;
+    // Initialization may still be returning an access code to another
+    // request. Do not release that reservation based on an intermediate
+    // failure observed before the provider response has been persisted.
+    if (initialization === "pending") return { outcome: "still_pending" };
+    const claim = await db.$transaction(async (tx) =>
+      claimPaymentFailure(tx, payment, { to: "FAILED", code: null, reason: "Paystack reported status \"failed\"." }, undefined)
+    );
+    if (claim === "claimed") await afterTerminalFailure(db, payment, "paystack:status-check", "FAILED");
+    return { outcome: "verified_failed", paymentApplied: claim === "claimed" };
   }
 
   const claim = await db.$transaction(async (tx) =>
@@ -350,7 +353,7 @@ function mapKindToCode(kind: PaystackClientError["kind"]): PaymentServiceError["
 async function logMismatchAudit(
   db: VerifyPaymentStore,
   payment: PaymentRow,
-  detail: "reference" | "amount" | "currency",
+  detail: "reference" | "amount" | "currency" | "environment",
   extra: Record<string, unknown>
 ): Promise<void> {
   console.error("[payments] Paystack verification mismatch", {

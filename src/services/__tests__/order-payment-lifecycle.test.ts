@@ -1,5 +1,9 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+
+// Explicit zero-rate fixture; no production/default delivery price is implied.
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":0}';
+const TEST_DELIVERY = { county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0, acceptedSellerCount: 1 };
 import { createHmac } from "node:crypto";
 
 mock.module("server-only", { namedExports: {} });
@@ -130,7 +134,7 @@ function seedListing(quantity = 5, priceCents = 100_000) {
 async function placeOrder(buyerId: string, productId: string, quantity = 2) {
   seedCartItem(store, buyerId, productId, quantity);
   const { checkoutCart } = await import("@/services/order-service");
-  const result = await checkoutCart(db(), buyerId);
+  const result = await checkoutCart(db(), buyerId, TEST_DELIVERY);
   return result.orders[0]!;
 }
 
@@ -187,6 +191,42 @@ describe("1 — checkout creates a PENDING, payable order", () => {
     assert.equal(snapshot.awaitingConfirmation, false);
     assert.equal(snapshot.canInitiate, true);
     assert.deepEqual(snapshot.attempts, { used: 0, max: 5, remaining: 5 });
+  });
+});
+
+describe("recovery after a successful payment claim", () => {
+  it("keeps a pending order non-payable and recovers the order transition without a second charge", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    const payment = seedAcceptedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents);
+    store.tables.payments.get(payment.id)!.status = "SUCCESS"; // claim committed, transition did not
+
+    const waiting = await statusService.readBuyerPaymentSnapshot(db(), { userId: BUYER_A, orderId: order.id });
+    assert.equal(waiting!.order.status, "PENDING");
+    assert.equal(waiting!.awaitingConfirmation, true);
+    assert.equal(waiting!.canInitiate, false);
+    assert.equal(waiting!.payable, false);
+
+    const { client, calls } = stubClient({});
+    const recovered = await statusService.verifyBuyerPaymentStatus(db(), {
+      userId: BUYER_A, orderId: order.id, client, env: ENV,
+    });
+    assert.equal(recovered!.order.status, "PAID");
+    assert.equal(recovered!.verification?.outcome, "already_success");
+    assert.deepEqual(calls, [], "an already successful payment is not re-asked of the provider");
+    assert.equal(store.tables.payments.size, 1);
+  });
+
+  it("does not claim a mismatched successful payment made the order paid", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    const payment = seedAcceptedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents - 1);
+    store.tables.payments.get(payment.id)!.status = "SUCCESS";
+    const recovered = await statusService.verifyBuyerPaymentStatus(db(), { userId: BUYER_A, orderId: order.id, env: ENV });
+    assert.equal(recovered!.payment!.status, "SUCCESS");
+    assert.equal(recovered!.order.status, "PENDING");
+    assert.equal(recovered!.awaitingConfirmation, true);
+    assert.equal(recovered!.canInitiate, false);
   });
 });
 
@@ -403,7 +443,29 @@ describe("5 — historical PAYHERO rows", () => {
 
 // ─── 6. The attempt cap is surfaced through the snapshot ────────────────────
 
-describe("6 — attempt cap", () => {
+describe("6 — attempt cap and conservative retries", () => {
+  it("a terminal attempt requires support review before a new provider checkout", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    const failed = seedAcceptedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents);
+    store.tables.payments.get(failed.id)!.status = "FAILED";
+    const snapshot = await statusService.readBuyerPaymentSnapshot(db(), { userId: BUYER_A, orderId: order.id });
+    assert.equal(snapshot!.awaitingConfirmation, false);
+    assert.equal(snapshot!.canInitiate, false);
+  });
+
+  it("shows an unresolved older attempt and does not offer resume without an access code", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    const active = seedPayment(store, { orderId: order.id, customerReference: "MH-OLD-ACTIVE", provider: "PAYSTACK", status: "PENDING", amountCents: order.totalCents, metadata: { paystack: { initialization: "unknown" } }, createdAt: new Date("2026-01-01T00:00:00Z") });
+    seedPayment(store, { orderId: order.id, customerReference: "MH-NEW-FAILED", provider: "PAYSTACK", status: "FAILED", amountCents: order.totalCents, createdAt: new Date("2026-01-02T00:00:00Z") });
+    const snapshot = await statusService.readBuyerPaymentSnapshot(db(), { userId: BUYER_A, orderId: order.id });
+    assert.equal(snapshot!.payment!.id, active.id);
+    assert.equal(snapshot!.awaitingConfirmation, true);
+    assert.equal(snapshot!.canInitiate, false);
+    assert.equal(JSON.stringify(snapshot).includes("initialization"), false, "private payment metadata is never returned");
+  });
+
   it("five terminal attempts make the order un-initiable (but not un-joinable rules are the route's)", async () => {
     const { product } = seedListing();
     const order = await placeOrder(BUYER_A, product.id);
@@ -428,7 +490,7 @@ describe("6 — attempt cap", () => {
     assert.equal(snapshot!.canInitiate, false, "no NEW attempt is offered at the cap");
   });
 
-  it("an in-flight attempt is always joinable, even at the cap", async () => {
+  it("an in-flight attempt with older failed checkouts requires support review", async () => {
     const { product } = seedListing();
     const order = await placeOrder(BUYER_A, product.id);
     for (let i = 0; i < 4; i++) {
@@ -450,6 +512,6 @@ describe("6 — attempt cap", () => {
 
     assert.equal(snapshot!.attempts.used, 5);
     assert.equal(snapshot!.awaitingConfirmation, true);
-    assert.equal(snapshot!.canInitiate, true, "joining the live attempt is never capped");
+    assert.equal(snapshot!.canInitiate, false, "older checkout links may still be payable");
   });
 });

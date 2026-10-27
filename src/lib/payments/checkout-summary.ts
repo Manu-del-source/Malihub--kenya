@@ -14,6 +14,8 @@
  * out), but they are still returned so the screen can name them.
  */
 
+import { addMoneyCents, isMoneyCents } from "@/lib/money";
+
 export type CheckoutSummaryLine = {
   id: string;
   productId: string;
@@ -40,11 +42,12 @@ export type CheckoutSummary = {
   sellerCount: number;
   itemCount: number;
   unavailableCount: number;
+  /** False if a line, seller subtotal, or combined cart total cannot be represented safely. */
+  amountsValid: boolean;
   subtotalCents: number;
   /**
-   * What the buyer will pay. Delivery is arranged with the seller at this
-   * phase, so there is no delivery line and the total equals the subtotal —
-   * the same rule `checkoutCart` applies when it writes `Order.totalCents`.
+   * Merchandise total before the county estimate is loaded. Checkout adds
+   * one server-provided delivery estimate per seller order for display.
    */
   totalCents: number;
 };
@@ -67,9 +70,14 @@ export type CartLineLike = {
 
 export function buildCheckoutSummary(lines: readonly CartLineLike[]): CheckoutSummary {
   const groups = new Map<string, CheckoutSummaryGroup>();
+  let amountsValid = true;
 
   for (const line of lines) {
-    const lineTotalCents = line.isAvailable ? line.unitPriceCents * line.quantity : 0;
+    const rawTotal = line.unitPriceCents * line.quantity;
+    const validLine = Number.isSafeInteger(line.quantity) && line.quantity >= 1 && line.quantity <= 9999 &&
+      isMoneyCents(line.unitPriceCents) && line.unitPriceCents > 0 && isMoneyCents(rawTotal);
+    if (line.isAvailable && !validLine) amountsValid = false;
+    const lineTotalCents = line.isAvailable && validLine ? rawTotal : 0;
     const group = groups.get(line.product.seller.id) ?? {
       sellerId: line.product.seller.id,
       sellerName: line.product.seller.businessName,
@@ -89,18 +97,29 @@ export function buildCheckoutSummary(lines: readonly CartLineLike[]): CheckoutSu
       isAvailable: line.isAvailable,
       stockAvailable: line.stockAvailable,
     });
-    group.subtotalCents += lineTotalCents;
+    const nextGroupTotal = addMoneyCents(group.subtotalCents, lineTotalCents);
+    if (nextGroupTotal === null) amountsValid = false;
+    else group.subtotalCents = nextGroupTotal;
     groups.set(line.product.seller.id, group);
   }
 
   const ordered = [...groups.values()];
-  const subtotalCents = ordered.reduce((sum, group) => sum + group.subtotalCents, 0);
+  // Each seller subtotal must fit the DB Int column. The cart-wide sum may
+  // exceed it because it represents multiple separately payable orders, but
+  // it still has to remain a safe integer for exact presentation.
+  let subtotalCents = 0;
+  for (const group of ordered) {
+    const next = subtotalCents + group.subtotalCents;
+    if (!Number.isSafeInteger(next)) amountsValid = false;
+    else subtotalCents = next;
+  }
 
   return {
     groups: ordered,
     sellerCount: ordered.length,
     itemCount: lines.length,
     unavailableCount: lines.filter((line) => !line.isAvailable).length,
+    amountsValid,
     subtotalCents,
     totalCents: subtotalCents,
   };

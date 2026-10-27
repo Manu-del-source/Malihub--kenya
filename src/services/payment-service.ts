@@ -298,6 +298,9 @@ export async function claimPaymentFailure(
   failure: { to: "FAILED" | "CANCELLED"; code: string | null; reason: string | null },
   rawPayload: unknown
 ): Promise<"claimed" | "already_terminal"> {
+  // Serialize failure against initialization, cancellation and success claims
+  // on the same order, then let the conditional write handle stale reads.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payment.orderId}))`;
   if (!CLAIMABLE_PAYMENT_STATUSES.includes(payment.status as never)) {
     return "already_terminal";
   }
@@ -501,8 +504,8 @@ export async function settleSuccessfulPayment(
  *
  * `payment.cancelled` vs `payment.failed` is kept distinct on purpose: a
  * buyer who abandoned the checkout and one whose payment actually failed are
- * different support situations, and neither touches the ORDER (it stays
- * PENDING and payable — a retry is a legitimate new attempt).
+ * different support situations, and neither touches the ORDER. A new checkout
+ * is held for support review until the old hosted checkout can be reconciled.
  */
 export async function afterPaymentFailureRecorded(
   db: PaymentStore,
@@ -538,8 +541,8 @@ export async function afterPaymentFailureRecorded(
           title: `Payment for order ${order.orderNumber} was not completed`,
           body:
             to === "CANCELLED"
-              ? "The payment was cancelled before it was completed. Your order is still waiting for payment — you can try again from your orders page."
-              : "The payment did not go through. You can try paying again from your orders page.",
+              ? "The payment was reported cancelled. Contact support to reconcile the checkout before starting another payment."
+              : "The payment was reported unsuccessful. Contact support to reconcile the checkout before starting another payment.",
           linkUrl: `/buyer/orders`,
         }).catch(() => undefined)
       : Promise.resolve(),

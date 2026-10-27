@@ -661,21 +661,23 @@ model Order {
   id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orderNumber   String      @unique @map("order_number")
   buyerId       String      @map("buyer_id") @db.Uuid
-  /// Denormalized from the (single) seller of this order's items. Phase 6's
-  /// checkout is single-listing ("Buy Now"), so every order has exactly one
-  /// seller today — this field exists so seller order-management queries
-  /// don't need a join through items→product→seller. A future multi-seller
-  /// cart would need to split checkout into one Order per seller rather
-  /// than relax this to nullable/multi-valued.
+  /// Denormalized from the single seller of this order's items.
+  /// Checkout splits a multi-seller cart
+  /// into separate seller orders, each with its own accepted delivery fee.
   sellerId      String      @map("seller_id") @db.Uuid
   status        OrderStatus @default(PENDING)
   subtotalCents Int         @map("subtotal_cents")
   totalCents    Int         @map("total_cents")
+  /// Delivery amounts are KES minor units; the original estimate is retained.
+  deliveryEstimateCents Int? @map("delivery_estimate_cents")
   deliveryFeeCents Int      @default(0) @map("delivery_fee_cents")
+  /// ESTIMATED (accepted estimate), QUOTED (awaiting buyer), or CONFIRMED.
   deliveryFeeStatus String  @default("ESTIMATED") @map("delivery_fee_status")
+  deliveryFeeAcceptedAt DateTime? @map("delivery_fee_accepted_at") @db.Timestamptz(6)
   deliveryQuoteCents Int?   @map("delivery_quote_cents")
   deliveryQuoteNote  String? @map("delivery_quote_note")
-  deliveryQuoteUpdatedAt DateTime? @map("delivery_quote_updated_at")
+  deliveryQuoteUpdatedAt DateTime? @map("delivery_quote_updated_at") @db.Timestamptz(6)
+  deliveryQuoteVersion Int @default(0) @map("delivery_quote_version")
   deliveryCounty String?    @map("delivery_county")
   deliveryAddress String?   @map("delivery_address")
   notes         String?

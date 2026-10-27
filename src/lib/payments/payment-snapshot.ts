@@ -44,22 +44,22 @@ export type BuyerPaymentSnapshot = {
     status: OrderStatus;
     totalCents: number;
   };
-  /** The buyer's latest payment attempt for this order, or null. */
+  /** Relevant attempt: success or unresolved first, otherwise newest; null if none. */
   payment: BuyerPaymentAttempt | null;
   attempts: {
     used: number;
     max: number;
     remaining: number;
   };
-  /** The order is PENDING, so money can still be collected against it. */
+  /** The pending order has an accepted delivery fee and no recorded successful payment. */
   payable: boolean;
-  /** An attempt exists and is waiting on the provider (PENDING/PROCESSING). */
+  /** An attempt is waiting on the provider or its successful claim still needs the order transition. */
   awaitingConfirmation: boolean;
   /**
    * A payment may be started now: the order is payable AND either an active
-   * attempt can be joined (never capped) or a new attempt may be created
-   * within the attempt budget. Mirrors the service's own guard without
-   * duplicating its enforcement.
+   * sole attempt can be joined or no attempt exists. Multiple or terminal
+   * attempts require support review until checkout revocation is established.
+   * Presentation only; the initialization service enforces this rule.
    */
   canInitiate: boolean;
 };
@@ -100,11 +100,12 @@ export function isPaidOrderStatus(status: OrderStatus): boolean {
 
 /**
  * The single question the payment UI asks of a snapshot: has this payment
- * finished, one way or another? A terminal ATTEMPT ends the polling window
- * (success → paid; failure/cancellation → retry), and a non-PENDING ORDER
- * ends it too (PAID, or CANCELLED by the buyer in another tab).
+ * finished, one way or another? A failure/cancellation or non-PENDING order
+ * ends the polling window. A SUCCESS payment with a still-PENDING order is not
+ * done: the separate order transition must be recovered or reviewed.
  */
 export function isSettledSnapshot(snapshot: BuyerPaymentSnapshot): boolean {
   if (snapshot.order.status !== "PENDING") return true;
+  if (snapshot.payment?.status === "SUCCESS") return false;
   return snapshot.payment !== null && isTerminalPaymentStatus(snapshot.payment.status);
 }

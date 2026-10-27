@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CheckCircle2, Loader2, TriangleAlert, ExternalLink } from "lucide-react";
 import { Container } from "@/components/ui/container";
@@ -11,6 +10,7 @@ import { verifyBuyerPaymentStatus } from "@/services/payment-status-service";
 import { paymentPhaseFromSnapshot } from "@/lib/payments/checkout-client";
 import { ORDER_STATUS_LABEL } from "@/lib/order-status";
 import { formatKes } from "@/utils";
+import { z } from "zod";
 
 /**
  * The browser's landing page after Paystack's hosted checkout.
@@ -27,22 +27,30 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Payment result" };
 
-export default async function PaymentResultPage() {
+export default async function PaymentResultPage({ searchParams }: {
+  searchParams: Promise<{ orderId?: string | string[]; reference?: string | string[] }>;
+}) {
   const { user } = await requireUser();
-
-  const order = (await prisma.order.findFirst({
-    where: { buyerId: user.id },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, orderNumber: true, status: true, totalCents: true },
-  })) as {
-    id: string;
-    orderNumber: string;
-    status: string;
-    totalCents: number;
-  } | null;
-
+  const query = await searchParams;
+  const orderId = typeof query.orderId === "string" && z.string().uuid().safeParse(query.orderId).success ? query.orderId : null;
+  const reference = typeof query.reference === "string" && /^[A-Za-z0-9.=-]{1,100}$/.test(query.reference) ? query.reference : null;
+  const select = { id: true, orderNumber: true, status: true, subtotalCents: true, deliveryFeeCents: true, totalCents: true } as const;
+  // Older provider sessions may not include our new orderId parameter. If
+  // they return our reference, resolve it through a payment owned by the user.
+  // Never guess by taking the latest of multiple seller orders.
+  const order = orderId
+    ? await prisma.order.findFirst({ where: { id: orderId, buyerId: user.id }, select })
+    : reference
+      ? (await prisma.payment.findFirst({ where: { customerReference: reference, order: { buyerId: user.id } }, select: { order: { select } } }))?.order ?? null
+      : null;
   if (!order) {
-    notFound();
+    return (
+      <Container className="py-16 text-center">
+        <h1 className="font-display text-2xl font-medium">Check your payment</h1>
+        <p className="mt-2 text-sm text-muted-foreground">We could not identify an order from this return link. Open your orders to check the correct payment status.</p>
+        <Button asChild className="mt-5"><Link href="/buyer/orders">Your orders</Link></Button>
+      </Container>
+    );
   }
 
   // Server-authoritative state. When the attempt is still waiting on the
@@ -53,6 +61,8 @@ export default async function PaymentResultPage() {
     orderId: order.id,
   });
 
+  const currentStatus = snapshot?.order.status ?? order.status;
+  const currentTotal = snapshot?.order.totalCents ?? order.totalCents;
   const phase = paymentPhaseFromSnapshot(snapshot);
   const paid = phase === "succeeded";
   const waiting = phase === "awaiting" || snapshot?.verification?.ok === false;
@@ -81,7 +91,7 @@ export default async function PaymentResultPage() {
             ? "Your payment was verified and the order is paid. The seller will arrange delivery with you."
             : waiting
               ? "We are checking the payment with Paystack. This usually takes a few seconds — do not pay again from this page."
-              : "The payment did not complete. Nothing was charged against this attempt; you can try again from the order page."}
+              : "We cannot confirm this order as paid. Check the order page, and contact support if you were charged."}
         </p>
 
         <dl className="mt-6 space-y-2 rounded-xl border border-border p-4 text-left text-sm">
@@ -90,14 +100,22 @@ export default async function PaymentResultPage() {
             <dd className="font-mono text-foreground">{order.orderNumber}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">Subtotal</dt>
+            <dd className="font-mono tabular-nums text-foreground">{formatKes(order.subtotalCents)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">Delivery</dt>
+            <dd className="font-mono tabular-nums text-foreground">{formatKes(order.deliveryFeeCents)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Amount</dt>
-            <dd className="font-mono tabular-nums text-foreground">{formatKes(order.totalCents)}</dd>
+            <dd className="font-mono tabular-nums text-foreground">{formatKes(currentTotal)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Order status</dt>
             <dd>
               <Badge variant={paid ? "primary" : "default"}>
-                {ORDER_STATUS_LABEL[order.status as keyof typeof ORDER_STATUS_LABEL] ?? order.status}
+                {ORDER_STATUS_LABEL[currentStatus as keyof typeof ORDER_STATUS_LABEL] ?? currentStatus}
               </Badge>
             </dd>
           </div>

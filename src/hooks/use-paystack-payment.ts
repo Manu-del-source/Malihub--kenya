@@ -38,7 +38,7 @@ import {
 export type PaystackPhase = PaymentPhase | "timed_out";
 
 export type UsePaystackPaymentOptions = {
-  order: { id: string; orderNumber: string; totalCents: number };
+  order: { id: string; orderNumber: string; totalCents: number; deliveryQuoteVersion: number };
   /** Server-rendered state at mount (order page); null when just created. */
   initialSnapshot?: BuyerPaymentSnapshot | null;
   /** Called whenever the snapshot changes (let the parent react/refresh). */
@@ -68,7 +68,7 @@ export function usePaystackPayment({
     const initial = paymentPhaseFromSnapshot(initialSnapshot);
     if (initial === "idle" || initial === "awaiting") return initial;
     if (initial === "succeeded") return "succeeded";
-    return "idle";
+    return "failed";
   });
   const [snapshot, setSnapshot] = useState<BuyerPaymentSnapshot | null>(initialSnapshot);
   const [message, setMessage] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export function usePaystackPayment({
           setMessage("This order was cancelled, so there is nothing to pay.");
         } else {
           setPhaseBoth("failed");
-          setMessage(next.payment?.failureReason ?? "Payment was not completed. You can try again.");
+          setMessage(next.payment?.failureReason ?? "Payment was not completed. Contact support before starting another checkout.");
         }
         return true;
       }
@@ -192,7 +192,7 @@ export function usePaystackPayment({
     setPhaseBoth("initiating");
     setMessage(null);
 
-    const result = await initiatePaystackCheckout(order.id);
+    const result = await initiatePaystackCheckout(order.id, order.deliveryQuoteVersion);
     busyRef.current = false;
     if (!mountedRef.current) return false;
     setBusy(false);
@@ -200,6 +200,15 @@ export function usePaystackPayment({
     if (!result.ok) {
       setPhaseBoth("failed");
       setMessage(result.message);
+      // Initialization can time out after a reservation was made. Refresh
+      // authoritative state so the UI checks that same attempt rather than
+      // presenting a fresh payment action.
+      const current = await fetchPaymentStatus(order.id);
+      if (!mountedRef.current) return false;
+      if (current.ok) {
+        const settled = applySnapshot(current.data);
+        if (!settled && current.data.awaitingConfirmation) startPolling();
+      }
       return false;
     }
 
@@ -213,7 +222,7 @@ export function usePaystackPayment({
         if (!mountedRef.current) return;
         setPhaseBoth("awaiting");
         setMessage(
-          "The Paystack window was closed. If you completed the payment, press Check status — otherwise you can pay again."
+          "The Paystack window was closed. Check the payment status before resuming this checkout."
         );
       },
       onError: (error) => {
@@ -244,7 +253,7 @@ export function usePaystackPayment({
     );
     startPolling();
     return true;
-  }, [order.id, setPhaseBoth, startPolling, confirm]);
+  }, [order.id, order.deliveryQuoteVersion, setPhaseBoth, startPolling, confirm, applySnapshot]);
 
   const checkNow = useCallback(async () => {
     if (busyRef.current) return;

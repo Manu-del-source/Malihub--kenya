@@ -1,5 +1,9 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+
+// Explicit zero-rate fixture; no production/default delivery price is implied.
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":0}';
+const TEST_DELIVERY = { county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0, acceptedSellerCount: 1 };
 import { createHmac } from "node:crypto";
 
 mock.module("server-only", { namedExports: {} });
@@ -70,6 +74,7 @@ type VerifyAnswer = {
   reference: string;
   amount: number;
   currency: string;
+  domain?: string;
   id?: number;
 };
 
@@ -83,7 +88,7 @@ function stubClient(answer: { ok?: VerifyAnswer; error?: Error }) {
       calls.push(reference);
       if (answer.error) throw answer.error;
       const base: VerifyAnswer = answer.ok ?? ({ status: "success", reference, amount: AMOUNT, currency: "KES" } as VerifyAnswer);
-      return { id: base.id ?? 48_213, status: base.status, reference: base.reference, amount: base.amount, currency: base.currency, domain: "test" };
+      return { id: base.id ?? 48_213, status: base.status, reference: base.reference, amount: base.amount, currency: base.currency, domain: base.domain ?? "test" };
     },
   };
   return { client, calls };
@@ -109,7 +114,7 @@ function seedListing(quantity = 5, priceCents = 100_000) {
 async function placeOrder(buyerId: string, productId: string, quantity = 2) {
   seedCartItem(store, buyerId, productId, quantity);
   const { checkoutCart } = await import("@/services/order-service");
-  const result = await checkoutCart(db(), buyerId);
+  const result = await checkoutCart(db(), buyerId, TEST_DELIVERY);
   return result.orders[0]!;
 }
 
@@ -504,6 +509,18 @@ describe("re-verification gate — Paystack's own API is the final word", () => 
     assert.equal(store.tables.orders.get(order.id)!.status, "PENDING");
   });
 
+  it("never settles when the provider's environment disagrees with the configured key", async () => {
+    const { order, payment, body } = await setup();
+    const { client } = stubClient({
+      ok: { status: "success", reference: payment.customerReference, amount: AMOUNT, currency: "KES", domain: "live" },
+    });
+    const outcome = await service.handlePaystackWebhook(db(), { rawBody: body, signature: sign(body), client, env: ENV });
+    assert.equal(outcome.kind, "verification_failed");
+    assert.equal(store.tables.payments.get(payment.id)!.status, "PROCESSING");
+    assert.equal(store.tables.orders.get(order.id)!.status, "PENDING");
+    assert.equal(auditsOf("payment.verification_failed").length, 1);
+  });
+
   it("never settles when the provider's currency disagrees", async () => {
     const { order, payment, body } = await setup();
     const { client } = stubClient({
@@ -564,6 +581,9 @@ describe("supersession — one effective successful payment per order", () => {
     assert.equal(store.tables.payments.get(payment.id)!.status, "FAILED");
     assert.equal(store.tables.orders.get(order.id)!.status, "PENDING");
     assert.equal(events()[0]!.processingStatus, "IGNORED");
+    const anomaly = auditsOf("payment.anomaly");
+    assert.equal(anomaly.length, 1);
+    assert.equal((anomaly[0]!.metadata as { anomaly?: string }).anomaly, "success_after_terminal");
   });
 });
 

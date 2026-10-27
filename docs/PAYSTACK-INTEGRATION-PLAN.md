@@ -14,12 +14,14 @@ What exists today:
 | Settlement primitives | `src/services/payment-service.ts` — conditional claims, `(provider, providerEventId)` dedup, exact amount/currency gates, ownership checks, terminal-state guards |
 | Webhook ingestion | `POST /api/payments/paystack/webhook` (`src/services/payment-webhook-service.ts`) — signature gate → reference resolution → amount/currency gate → **server-to-server re-verification against Paystack** → conditional settlement. 401 + no write for anything unverifiable |
 | Server-authoritative status | `GET/POST /api/payments/paystack/verify` (`src/services/payment-verify-service.ts`) — the buyer's screens ask the *server*, which asks *Paystack*; the browser's success claim has no power |
-| Checkout initiation | `POST /api/payments/paystack/initialize` — auth + CSRF + per-buyer rate limit, attempt rules (max 5 per order, in-flight joins) |
+| Checkout initiation | `POST /api/payments/paystack/initialize` — auth + CSRF + rate limit, accepted delivery/version and authoritative totals checked under the order lock; a sole compatible checkout can be resumed. Multiple or terminal attempts require support review. |
 | Buyer landing page | `/checkout/payment-result` — where `PAYSTACK_CALLBACK_URL` points; renders server-verified state, never a browser claim |
 | Regression tests | `src/services/__tests__/payment-service.test.ts`, `payment-webhook-service.test.ts`, `payment-verify-service.test.ts`, `order-payment-lifecycle.test.ts` — forged callbacks, invalid/malformed signatures, wrong amount/currency, wrong ownership, duplicates, replays, ref mismatch, provider-verify failure, legitimate success |
 
-Remaining (rollout phases D–E below) is the marketplace/payout compliance work
-and the production cutover — not a code gap in the collection path.
+Remaining work includes marketplace/payout compliance, production cutover,
+and a documented reconciliation/release process for ambiguous or failed
+hosted checkouts. Until revocation or expiry is established, attempts, quotes
+and cancellations stay locked as described in `docs/DELIVERY-AND-PRODUCT-SIZES.md`.
 
 ## Required configuration
 
@@ -54,8 +56,10 @@ implementation.
    before applying the existing conditional payment/order settlement primitives.
 7. Make settlement idempotent. Webhook retries, return-page reloads, and status
    polling must never mark an order paid twice.
-8. Reconcile ambiguous network timeouts by verifying the existing reference;
+8. Keep ambiguous network timeouts reserved and verify the existing reference;
    never blindly create a second transaction when the first outcome is unknown.
+   After a terminal attempt, manual support review is required; automated
+   checkout revocation, release and reconciliation are not yet implemented.
 
 ## Marketplace / seller payout boundary
 

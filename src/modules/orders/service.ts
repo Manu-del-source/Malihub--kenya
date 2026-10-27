@@ -3,6 +3,7 @@ import "server-only";
 import { customAlphabet } from "nanoid";
 import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { estimateCountyDelivery } from "@/modules/orders/delivery-pricing";
+import { addMoneyCents, isMoneyCents } from "@/lib/money";
 
 /**
  * Orders — the buyer → cart → order → order-items → seller foundation.
@@ -11,18 +12,18 @@ import { estimateCountyDelivery } from "@/modules/orders/delivery-pricing";
  * `checkoutCart()` turns a buyer's cart into one `Order` per seller (the
  * schema's documented shape — `Order.sellerId` is denormalized and NOT
  * nullable, so a multi-seller cart must split, not relax the constraint).
- * Orders are created `PENDING` and nothing here moves money: payment
- * collection is the future `Payment`/`PaymentEvent` boundary the schema and
- * `backend/` already model. No test, fixture, or UI in this phase may present
- * a `PENDING` order as paid.
+ * Orders are created `PENDING` and nothing here moves money. Payment is
+ * initialized separately and only provider-verified settlement can pay the
+ * order; delivery acceptance itself is never presented as payment.
  *
  * ─── Money is never client-supplied ─────────────────────────────────────────
  * Unit prices are read from the `products` row *inside* the checkout
  * transaction, inventory is decremented through a guarded `updateMany` (a
  * listing that went inactive or sold out mid-checkout fails the guard, rolls
  * the whole transaction back, and surfaces a user-safe error), and totals are
- * recomputed server-side. A request body contributes exactly one thing: the
- * caller's identity.
+ * recomputed server-side. The request acknowledges the server's delivery
+ * estimate and seller count and supplies delivery details; identity comes
+ * exclusively from the session.
  *
  * ─── Ownership ──────────────────────────────────────────────────────────────
  * Every read is scoped by the *authenticated application user id* resolved by
@@ -109,6 +110,8 @@ export type CheckoutResult = {
     status: OrderStatus;
     subtotalCents: number;
     totalCents: number;
+    deliveryFeeCents: number;
+    deliveryFeeStatus: string;
   }>;
 };
 
@@ -129,13 +132,14 @@ export type CheckoutResult = {
 export type CheckoutDeliveryDetails = {
   county: string;
   address: string;
-  acceptedFeeCents?: number;
+  acceptedFeeCents: number;
+  acceptedSellerCount: number;
 };
 
 export async function checkoutCart(
   db: OrderStore & TransactionalOrderStore,
   userId: string,
-  delivery?: CheckoutDeliveryDetails
+  delivery: CheckoutDeliveryDetails
 ): Promise<CheckoutResult> {
   const cartRows = await db.cartItem.findMany({
     where: { userId },
@@ -146,19 +150,17 @@ export async function checkoutCart(
     throw new OrderError("Your cart is empty.", "empty_cart");
   }
 
-  let deliveryFeeCents = 0;
-  if (delivery) {
-    let estimate;
-    try {
-      estimate = estimateCountyDelivery(delivery.county);
-    } catch (error) {
-      throw new OrderError(error instanceof Error ? error.message : "Delivery pricing is unavailable.", "unavailable");
-    }
-    if (!Number.isSafeInteger(delivery.acceptedFeeCents) || delivery.acceptedFeeCents !== estimate.feeCents) {
-      throw new OrderError("Delivery fee changed or was not accepted. Review the delivery estimate and try again.", "unavailable");
-    }
-    deliveryFeeCents = estimate.feeCents;
+  let estimate;
+  try {
+    estimate = estimateCountyDelivery(delivery.county);
+  } catch (error) {
+    throw new OrderError(error instanceof Error ? error.message : "Delivery pricing is unavailable.", "unavailable");
   }
+  if (!isMoneyCents(delivery.acceptedFeeCents) || delivery.acceptedFeeCents !== estimate.feeCents ||
+      !Number.isSafeInteger(delivery.acceptedSellerCount) || delivery.acceptedSellerCount < 1) {
+    throw new OrderError("Delivery estimate changed or was not accepted. Review it and try again.", "unavailable");
+  }
+  const deliveryFeeCents = estimate.feeCents;
 
   for (const row of cartRows) {
     if (!Number.isInteger(row.quantity) || row.quantity < 1) {
@@ -249,6 +251,12 @@ export async function checkoutCart(
         bySeller.set(sellerId, group);
       }
 
+      // Acceptance covers both the per-seller rate and the number of seller
+      // orders displayed. A changed cart cannot silently multiply the fee.
+      if (bySeller.size !== delivery.acceptedSellerCount) {
+        throw new OrderError("The number of seller orders changed. Review and accept the delivery estimate again.", "unavailable");
+      }
+
       const created: CheckoutResult["orders"] = [];
 
       for (const [sellerId, items] of bySeller) {
@@ -292,7 +300,11 @@ export async function checkoutCart(
           if (!fresh) throw new OrderError("A listing in your cart no longer exists.", "unavailable");
 
           const lineTotal = fresh.priceCents * item.quantity;
-          subtotalCents += lineTotal;
+          const nextSubtotal = addMoneyCents(subtotalCents, lineTotal);
+          if (!isMoneyCents(fresh.priceCents) || fresh.priceCents < 1 || nextSubtotal === null) {
+            throw new OrderError("An order amount is invalid or too large. Please review your cart.", "unavailable");
+          }
+          subtotalCents = nextSubtotal;
           // Snapshot the supplier source at checkout. A later supplier-product
           // removal or price change must not rewrite what the buyer ordered.
           itemData.push({
@@ -306,6 +318,10 @@ export async function checkoutCart(
           });
         }
 
+        const totalCents = addMoneyCents(subtotalCents, deliveryFeeCents);
+        if (totalCents === null || totalCents === 0) {
+          throw new OrderError("An order amount is invalid or too large. Please review your cart.", "unavailable");
+        }
         const order = await tx.order.create({
           data: {
             orderNumber: nextOrderNumber(),
@@ -315,12 +331,13 @@ export async function checkoutCart(
             subtotalCents,
             // Delivery is a server-calculated, buyer-accepted snapshot.
             // Platform/payment fees are handled separately by settlement.
+            deliveryEstimateCents: deliveryFeeCents,
             deliveryFeeCents,
             deliveryFeeStatus: "ESTIMATED",
-            totalCents: subtotalCents + deliveryFeeCents,
-            ...(delivery
-              ? { deliveryCounty: delivery.county, deliveryAddress: delivery.address }
-              : {}),
+            deliveryFeeAcceptedAt: new Date(),
+            totalCents,
+            deliveryCounty: estimate.county,
+            deliveryAddress: delivery.address,
             items: { create: itemData },
           },
           select: {

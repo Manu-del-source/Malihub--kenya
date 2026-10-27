@@ -83,6 +83,9 @@ export default async function BuyerOrdersPage() {
                     {formatKes(order.totalCents)}
                   </p>
                   <p className="text-xs text-muted-foreground">{order.seller.businessName}</p>
+                  {order.status === "PENDING" && order.deliveryFeeStatus === "QUOTED" && (
+                    <p className="mt-1 text-xs font-medium text-amber-500">New delivery quote to review</p>
+                  )}
                 </div>
               </div>
             </Link>

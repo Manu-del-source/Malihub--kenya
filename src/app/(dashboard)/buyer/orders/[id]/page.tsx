@@ -13,7 +13,8 @@ import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button"
 import { SupplierReturnForm } from "@/components/shell/buyer/supplier-return-form";
 import { BUYER_FULFILMENT_SELECT } from "@/lib/dropshipping/selects";
 import { BUYER_FULFILMENT_MESSAGE, SUPPLIER_FULFILMENT_LABEL } from "@/lib/dropshipping/fulfilment-state-machine";
-import { PaystackPaySection } from "@/components/shell/buyer/paystack-pay-section";
+import { DeliveryPaymentSection } from "@/components/shell/buyer/delivery-payment-section";
+import { buyerDeliveryProjection } from "@/modules/orders/delivery-quote-service";
 import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
@@ -60,7 +61,9 @@ export default async function BuyerOrderDetailPage({
     orderId: order.id,
   });
 
-  const itemSubtotal = order.items.reduce((sum, item) => sum + item.totalCents, 0);
+  const paymentStarted = Boolean(paymentSnapshot?.payment);
+  const paymentInProgress = Boolean(paymentSnapshot?.payment &&
+    ["PENDING", "PROCESSING", "SUCCESS"].includes(paymentSnapshot.payment.status));
 
   // Buyer-safe supplier fulfilment projections only: no supplier name, cost,
   // purchase reference, internal notes or delivery evidence is selected.
@@ -134,8 +137,19 @@ export default async function BuyerOrderDetailPage({
           <div className="space-y-1.5 border-t border-border px-6 py-4 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-mono tabular-nums">{formatKes(itemSubtotal)}</span>
+              <span className="font-mono tabular-nums">{formatKes(order.subtotalCents)}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Delivery {order.deliveryFeeStatus === "QUOTED"
+                ? "(previous fee; new quote pending)"
+                : order.deliveryFeeAcceptedAt
+                  ? order.deliveryFeeStatus === "CONFIRMED" ? "(seller quote accepted)" : "(accepted estimate)"
+                  : "(not confirmed)"}</span>
+              <span className="font-mono tabular-nums">{formatKes(order.deliveryFeeCents)}</span>
+            </div>
+            {order.deliveryFeeStatus === "QUOTED" && order.deliveryQuoteCents !== null && (
+              <p className="text-xs text-amber-500">A new seller quote is awaiting review; this total will change only after you accept it.</p>
+            )}
             <div className="flex justify-between font-medium">
               <span>Total</span>
               <span className="font-mono tabular-nums">{formatKes(order.totalCents)}</span>
@@ -197,15 +211,10 @@ export default async function BuyerOrderDetailPage({
                 src="https://js.paystack.co/v2/inline.js"
                 strategy="afterInteractive"
               />
-              <PaystackPaySection
-                order={{
-                  id: order.id,
-                  orderNumber: order.orderNumber,
-                  totalCents: order.totalCents,
-                  sellerName: order.seller.businessName,
-                }}
+              <DeliveryPaymentSection
+                initialQuote={buyerDeliveryProjection(order)}
                 initialSnapshot={paymentSnapshot}
-                refreshOnSuccess
+                sellerName={order.seller.businessName}
               />
             </>
           )}
@@ -213,11 +222,15 @@ export default async function BuyerOrderDetailPage({
           <div className="glass rounded-2xl p-5 text-sm">
             <h2 className="font-display text-base font-medium">Status</h2>
             {order.status === "PENDING" ? (
-              <p className="mt-2 font-medium text-amber-500">Payment required</p>
+              <p className="mt-2 font-medium text-amber-500">{paymentInProgress ? "Checking payment" : "Payment required"}</p>
             ) : null}
             <p className="mt-2 text-muted-foreground">
               {order.status === "PENDING"
-                ? "This order is awaiting payment — nothing has been charged yet. Pay with M-Pesa above, or cancel the order."
+                ? paymentInProgress
+                  ? "A payment is being checked or applied. Do not pay again; check its status or contact support."
+                  : paymentStarted
+                    ? "A previous payment needs support review before another checkout or cancellation."
+                    : "Review the delivery fee before paying with M-Pesa, or cancel before starting payment."
                 : isPaidOrderStatus(order.status)
                   ? "This order has been paid. The seller will arrange delivery with you."
                   : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
@@ -258,7 +271,9 @@ export default async function BuyerOrderDetailPage({
 
             {order.status === "PENDING" && (
               <div className="mt-4">
-                <CancelOrderButton orderId={order.id} />
+                {paymentStarted
+                  ? <p className="text-xs text-muted-foreground">Cancellation requires support review after a payment has started.</p>
+                  : <CancelOrderButton orderId={order.id} />}
               </div>
             )}
           </div>

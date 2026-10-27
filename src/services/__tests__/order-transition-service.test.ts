@@ -1,5 +1,9 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+
+// Explicit zero-rate fixture; no production/default delivery price is implied.
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":0}';
+const TEST_DELIVERY = { county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0, acceptedSellerCount: 1 };
 import type { OrderStatus } from "@prisma/client";
 
 mock.module("server-only", { namedExports: {} });
@@ -96,7 +100,7 @@ async function placeOrder(
   quantity = 1
 ): Promise<{ id: string; orderNumber: string; sellerId: string; totalCents: number }> {
   seedCartItem(store, buyerId, productId, quantity);
-  const result = await import("@/services/order-service").then((m) => m.checkoutCart(db as never, buyerId));
+  const result = await import("@/services/order-service").then((m) => m.checkoutCart(db as never, buyerId, TEST_DELIVERY));
   return result.orders[0]!;
 }
 
@@ -145,7 +149,7 @@ describe("cancelOrder — cancelling your own unpaid order", () => {
     seedCartItem(store, BUYER_A, first.product.id, 2);
     seedCartItem(store, BUYER_A, second.id, 3);
     const { checkoutCart } = await import("@/services/order-service");
-    const checkout = await checkoutCart(db as never, BUYER_A);
+    const checkout = await checkoutCart(db as never, BUYER_A, TEST_DELIVERY);
     const order = checkout.orders[0]!;
 
     assert.equal(stockOf(first.product.id), 2);

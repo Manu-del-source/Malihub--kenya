@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePaystackPayment, type PaystackPhase } from "@/hooks/use-paystack-payment";
-import { PAYMENT_METHODS, paymentAttemptLabel } from "@/lib/payments/checkout-client";
+import { PAYMENT_METHODS, paymentAttemptBlocksInitiation, paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import type { BuyerPaymentSnapshot, BuyerPaymentStatusSnapshot } from "@/lib/payments/payment-snapshot";
 import { ORDER_STATUS_LABEL } from "@/lib/order-status";
 import { formatKes } from "@/utils";
@@ -32,15 +32,14 @@ import { formatKes } from "@/utils";
  * verification of the transaction.
  *
  * The component owns no business rules: initiation/status calls go through
- * `checkout-client`, and retry simply asks the same order for another attempt
- * (the service enforces the attempt cap and joins an active attempt instead
- * of initializing twice).
+ * `checkout-client`. The service can resume a sole active attempt; multiple
+ * or terminal attempts require support review.
  */
 
 const PAYSTACK = PAYMENT_METHODS[0]!;
 
 export type PaystackPaySectionProps = {
-  order: { id: string; orderNumber: string; totalCents: number; sellerName?: string | null };
+  order: { id: string; orderNumber: string; totalCents: number; deliveryQuoteVersion: number; sellerName?: string | null };
   initialSnapshot?: BuyerPaymentSnapshot | null;
   /** Parent gating (e.g. another order in the same checkout is being paid). */
   disabled?: boolean;
@@ -77,8 +76,10 @@ export function PaystackPaySection({
   }, [refreshOnSuccess, payment.phase, router]);
 
   const snapshot = payment.snapshot;
-  const amountCents = snapshot?.payment?.amountCents ?? order.totalCents;
+  const liveAttempt = snapshot?.payment && ["PENDING", "PROCESSING", "SUCCESS"].includes(snapshot.payment.status);
+  const amountCents = liveAttempt ? snapshot!.payment!.amountCents : order.totalCents;
   const reference = snapshot?.payment?.customerReference ?? null;
+  const paymentUnavailable = paymentAttemptBlocksInitiation(snapshot);
   const payLocked =
     payment.phase === "initiating" || payment.phase === "awaiting" || payment.phase === "succeeded";
 
@@ -163,8 +164,12 @@ export function PaystackPaySection({
                 Awaiting payment
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Complete the payment in the Paystack window (M-Pesa). This page updates
-                automatically once Paystack confirms.
+                {snapshot?.payment?.status === "SUCCESS"
+                  ? "Payment was received; we are confirming the order. Do not pay again. Contact support if the order remains pending."
+                  : snapshot && !snapshot.canInitiate
+                    ? "This payment needs review. Do not pay again; check its status or contact support."
+                    : <>Complete the payment in the Paystack window (M-Pesa). This page updates
+                      automatically once Paystack confirms.</>}
               </p>
               {reference && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -192,8 +197,7 @@ export function PaystackPaySection({
                 {payment.phase === "failed" ? "Payment was not completed." : "No confirmation yet"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {payment.message ??
-                  "You can try again — this uses the same order, so you will not be charged twice for one payment."}
+                {payment.message ?? "Check the order payment status, and contact support before starting another payment."}
               </p>
               {reference && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -210,17 +214,19 @@ export function PaystackPaySection({
           )}
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={handleSubmit}
-              disabled={disabled || payment.isBusy || payLocked}
-            >
-              {payment.isBusy || payLocked ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : null}
-              {buttonLabel}
-            </Button>
+            {!paymentUnavailable && (
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={handleSubmit}
+                disabled={disabled || payment.isBusy || payLocked}
+              >
+                {payment.isBusy || payLocked ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : null}
+                {buttonLabel}
+              </Button>
+            )}
             {(payment.phase === "awaiting" || payment.phase === "timed_out") && (
               <Button
                 type="button"
@@ -237,6 +243,9 @@ export function PaystackPaySection({
 
           {disabled && disabledReason && (
             <p className="mt-2 text-xs text-muted-foreground">{disabledReason}</p>
+          )}
+          {!disabled && paymentUnavailable && payment.phase !== "awaiting" && (
+            <p className="mt-2 text-xs text-muted-foreground">Another payment cannot be started for this order. Check its status or contact support.</p>
           )}
         </>
       )}

@@ -77,7 +77,8 @@ describe("checkout UI — routing and order creation", () => {
 
   it("the order page retries against the existing order, never a new one", () => {
     const source = read(ORDER_PAGE);
-    assert.match(source, /PaystackPaySection/, "a PENDING order must offer the pay/retry UI");
+    assert.match(source, /DeliveryPaymentSection/, "a PENDING order must gate payment on the current quote");
+    assert.match(read("src/components/shell/buyer/delivery-payment-section.tsx"), /PaystackPaySection/);
     assert.match(source, /initialSnapshot=\{paymentSnapshot\}/, "retry starts from the real state");
     assert.equal(
       source.includes("createCheckoutOrders"),
@@ -100,16 +101,15 @@ describe("checkout UI — payment states and copy", () => {
 
   it("gates the checkout CTA on server data and blocks an unavailable cart", () => {
     const source = read(CHECKOUT_VIEW);
-    assert.match(source, /Pay securely · \$\{formatKes\(summary\.totalCents\)\}/);
+    assert.match(source, /Create \{summary\.sellerCount/);
+    assert.match(source, /checkoutTotal/);
+    assert.match(source, /per seller order/);
     assert.match(source, /blockedByStock/, "unavailable items must block payment");
     assert.match(source, /PAYMENT_METHODS\.map/, "payment methods render from the extensible list");
     assert.match(source, /createSerializedTask\(/, "creation is single-flighted");
     assert.match(source, /createCheckoutOrders/, "creation invokes createCheckoutOrders");
-    assert.match(
-      source,
-      /resumePaystackTransaction/,
-      "the popup opens with the server-issued access code, not a browser-built charge"
-    );
+    assert.match(source, /Review and pay/, "payment is a separate action for each created order");
+    assert.match(read("src/hooks/use-paystack-payment.ts"), /resumePaystackTransaction/, "only a server-issued access code opens Paystack");
   });
 });
 
@@ -174,8 +174,8 @@ describe("checkout UI — credentials never reach the browser", () => {
     const route = read("src/app/api/orders/route.ts");
     const service = read("src/modules/orders/service.ts");
     assert.match(route, /invalid_delivery_details/, "invalid shipping information must be rejected");
-    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address, acceptedFeeCents \}\)/);
-    assert.match(service, /deliveryCounty: delivery\.county/);
+    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address, acceptedFeeCents, acceptedSellerCount \}\)/);
+    assert.match(service, /deliveryCounty: estimate\.county/);
     assert.match(service, /deliveryAddress: delivery\.address/);
     assert.match(route, /acceptedDeliveryFeeCents/);
     assert.match(read(CHECKOUT_VIEW), /deliveryEstimate/);

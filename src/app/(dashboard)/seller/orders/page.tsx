@@ -12,6 +12,7 @@ import {
   getSellerRowForUser,
   listSellerOrders,
 } from "@/services/order-service";
+import { DeliveryQuoteForm } from "@/components/shell/seller/delivery-quote-form";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 
@@ -37,6 +38,11 @@ export default async function SellerOrdersPage() {
   // seller id ever travels through the request.
   const orders = await listSellerOrders(prisma, user.id);
   if (!orders) redirect(BUYER_DASHBOARD_PATH);
+  const livePayments = orders.length ? await prisma.payment.findMany({
+    where: { orderId: { in: orders.map((order) => order.id) } },
+    select: { orderId: true },
+  }) : [];
+  const lockedOrders = new Set(livePayments.map((payment) => payment.orderId));
 
   return (
     <Container className="py-10">
@@ -95,6 +101,13 @@ export default async function SellerOrdersPage() {
                   {formatKes(order.totalCents)}
                 </p>
               </div>
+              <DeliveryQuoteForm order={{
+                id: order.id, status: order.status, county: order.deliveryCounty, address: order.deliveryAddress,
+                estimateCents: order.deliveryEstimateCents, quoteCents: order.deliveryQuoteCents,
+                quoteNote: order.deliveryQuoteNote, quoteVersion: order.deliveryQuoteVersion,
+                feeStatus: order.deliveryFeeStatus, acceptedAt: order.deliveryFeeAcceptedAt?.toISOString() ?? null,
+                paymentActive: lockedOrders.has(order.id),
+              }} />
             </div>
           ))}
         </div>

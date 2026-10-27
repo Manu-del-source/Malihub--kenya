@@ -113,6 +113,10 @@ export default async function AdminOrderDetailPage({
                 <dt className="text-muted-foreground">Subtotal</dt>
                 <dd className="font-mono tabular-nums">{formatKes(order.subtotalCents)}</dd>
               </div>
+              <div className="flex w-56 justify-between">
+                <dt className="text-muted-foreground">Delivery</dt>
+                <dd className="font-mono tabular-nums">{formatKes(order.deliveryFeeCents)}</dd>
+              </div>
               <div className="flex w-56 justify-between text-base font-medium">
                 <dt>Total</dt>
                 <dd className="font-mono tabular-nums">{formatKes(order.totalCents)}</dd>

@@ -6,15 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format integer cents as a KES currency string, e.g. 150000 -> "KSh 1,500". */
+/** Format safe integer minor units exactly, including the last cent on large cart totals. */
 export function formatKes(cents: number): string {
-  return new Intl.NumberFormat("en-KE", {
+  if (!Number.isSafeInteger(cents)) return "—";
+  const amount = BigInt(cents);
+  const absolute = amount < 0n ? -amount : amount;
+  const whole = absolute / 100n;
+  const fraction = absolute % 100n;
+  const formatted = new Intl.NumberFormat("en-KE", {
     style: "currency",
     currency: "KES",
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  })
-    .format(cents / 100)
-    .replace("KES", "KSh");
+  }).format(whole).replace("KES", "KSh");
+  return `${amount < 0n ? "-" : ""}${formatted}${fraction === 0n ? "" : `.${fraction.toString().padStart(2, "0")}`}`;
 }
 
 /** Convert a KES major-unit amount (e.g. from a form) into integer cents. */

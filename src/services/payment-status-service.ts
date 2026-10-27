@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isAcceptedDeliveryPayable } from "@/lib/delivery-payment-state";
 import type { PaymentStatus, Prisma, PrismaClient, OrderStatus } from "@prisma/client";
 import {
   MAX_PAYMENT_ATTEMPTS_PER_ORDER,
@@ -33,7 +34,8 @@ import type {
  * ─── Provider scope ─────────────────────────────────────────────────────────
  * `Payment.provider` contains live PAYSTACK rows and historical PAYHERO rows
  * (the pre-migration integration; no code in this repository can create a new
- * one). The snapshot shows the buyer's LATEST attempt across providers so a
+ * one). The snapshot prioritizes a successful claim needing recovery, then an
+ * unresolved attempt, then the latest terminal attempt across providers, so a
  * legacy in-flight row can't vanish from their screen. Verification dispatches
  * by provider: PAYSTACK attempts are verified against Paystack's API; a
  * PAYHERO attempt is reported as `provider_retired` — honestly unverifiable —
@@ -66,6 +68,8 @@ const ATTEMPT_SELECT = {
   paidAt: true,
   failureCode: true,
   failureReason: true,
+  currency: true,
+  metadata: true,
 } satisfies Prisma.PaymentSelect;
 
 type AttemptRow = {
@@ -81,12 +85,14 @@ type AttemptRow = {
   paidAt: Date | null;
   failureCode: string | null;
   failureReason: string | null;
+  currency: string;
+  metadata: unknown;
 };
 
 /**
- * Reads the session-owner's order and its latest payment attempt (any
- * provider — live Paystack rows first by creation order, historical rows
- * after).
+ * Reads the session-owner's order and relevant payment attempt: a success
+ * needing reconciliation or an unresolved attempt takes priority over a
+ * terminal attempt; otherwise the newest attempt is shown.
  *
  * `null` means "no such order, or it is not yours" — the route answers 404,
  * identically for both, exactly like `getBuyerOrder` and the initiation route.
@@ -97,8 +103,10 @@ export async function readBuyerPaymentSnapshot(
 ): Promise<BuyerPaymentSnapshot | null> {
   const order = (await db.order.findFirst({
     where: { id: params.orderId, buyerId: params.userId },
-    select: { id: true, orderNumber: true, status: true, totalCents: true },
-  })) as { id: string; orderNumber: string; status: string; totalCents: number } | null;
+    select: { id: true, orderNumber: true, status: true, totalCents: true, subtotalCents: true,
+      deliveryEstimateCents: true, deliveryFeeCents: true, deliveryFeeStatus: true, deliveryFeeAcceptedAt: true,
+      deliveryQuoteCents: true, deliveryQuoteUpdatedAt: true, deliveryQuoteVersion: true },
+  }));
 
   if (!order) return null;
 
@@ -108,11 +116,23 @@ export async function readBuyerPaymentSnapshot(
     select: ATTEMPT_SELECT,
   })) as unknown as AttemptRow[];
 
-  const latest = attempts[0] ?? null;
-  const payable = order.status === "PENDING";
-  const awaitingConfirmation = Boolean(
-    latest && (latest.status === "PENDING" || latest.status === "PROCESSING")
-  );
+  const success = attempts.find((attempt) => attempt.status === "SUCCESS");
+  const activeAttempts = attempts.filter((attempt) => attempt.status === "PENDING" || attempt.status === "PROCESSING");
+  // Surface a successful claim for order recovery, or an unresolved attempt,
+  // before older/latest terminal failures. Historical data may contain more
+  // than one attempt and hiding an active one would make verification stall.
+  const latest = ((order.status === "PENDING" || ["PAID", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status)) ? success : undefined)
+    ?? activeAttempts[0] ?? attempts[0] ?? null;
+  const payable = order.status === "PENDING" && !success && isAcceptedDeliveryPayable(order);
+  const activeAttempt = activeAttempts.length > 0;
+  const active = activeAttempts[0];
+  const meta = active?.metadata as { paystack?: { accessCode?: unknown } } | null | undefined;
+  const canResume = attempts.length === 1 && activeAttempts.length === 1 && active?.provider === "PAYSTACK" &&
+    active.amountCents === order.totalCents && active.currency === "KES" &&
+    typeof meta?.paystack?.accessCode === "string" && Boolean(meta.paystack.accessCode);
+  // A claim can commit just before its order transition. Keep it recoverable
+  // and never offer a second payment while the order is still pending.
+  const awaitingConfirmation = activeAttempt || Boolean(latest?.status === "SUCCESS" && order.status === "PENDING");
   const remaining = Math.max(0, MAX_PAYMENT_ATTEMPTS_PER_ORDER - attempts.length);
 
   return {
@@ -145,10 +165,10 @@ export async function readBuyerPaymentSnapshot(
     },
     payable,
     awaitingConfirmation,
-    // An active attempt may always be joined/resumed (never capped); creating
-    // a NEW attempt requires budget left. The route re-checks both — this is
-    // presentation, not enforcement.
-    canInitiate: payable && (awaitingConfirmation || remaining > 0),
+    // Only a sole active attempt can be resumed. Multiple or terminal
+    // attempts require review because hosted checkout links cannot be
+    // revoked by this integration. The route enforces the rule.
+    canInitiate: payable && (canResume || attempts.length === 0),
   };
 }
 

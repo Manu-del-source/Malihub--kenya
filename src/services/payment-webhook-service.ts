@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import {
   createPaystackClient,
+  paystackDomainMatches,
   resolvePaystackConfig,
   verifyPaystackWebhookSignature,
   type PaystackClient,
@@ -454,7 +455,8 @@ export async function handlePaystackWebhook(
     verified.status !== "success" ||
     verified.reference !== lookupReference ||
     verified.amount !== payment.amountCents ||
-    verified.currency !== payment.currency
+    verified.currency !== payment.currency ||
+    !paystackDomainMatches(config.config, verified.domain)
   ) {
     const recorded = await recordEvent(db, {
       paymentId: payment.id,
@@ -472,7 +474,9 @@ export async function handlePaystackWebhook(
           ? `provider amount ${verified.amount} != expected ${payment.amountCents}`
           : verified.currency !== payment.currency
             ? `provider currency "${verified.currency}" != expected "${payment.currency}"`
-            : "provider reference mismatch";
+            : !paystackDomainMatches(config.config, verified.domain)
+              ? "provider environment does not match the configured key"
+              : "provider reference mismatch";
     console.error("[payments] Paystack verification did not corroborate the webhook", {
       paymentId: payment.id,
       reason,
@@ -563,6 +567,20 @@ export async function handlePaystackWebhook(
       console.error("[payments] Successful webhook for a payment already terminal", {
         paymentId: payment.id,
       });
+      // A corroborated success after a terminal failure may represent real
+      // money. Preserve the event and flag it for reconciliation; never
+      // silently treat the contradictory callback as a fresh paid order.
+      await logAuditEvent({
+        action: "payment.anomaly",
+        actorId: PAYMENT_SYSTEM_ACTOR_ID,
+        targetType: "payment",
+        targetId: payment.id,
+        metadata: {
+          provider: "PAYSTACK", orderId: payment.orderId,
+          customerReference: payment.customerReference, amountCents: payment.amountCents,
+          anomaly: "success_after_terminal", source: "paystack:webhook",
+        },
+      }).catch(() => undefined);
     }
     if (txOutcome.reason === "order_already_settled") {
       // A sibling attempt already settled this order; this webhook claims

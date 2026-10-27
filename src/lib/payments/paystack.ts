@@ -28,6 +28,12 @@ export type PaystackConfigResult =
   | { ok: true; config: PaystackConfig }
   | { ok: false; missing: string[]; invalid: string[] };
 
+/** Refuse to settle a transaction from a different Paystack environment. */
+export function paystackDomainMatches(config: PaystackConfig, domain: unknown): boolean {
+  const expected = config.secretKey.startsWith("sk_test_") ? "test" : "live";
+  return domain === expected;
+}
+
 export function resolvePaystackConfig(env: PaystackConfigSource): PaystackConfigResult {
   const missing: string[] = [];
   const invalid: string[] = [];

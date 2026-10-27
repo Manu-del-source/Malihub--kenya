@@ -1,6 +1,10 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
+// Explicit zero-rate fixture; no production/default delivery price is implied.
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":0}';
+const TEST_DELIVERY = { county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0, acceptedSellerCount: 1 };
+
 mock.module("server-only", { namedExports: {} });
 
 /**
@@ -63,6 +67,7 @@ type VerifyAnswer = {
   reference: string;
   amount: number;
   currency: string;
+  domain?: string;
   id?: number;
 };
 
@@ -76,7 +81,7 @@ function stubClient(answer: { ok?: VerifyAnswer; error?: Error }) {
       calls.push(reference);
       if (answer.error) throw answer.error;
       const base: VerifyAnswer = answer.ok ?? ({ status: "success", reference, amount: AMOUNT, currency: "KES" } as VerifyAnswer);
-      return { id: base.id ?? 48_213, status: base.status, reference: base.reference, amount: base.amount, currency: base.currency, domain: "test" };
+      return { id: base.id ?? 48_213, status: base.status, reference: base.reference, amount: base.amount, currency: base.currency, domain: base.domain ?? "test" };
     },
   };
   return { client, calls };
@@ -100,7 +105,7 @@ function seedListing(quantity = 5, priceCents = 100_000) {
 async function placeOrder(buyerId: string, productId: string, quantity = 2) {
   seedCartItem(store, buyerId, productId, quantity);
   const { checkoutCart } = await import("@/services/order-service");
-  const result = await checkoutCart(db(), buyerId);
+  const result = await checkoutCart(db(), buyerId, TEST_DELIVERY);
   return result.orders[0]!;
 }
 
@@ -249,7 +254,55 @@ describe("non-success provider answers", () => {
     assert.ok([...store.tables.notifications.values()].some((n) => n.userId === BUYER_A));
   });
 
-  it("an abandoned transaction is recorded as a failed attempt", async () => {
+  it("does not release a failure observed while initialization is still in flight", async () => {
+    const { product } = seedListing();
+    const order = await placeOrder(BUYER_A, product.id);
+    const payment = seedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents, "PENDING", {
+      metadata: { paystack: { initialization: "pending" } },
+    });
+    const { client } = stubClient({ ok: {
+      status: "failed", reference: payment.customerReference, amount: order.totalCents, currency: "KES",
+    } });
+    const result = await service.verifyPaystackPaymentStatus(db(), { paymentId: payment.id, client, env: ENV });
+    assert.equal(result.outcome, "still_pending");
+    assert.equal(store.tables.payments.get(payment.id)!.status, "PENDING");
+  });
+
+  it("retains unknown and nonterminal provider states without releasing an attempt", async () => {
+    for (const raw of ["ongoing", "processing", "queued", "unexpected-provider-state"]) {
+      const { product } = seedListing();
+      const order = await placeOrder(BUYER_A, product.id);
+      const payment = seedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents);
+      const { client } = stubClient({
+        ok: { status: raw, reference: payment.customerReference, amount: order.totalCents, currency: "KES" },
+      });
+      const result = await service.verifyPaystackPaymentStatus(db(), { paymentId: payment.id, client, env: ENV });
+      assert.equal(result.outcome, raw === "unexpected-provider-state" ? "unknown_status" : "still_pending");
+      assert.equal(store.tables.payments.get(payment.id)!.status, "PROCESSING", raw);
+      assert.equal(store.tables.orders.get(order.id)!.status, "PENDING", raw);
+    }
+  });
+
+  it("requires a matching environment, reference, amount and currency before recording a provider failure", async () => {
+    for (const mismatch of ["environment", "reference", "amount", "currency"] as const) {
+      const { product } = seedListing();
+      const order = await placeOrder(BUYER_A, product.id);
+      const payment = seedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents);
+      const { client } = stubClient({ ok: {
+        status: "failed",
+        reference: mismatch === "reference" ? "MH-WRONG" : payment.customerReference,
+        amount: mismatch === "amount" ? order.totalCents + 1 : order.totalCents,
+        currency: mismatch === "currency" ? "NGN" : "KES",
+        domain: mismatch === "environment" ? "live" : "test",
+      } });
+      const result = await service.verifyPaystackPaymentStatus(db(), { paymentId: payment.id, client, env: ENV });
+      assert.deepEqual(result, { outcome: "verification_mismatch", detail: mismatch });
+      assert.equal(store.tables.payments.get(payment.id)!.status, "PROCESSING");
+      assert.equal(store.tables.orders.get(order.id)!.status, "PENDING");
+    }
+  });
+
+  it("an abandoned transaction stays locked because its checkout may still be payable", async () => {
     const { product } = seedListing();
     const order = await placeOrder(BUYER_A, product.id);
     const payment = seedAttempt(order.id, `MH-${order.id.slice(0, 8)}`, order.totalCents);
@@ -259,8 +312,8 @@ describe("non-success provider answers", () => {
 
     const result = await service.verifyPaystackPaymentStatus(db(), { paymentId: payment.id, client, env: ENV });
 
-    assert.deepEqual(result, { outcome: "verified_failed", paymentApplied: true });
-    assert.equal(store.tables.payments.get(payment.id)!.status, "FAILED");
+    assert.deepEqual(result, { outcome: "still_pending" });
+    assert.equal(store.tables.payments.get(payment.id)!.status, "PROCESSING");
     assert.equal(store.tables.orders.get(order.id)!.status, "PENDING");
   });
 });

@@ -1,6 +1,9 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":25000}';
+const delivery = (acceptedSellerCount = 1) => ({ county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 25000, acceptedSellerCount });
+
 // `order-service` is server-only code; substitute the marker module before the
 // module under test is loaded (mock.module must run first — the same pattern
 // provider-mock.ts documents for the auth suites).
@@ -75,7 +78,7 @@ describe("checkout — cart becomes orders", () => {
     seedCartItem(store, BUYER_A, first.product.id, 2);
     seedCartItem(store, BUYER_A, second.product.id, 1);
 
-    const result = await service.checkoutCart(db, BUYER_A);
+    const result = await service.checkoutCart(db, BUYER_A, delivery(2));
 
     assert.equal(result.orders.length, 2);
     const bySeller = new Map(result.orders.map((o) => [o.sellerId, o]));
@@ -84,8 +87,11 @@ describe("checkout — cart becomes orders", () => {
 
     // Totals come from the product rows, never from the caller.
     assert.equal(firstOrder.subtotalCents, 200_000);
-    assert.equal(firstOrder.totalCents, 200_000);
+    assert.equal(firstOrder.totalCents, 225_000);
+    assert.equal(firstOrder.deliveryFeeCents, 25_000);
     assert.equal(secondOrder.subtotalCents, 250_000);
+    assert.equal(secondOrder.totalCents, 275_000);
+    assert.equal(secondOrder.deliveryFeeCents, 25_000);
     assert.equal(firstOrder.status, "PENDING");
 
     for (const order of result.orders) {
@@ -102,7 +108,7 @@ describe("checkout — cart becomes orders", () => {
     const { product } = seedSellerListing("seller-1", { priceCents: 49_999 });
     seedCartItem(store, BUYER_A, product.id, 3);
 
-    await service.checkoutCart(db, BUYER_A);
+    await service.checkoutCart(db, BUYER_A, delivery());
 
     const items = [...store.tables.orderItems.values()];
     assert.equal(items.length, 1);
@@ -116,7 +122,7 @@ describe("checkout — cart becomes orders", () => {
     seedCartItem(store, BUYER_A, product.id, 1);
     store.failNextOrderCreate = true;
 
-    const result = await service.checkoutCart(db, BUYER_A);
+    const result = await service.checkoutCart(db, BUYER_A, delivery());
     assert.equal(result.orders.length, 1);
     assert.match(result.orders[0]!.orderNumber, /^MH-/);
     // The first attempt rolled back completely: stock was decremented
@@ -142,7 +148,7 @@ describe("checkout — cart becomes orders", () => {
     };
 
     await assert.rejects(
-      () => service.checkoutCart(db, BUYER_A),
+      () => service.checkoutCart(db, BUYER_A, delivery()),
       (error: unknown) => error instanceof service.OrderError && error.code === "unavailable"
     );
 
@@ -154,7 +160,7 @@ describe("checkout — cart becomes orders", () => {
 
   it("rejects an empty cart", async () => {
     await assert.rejects(
-      () => service.checkoutCart(db, BUYER_A),
+      () => service.checkoutCart(db, BUYER_A, delivery()),
       (error: unknown) => error instanceof service.OrderError && error.code === "empty_cart"
     );
     assert.equal(store.tables.orders.size, 0);
@@ -165,7 +171,7 @@ describe("checkout — cart becomes orders", () => {
     seedCartItem(store, BUYER_A, product.id, 1);
 
     await assert.rejects(
-      () => service.checkoutCart(db, BUYER_A),
+      () => service.checkoutCart(db, BUYER_A, delivery()),
       (error: unknown) => error instanceof service.OrderError && error.code === "unavailable"
     );
     assert.equal(store.tables.orders.size, 0);
@@ -178,7 +184,7 @@ describe("checkout — cart becomes orders", () => {
     seedCartItem(store, BUYER_A, product.id, 3);
 
     await assert.rejects(
-      () => service.checkoutCart(db, BUYER_A),
+      () => service.checkoutCart(db, BUYER_A, delivery()),
       (error: unknown) => error instanceof service.OrderError && error.code === "unavailable"
     );
     assert.equal(store.tables.orders.size, 0);
@@ -203,7 +209,7 @@ describe("checkout — cart becomes orders", () => {
 
     try {
       await assert.rejects(
-        () => service.checkoutCart(db, BUYER_A),
+        () => service.checkoutCart(db, BUYER_A, delivery(2)),
         (error: unknown) => error instanceof service.OrderError && error.code === "unavailable"
       );
     } finally {
@@ -222,9 +228,9 @@ describe("buyer orders — scoped to the session's user", () => {
   it("lists only this buyer's orders", async () => {
     const { product } = seedSellerListing("seller-1");
     seedCartItem(store, BUYER_A, product.id, 1);
-    await service.checkoutCart(db, BUYER_A);
+    await service.checkoutCart(db, BUYER_A, delivery());
     seedCartItem(store, BUYER_B, product.id, 1);
-    await service.checkoutCart(db, BUYER_B);
+    await service.checkoutCart(db, BUYER_B, delivery());
 
     const ordersA = await service.listBuyerOrders(db, BUYER_A);
     const ordersB = await service.listBuyerOrders(db, BUYER_B);
@@ -239,7 +245,7 @@ describe("buyer orders — scoped to the session's user", () => {
   it("returns null when one buyer probes another buyer's order id", async () => {
     const { product } = seedSellerListing("seller-1");
     seedCartItem(store, BUYER_A, product.id, 1);
-    const checkout = await service.checkoutCart(db, BUYER_A);
+    const checkout = await service.checkoutCart(db, BUYER_A, delivery());
     const orderId = checkout.orders[0]!.id;
 
     const own = await service.getBuyerOrder(db, BUYER_A, orderId);
@@ -258,9 +264,9 @@ describe("seller orders — scoped to the caller's own sellers row", () => {
     const sellerOne = seedSellerListing("seller-1");
     const sellerTwo = seedSellerListing("seller-2");
     seedCartItem(store, BUYER_A, sellerOne.product.id, 1);
-    await service.checkoutCart(db, BUYER_A);
+    await service.checkoutCart(db, BUYER_A, delivery());
     seedCartItem(store, BUYER_B, sellerTwo.product.id, 1);
-    await service.checkoutCart(db, BUYER_B);
+    await service.checkoutCart(db, BUYER_B, delivery());
 
     const orders1 = await service.listSellerOrders(db, "seller-1");
     const orders2 = await service.listSellerOrders(db, "seller-2");
@@ -280,7 +286,7 @@ describe("seller orders — scoped to the caller's own sellers row", () => {
     const sellerOne = seedSellerListing("seller-1");
     seedSellerListing("seller-2");
     seedCartItem(store, BUYER_A, sellerOne.product.id, 1);
-    const checkout = await service.checkoutCart(db, BUYER_A);
+    const checkout = await service.checkoutCart(db, BUYER_A, delivery());
     const orderId = checkout.orders[0]!.id;
 
     assert.ok(await service.getSellerOrder(db, "seller-1", orderId));
@@ -291,7 +297,7 @@ describe("seller orders — scoped to the caller's own sellers row", () => {
     const sellerOne = seedSellerListing("seller-1");
     seedSellerListing("seller-2");
     seedCartItem(store, BUYER_A, sellerOne.product.id, 2);
-    await service.checkoutCart(db, BUYER_A);
+    await service.checkoutCart(db, BUYER_A, delivery());
 
     const snapshot = await service.getSellerSalesSnapshot(db, "seller-1");
     assert.ok(snapshot);

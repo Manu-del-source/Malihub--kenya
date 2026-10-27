@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/constants";
+import { SIZE_SYSTEMS, normalizeAvailableSizes } from "@/lib/product-sizes";
+import { MAX_MONEY_CENTS } from "@/lib/money";
 import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 
 const categorySlug = z.enum(
@@ -35,10 +37,18 @@ export const listingSchema = z.object({
   categorySlug,
   condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR"]),
   brand: z.string().trim().max(60).optional().or(z.literal("")),
-  size: z.string().trim().max(80).optional().or(z.literal("")),
-  sizeSystem: z.enum(["UK", "US", "EU", "CLOTHING", "OTHER"]).optional(),
-  availableSizes: z.string().trim().max(250).optional().or(z.literal("")),
-  priceCents: z.coerce.number().int().min(100, "Price must be at least KSh 1"),
+  size: z.string().trim().max(80).refine((value) => !/[,\x00-\x1f\x7f]/.test(value), "Enter one size without commas or control characters").optional(),
+  // An empty select is a valid optional system, not an invalid enum.
+  sizeSystem: z.enum(SIZE_SYSTEMS).or(z.literal("")).optional(),
+  availableSizes: z.string().trim().max(250).refine((value) => {
+    if (!value) return true;
+    const parts = value.split(",");
+    return parts.length <= 20 && parts.every((part) => {
+      const size = part.trim();
+      return size.length > 0 && size.length <= 80 && !/[\x00-\x1f\x7f]/.test(size);
+    });
+  }, "Enter up to 20 non-empty sizes separated by commas").transform(normalizeAvailableSizes).optional(),
+  priceCents: z.coerce.number().int().min(100, "Price must be at least KSh 1").max(MAX_MONEY_CENTS),
   isNegotiable: z.boolean().default(false),
   quantity: z.coerce.number().int().min(1).max(9999).default(1),
   county: z.enum(KENYA_COUNTIES, { errorMap: () => ({ message: "Select a county" }) }),
@@ -49,6 +59,10 @@ export const listingSchema = z.object({
     .min(1, "Add at least one photo")
     .max(MAX_LISTING_IMAGES, `Up to ${MAX_LISTING_IMAGES} photos`),
   status: z.enum(["DRAFT", "ACTIVE"]).default("DRAFT"),
+}).superRefine((input, ctx) => {
+  if (input.sizeSystem && !input.size && !input.availableSizes) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sizeSystem"], message: "Add a size or clear the size system" });
+  }
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;

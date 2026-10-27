@@ -8,6 +8,7 @@ import {
 } from "@/lib/order-state-machine";
 import { logAuditEvent } from "@/services/audit-service";
 import { notifyUser } from "@/services/notification-service";
+import { lockDeliveryOrder } from "@/modules/orders/delivery-quote-service";
 
 /**
  * The one place `Order.status` changes.
@@ -136,11 +137,10 @@ export type CancelOrderParams = {
 /**
  * Cancels a buyer's own unpaid order and returns its reserved inventory.
  *
- * Only `PENDING → CANCELLED` exists, and a `PENDING` order by definition has
- * collected no money (payment collection is Phase 9.2), so there is no
- * financial side effect to unwind here. Refund-adjacent concerns — reversing a
- * settlement, clawing back a payout — belong to later phases and are explicitly
- * out of this function's remit.
+ * Only `PENDING → CANCELLED` exists. A pending order can have an unresolved
+ * provider checkout, so cancellation is refused after any payment attempt;
+ * local cancellation cannot revoke that external checkout. Refunds and
+ * payment reconciliation remain outside this function's remit.
  *
  * **A repeat request is a controlled conflict, not a silent success.** The
  * second caller gets `already_cancelled` (409) and, critically, no second
@@ -162,6 +162,9 @@ export async function cancelOrder(
   }
 
   const outcome = await db.$transaction(async (tx) => {
+    // A provider checkout cannot be cancelled locally. Serialize with payment
+    // reservation and quote updates before deciding whether stock can return.
+    await lockDeliveryOrder(tx, orderId);
     // 1. Read, scoped to the caller. An order that exists but belongs to
     //    someone else is indistinguishable from one that does not exist, so
     //    this id can never be used to probe for other buyers' orders.
@@ -173,6 +176,14 @@ export async function cancelOrder(
     if (!order) {
       throw new OrderTransitionError("Order not found.", "not_found");
     }
+
+    const paymentAttempt = await tx.payment.findFirst({
+      where: { orderId },
+      select: { id: true },
+    });
+    if (paymentAttempt) throw new OrderTransitionError(
+      "Payment was started for this order. Contact support to reconcile it before cancellation.", "invalid_transition"
+    );
 
     const from = order.status as OrderStatus;
 

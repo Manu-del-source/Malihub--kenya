@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { initiatePaystackSchema } from "@/lib/validations/payment";
+import { PaymentInitializationError, reservePaystackPayment } from "@/services/payment-initialization-service";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import {
   createPaystackClient,
@@ -17,8 +17,8 @@ import {
  * This endpoint never marks an order paid.
  *
  * ─── What the request may and may not carry ────────────────────────────────
- * Accepted: `{ orderId }` — and only that. Refused by design (zod strips it,
- * and the route never reads it): amount, currency, provider, callback URL,
+ * Accepted: `{ orderId, quoteVersion }`. The version is checked as a stale-view
+ * precondition, never used as a price. Refused: amount, currency, provider, callback URL,
  * buyer id, payment status. The amount comes from the order row, the buyer
  * email from the session, and every provider setting from server
  * configuration.
@@ -88,68 +88,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Online payments are temporarily unavailable.", code: "provider_not_configured" }, { status: 503 });
   }
 
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, buyerId: user.id },
-    select: { id: true, orderNumber: true, status: true, totalCents: true },
-  });
-  if (!order) return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
-  if (order.status === "PAID") return NextResponse.json({ success: false, error: "This order has already been paid." }, { status: 409 });
-  if (order.status !== "PENDING") return NextResponse.json({ success: false, error: "This order is not awaiting payment." }, { status: 409 });
-  if (!Number.isSafeInteger(order.totalCents) || order.totalCents <= 0) {
-    return NextResponse.json({ success: false, error: "This order amount cannot be collected." }, { status: 409 });
-  }
-
-  // Reuse an in-flight attempt so a double-click does not create a second
-  // provider transaction. The webhook and verify endpoint still decide payment.
-  const existing = await prisma.payment.findFirst({
-    where: { orderId: order.id, provider: "PAYSTACK", status: { in: ["PENDING", "PROCESSING"] } },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, customerReference: true, metadata: true },
-  });
-  if (existing) {
-    const meta = existing.metadata as { paystack?: { authorizationUrl?: string; accessCode?: string } } | null;
-    if (meta?.paystack?.accessCode) {
-      return NextResponse.json({ success: true, data: { accessCode: meta.paystack.accessCode, reference: existing.customerReference, reused: true } });
+  let reservation;
+  try {
+    reservation = await reservePaystackPayment(prisma, { userId: user.id, orderId, quoteVersion: input.data.quoteVersion });
+  } catch (error) {
+    if (error instanceof PaymentInitializationError) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code },
+        { status: error.code === "not_found" ? 404 : 409 });
     }
-    // An earlier request may have timed out after Paystack accepted it. Do not
-    // blindly create another charge; ask the buyer to retry status/support.
-    return NextResponse.json({ success: false, error: "This payment is still being initialized. Please wait a moment and check again.", code: "payment_initializing" }, { status: 409 });
+    console.error("POST /api/payments/paystack/initialize reservation failed", error);
+    return NextResponse.json({ success: false, error: "Could not start payment." }, { status: 500 });
   }
-
-  const reference = `MH-${randomUUID().replace(/-/g, "")}`;
-  const payment = await prisma.payment.create({
-    data: {
-      orderId: order.id,
-      provider: "PAYSTACK",
-      method: "MOBILE_MONEY",
-      status: "PENDING",
-      amountCents: order.totalCents,
-      currency: "KES",
-      customerReference: reference,
-      retryCount: 0,
-      metadata: { paystack: { initialization: "pending" } },
-    },
-    select: { id: true },
-  });
+  if (reservation.kind === "reused") {
+    return NextResponse.json({ success: true, data: { accessCode: reservation.accessCode, reference: reservation.reference, reused: true } });
+  }
+  const { paymentId, reference, amountCents, orderNumber } = reservation;
 
   try {
-    const client = createPaystackClient(config.config);
+    // Bind the configured callback to THIS order. A multi-seller checkout has
+    // multiple orders, so selecting the buyer's newest order on return would
+    // show the wrong amount/receipt for earlier seller orders.
+    const callbackUrl = new URL(config.config.callbackUrl);
+    callbackUrl.searchParams.set("orderId", orderId);
+    const client = createPaystackClient({ ...config.config, callbackUrl: callbackUrl.toString() });
     const initialized = await client.initializeTransaction({
       email: user.email,
       // KES minor units: Paystack documents amounts in the currency's subunit
       // (KES "cent", ×100 of the base amount) — the same unit `totalCents`
       // already is. The webhook/verify paths compare `data.amount` against
       // this same value.
-      amountSubunits: order.totalCents,
+      amountSubunits: amountCents,
       reference,
-      metadata: { orderNumber: order.orderNumber, paymentId: payment.id },
+      metadata: { orderNumber, paymentId },
     });
     // Persist the provider-echoed reference. In the documented path Paystack
     // echoes our custom reference unchanged; if it ever regenerates one, the
     // settlement lookups (webhook service) fall back to this value instead of
     // silently failing to match.
-    await prisma.payment.updateMany({
-      where: { id: payment.id, status: "PENDING" },
+    const persisted = await prisma.payment.updateMany({
+      where: { id: paymentId, status: "PENDING" },
       data: {
         status: "PROCESSING",
         metadata: {
@@ -162,6 +139,12 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+    if (persisted.count !== 1) {
+      // A concurrent verification/webhook may have settled the reservation
+      // while Paystack was responding. Never hand out a checkout whose local
+      // payment is no longer the active attempt.
+      return NextResponse.json({ success: false, error: "Payment status changed while checkout was starting. Check the order before paying.", code: "payment_state_changed" }, { status: 409 });
+    }
     return NextResponse.json({
       success: true,
       data: { accessCode: initialized.access_code, reference: initialized.reference, reused: false },
@@ -170,7 +153,7 @@ export async function POST(request: NextRequest) {
     // Preserve the reserved row/reference: a timeout can be ambiguous, so
     // never create a fresh reference automatically in this request.
     await prisma.payment.updateMany({
-      where: { id: payment.id, status: "PENDING" },
+      where: { id: paymentId, status: "PENDING" },
       data: { metadata: { paystack: { initialization: "unknown" } } },
     }).catch(() => undefined);
     if (error instanceof PaystackClientError) {

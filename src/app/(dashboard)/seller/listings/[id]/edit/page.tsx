@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/container";
 import { ListingForm } from "@/components/marketplace/listing-form";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isSizeSystem } from "@/lib/product-sizes";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -83,6 +84,9 @@ export default async function EditListingPage({
             categorySlug: product.category.slug,
             condition: product.condition,
             brand: product.brand ?? "",
+            size: product.size ?? "",
+            sizeSystem: isSizeSystem(product.sizeSystem) ? product.sizeSystem : "",
+            availableSizes: product.availableSizes ?? "",
             priceCents: product.priceCents,
             isNegotiable: product.isNegotiable,
             quantity: product.quantity,

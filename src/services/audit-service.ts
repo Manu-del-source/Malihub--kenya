@@ -44,7 +44,7 @@ export type AuditAction =
   // Payment-level facts the `order.*` actions can't express. `order.paid`
   // already covers the successful order transition (written by markOrderPaid);
   // these cover the Payment side: a collection started by a buyer, a
-  // provider-reported failure (buyer can retry), and the two anomaly classes
+  // provider-reported failure, and the two anomaly classes
   // that must be findable without digging through payment_events — a callback
   // whose amount disagrees with the authoritative row, and a settled payment
   // whose order cannot be marked paid (e.g. cancellation won the race, which
@@ -57,9 +57,8 @@ export type AuditAction =
   // replays and recovery never re-emit it.
   | "payment.success"
   | "payment.failed"
-  // Distinct from `payment.failed`: the buyer cancelled the STK prompt, which
-  // never cancels the ORDER — the order stays PENDING and payable, and a
-  // retry is a legitimate new attempt.
+  // Distinct from `payment.failed`: a cancelled payment prompt does not
+  // cancel the order. New attempts remain blocked until support review.
   | "payment.cancelled"
   | "payment.amount_mismatch"
   // The provider could NOT corroborate a claimed success (unreachable, or a
@@ -67,7 +66,7 @@ export type AuditAction =
   // "unsettled money" case is findable without re-reading provider logs.
   | "payment.verification_failed"
   // The buyer-initiated status check saw a provider success that did not line
-  // up with the authoritative row (reference/amount/currency). Audit-only —
+  // up with the authoritative row (reference/amount/currency/environment). Audit-only —
   // nothing is settled.
   | "payment.verification_mismatch"
   | "payment.anomaly"

@@ -202,3 +202,33 @@ describe("wishlist — favorites are keyed by the caller's identity", () => {
     assert.equal(store.tables.wishlists.size, 0);
   });
 });
+
+describe("structured sizes through create, edit and duplication", () => {
+  it("persists normalized sizes, updates them, and copies them on duplication", async () => {
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME = "demo";
+    const { listingSchema } = await import("@/lib/validations/listing");
+    const seller = seedSeller(store, { userId: OWNER });
+    seedCategory(store, "electronics");
+    const createdInput = listingSchema.parse({ ...LISTING_INPUT, size: " 8 ", sizeSystem: "UK", availableSizes: " 7, 8, 9, 8 " });
+    const product = await service.createListing(OWNER, seller.id, createdInput);
+    assert.equal(store.tables.products.get(product.id)!.size, "8");
+    assert.equal(store.tables.products.get(product.id)!.sizeSystem, "UK");
+    assert.equal(store.tables.products.get(product.id)!.availableSizes, "7, 8, 9");
+
+    const editInput = listingSchema.parse({ ...LISTING_INPUT, size: " M ", sizeSystem: "CLOTHING", availableSizes: "S, M, L" });
+    await service.updateListing(product.id, OWNER, editInput);
+    const duplicate = await service.duplicateListing(product.id, OWNER);
+    const copy = store.tables.products.get(duplicate.id)!;
+    assert.equal(copy.size, "M");
+    assert.equal(copy.sizeSystem, "CLOTHING");
+    assert.equal(copy.availableSizes, "S, M, L");
+    assert.equal(copy.status, "DRAFT");
+    await assert.rejects(() => service.duplicateListing(product.id, INTRUDER), service.ListingServiceError);
+
+    await service.updateListing(product.id, OWNER, listingSchema.parse({ ...LISTING_INPUT, size: "", sizeSystem: "", availableSizes: "" }));
+    const cleared = store.tables.products.get(product.id)!;
+    assert.equal(cleared.size, null);
+    assert.equal(cleared.sizeSystem, null);
+    assert.equal(cleared.availableSizes, null);
+  });
+});

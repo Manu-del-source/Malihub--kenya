@@ -1,6 +1,7 @@
-import type {
-  BuyerPaymentSnapshot,
-  BuyerPaymentStatusSnapshot,
+import {
+  isPaidOrderStatus,
+  type BuyerPaymentSnapshot,
+  type BuyerPaymentStatusSnapshot,
 } from "@/lib/payments/payment-snapshot";
 
 /**
@@ -10,15 +11,14 @@ import type {
  * ─── What a request may carry ───────────────────────────────────────────────
  * Exactly what the existing route handlers accept and nothing else:
  *
- *   POST /api/orders                        → delivery county/address only
- *   POST /api/payments/paystack/initialize  → `{ orderId }`
+ *   POST /api/orders                        → delivery details and accepted estimate/count
+ *   POST /api/payments/paystack/initialize  → `{ orderId, quoteVersion }`
  *   GET  /api/payments/paystack/verify      → `?orderId=…`
  *   POST /api/payments/paystack/verify      → `{ orderId }`
  *
- * Amounts, prices, seller ids, buyer ids, provider/channel/callback details
- * and payment statuses are never sent — the server derives every one of them
- * from the order row, the session and server configuration, so there is
- * nothing here to tamper with. This module cannot move money by itself: it
+ * The acknowledged estimate and quote version are preconditions only. The
+ * server derives actual amounts, seller and buyer identities, payment status,
+ * provider/channel/callback details and prices from its own records. This module cannot move money by itself: it
  * can only ask the server to start a collection or to report one. A success
  * response from the Paystack checkout widget is NOT treated as proof of
  * payment anywhere in this module — only the server's own snapshot can
@@ -106,9 +106,9 @@ export type ApiResult<T> = { ok: true; data: T } | ApiFailure;
  */
 const FRIENDLY_PROVIDER_ERRORS: Readonly<Record<string, string>> = {
   provider_not_configured: "Online payments are temporarily unavailable. Please try again later.",
-  provider_unavailable: "We couldn't reach the payment service just now. Please try again in a moment.",
-  provider_rejected: "The payment service couldn't process this payment. Please try again.",
-  provider_invalid_response: "The payment service returned an unexpected response. Please try again.",
+  provider_unavailable: "We couldn't reach the payment service. Check this order's payment status before trying again.",
+  provider_rejected: "The payment service couldn't process this payment. Check its status before trying again.",
+  provider_invalid_response: "The payment service returned an unexpected response. Check its status before trying again.",
   provider_retired: "This payment needs to be checked by our support team. Please contact us with the order number.",
   attempt_limit: "Payment attempts for this order have reached the limit. Please try again later.",
   payment_initializing: "This payment is still being set up. Please wait a moment and check again.",
@@ -150,8 +150,8 @@ function failureFrom(
 /**
  * `POST /api/orders` — creates PENDING order(s) for the session's cart.
  *
- * Only delivery county/address are supplied by the buyer. Prices, sellers,
- * inventory and ownership are server-derived, and the cart is claimed
+ * The buyer supplies delivery details and acknowledges the displayed estimate
+ * and seller count. Prices, sellers, inventory and ownership are server-derived, and the cart is claimed
  * transactionally server-side so a duplicated request cannot create orders
  * twice.
  */
@@ -159,6 +159,7 @@ export async function createCheckoutOrders(delivery: {
   county: string;
   address: string;
   acceptedFeeCents: number;
+  acceptedSellerCount: number;
 }): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
   try {
@@ -169,6 +170,7 @@ export async function createCheckoutOrders(delivery: {
         deliveryCounty: delivery.county,
         deliveryAddress: delivery.address,
         acceptedDeliveryFeeCents: delivery.acceptedFeeCents,
+        acceptedSellerCount: delivery.acceptedSellerCount,
       }),
     });
   } catch {
@@ -194,20 +196,21 @@ export async function createCheckoutOrders(delivery: {
 
 /**
  * `POST /api/payments/paystack/initialize` — initializes a Paystack
- * transaction for one of the caller's own PENDING orders.
+ * transaction for one of the caller's own PENDING orders. quoteVersion is a
+ * stale-view precondition; it cannot set the price.
  *
  * A 200 here means the checkout was created — it is NOT a completed payment;
  * callers must wait for the status endpoint (or the server's webhook) to
  * confirm. The secret key stays on the server; the browser receives only an
  * access code it hands to Paystack's hosted checkout.
  */
-export async function initiatePaystackCheckout(orderId: string): Promise<ApiResult<PaystackCheckoutResult>> {
+export async function initiatePaystackCheckout(orderId: string, quoteVersion: number): Promise<ApiResult<PaystackCheckoutResult>> {
   let response: Response;
   try {
     response = await fetch(PAYSTACK_INITIALIZE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify({ orderId, quoteVersion }),
     });
   } catch {
     return { ok: false, status: 0, message: "We couldn't reach the server. Please try again." };
@@ -294,22 +297,26 @@ export function createSerializedTask<T>(task: () => Promise<T>): () => Promise<T
  * UI is built on, kept here so it can be tested without a DOM.
  *
  * The critical property: an in-flight attempt maps to "awaiting", never to
- * "succeeded". Success requires the server to say so (payment SUCCESS or a
- * paid order status) — the checkout initiation response can never produce it.
+ * "succeeded". Success requires a paid order status from the server; a
+ * successful payment claim still awaiting its order transition is reconciled.
+ * The checkout initiation response can never produce success.
  */
 export type PaymentPhase = "idle" | "initiating" | "awaiting" | "succeeded" | "failed";
 
 export function paymentPhaseFromSnapshot(snapshot: BuyerPaymentSnapshot | null): PaymentPhase {
   if (!snapshot) return "idle";
-  if (snapshot.order.status === "PAID") return "succeeded";
-  if (snapshot.payment?.status === "SUCCESS") return "succeeded";
+  // A successful payment claim and the order transition are separate steps.
+  // Never promise the order is paid if the transition has not completed (or
+  // could not complete); a pending order with collected money is reconciled.
+  if (isPaidOrderStatus(snapshot.order.status)) return "succeeded";
+  if (snapshot.order.status !== "PENDING") return "failed";
+  if (snapshot.payment?.status === "SUCCESS") return "awaiting";
   if (
     snapshot.payment &&
     (snapshot.payment.status === "FAILED" || snapshot.payment.status === "CANCELLED")
   ) {
     return "failed";
   }
-  if (snapshot.order.status !== "PENDING") return "failed";
   if (snapshot.awaitingConfirmation) return "awaiting";
   return "idle";
 }
@@ -325,6 +332,16 @@ export function firstUnpaidOrderId(
   return orders.find((order) => phases[order.id] !== "succeeded")?.id ?? null;
 }
 
+/**
+ * A mounted payment component may hold a snapshot from before the buyer just
+ * accepted a quote. With no payment attempt, quote gating belongs to the
+ * refreshed parent; otherwise stale `canInitiate: false` would strand the
+ * buyer after acceptance. The server always rechecks the complete state.
+ */
+export function paymentAttemptBlocksInitiation(snapshot: BuyerPaymentSnapshot | null): boolean {
+  return Boolean(snapshot?.payment && !snapshot.canInitiate);
+}
+
 /** Human label for the last attempt's status (the UI shows it as state). */
 export function paymentAttemptLabel(snapshot: BuyerPaymentSnapshot | null): string {
   if (!snapshot?.payment) return "Not started";
@@ -334,7 +351,7 @@ export function paymentAttemptLabel(snapshot: BuyerPaymentSnapshot | null): stri
     case "PROCESSING":
       return "Awaiting payment confirmation";
     case "SUCCESS":
-      return "Paid";
+      return isPaidOrderStatus(snapshot.order.status) ? "Paid" : "Payment received; order not yet paid";
     case "FAILED":
       return "Payment failed";
     case "CANCELLED":

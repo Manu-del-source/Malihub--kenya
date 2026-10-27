@@ -14,9 +14,10 @@ import {
   PAYSTACK_INITIALIZE_ENDPOINT,
   PAYSTACK_METHOD,
   PAYMENT_STATUS_ENDPOINT,
+  paymentAttemptBlocksInitiation,
   paymentPhaseFromSnapshot,
 } from "@/lib/payments/checkout-client";
-import type { BuyerPaymentSnapshot } from "@/lib/payments/payment-snapshot";
+import { isSettledSnapshot, type BuyerPaymentSnapshot } from "@/lib/payments/payment-snapshot";
 
 /**
  * The browser-side checkout/payment contract.
@@ -24,10 +25,10 @@ import type { BuyerPaymentSnapshot } from "@/lib/payments/payment-snapshot";
  * Everything the checkout screen sends is defined in one module
  * (`checkout-client.ts`); this suite pins the two things that matter most:
  *
- *  1. **Request shape** — the browser sends exactly what the existing route
- *     handlers accept (`{}` to create orders, `{ orderId }` to start a
- *     Paystack checkout) and nothing else. No amount, no price, no buyer or
- *     seller id, no phone number, no provider settings.
+ *  1. **Request shape** — the browser sends delivery details and the estimate
+ *     it acknowledges to create orders, and `{ orderId, quoteVersion }` to
+ *     start Paystack. Those are preconditions, never authoritative prices;
+ *     buyer/seller identity and provider settings remain server-derived.
  *  2. **State honesty** — a Paystack initiation response (or its popup
  *     result) is never treated as success; only the server's own snapshot can
  *     produce the paid state.
@@ -144,7 +145,7 @@ describe("error mapping — safe, friendly, no internals", () => {
 });
 
 describe("POST /api/orders — server-authoritative order creation", () => {
-  it("sends an empty body and reads the created orders from the response", async () => {
+  it("sends the accepted estimate and reads the created orders from the response", async () => {
     responder = () => ({
       status: 201,
       body: {
@@ -161,13 +162,15 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+      acceptedFeeCents: 25000,
+      acceptedSellerCount: 2,
     });
 
     assert.equal(calls[0]!.url, ORDERS_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
     assert.deepEqual(
       bodyOf(calls[0]!),
-      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue" },
+      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue", acceptedDeliveryFeeCents: 25000, acceptedSellerCount: 2 },
       "prices, ids and totals are never sent",
     );
     assert.equal(result.ok, true);
@@ -187,6 +190,8 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+      acceptedFeeCents: 25000,
+      acceptedSellerCount: 2,
     });
 
     assert.equal(result.ok, false);
@@ -205,14 +210,16 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+      acceptedFeeCents: 25000,
+      acceptedSellerCount: 2,
     });
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.message, /reach the server/i);
   });
 });
 
-describe("POST /api/payments/paystack/initialize — exactly one field, never a success claim", () => {
-  it("sends only orderId and returns the checkout access code", async () => {
+describe("POST /api/payments/paystack/initialize — quote-version precondition, never a success claim", () => {
+  it("sends orderId and quote version, and returns the checkout access code", async () => {
     responder = () => ({
       status: 200,
       body: {
@@ -225,13 +232,14 @@ describe("POST /api/payments/paystack/initialize — exactly one field, never a 
       },
     });
 
-    const result = await initiatePaystackCheckout("order-1");
+    const result = await initiatePaystackCheckout("order-1", 2);
 
     assert.equal(calls[0]!.url, PAYSTACK_INITIALIZE_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
     const sent = bodyOf(calls[0]!);
-    assert.deepEqual(Object.keys(sent).sort(), ["orderId"]);
+    assert.deepEqual(Object.keys(sent).sort(), ["orderId", "quoteVersion"]);
     assert.equal(sent.orderId, "order-1");
+    assert.equal(sent.quoteVersion, 2);
     for (const forbidden of [
       "amount",
       "amountCents",
@@ -267,7 +275,7 @@ describe("POST /api/payments/paystack/initialize — exactly one field, never a 
       body: { success: true, data: { reference: "MH-ABC12345" } },
     });
 
-    const result = await initiatePaystackCheckout("order-1");
+    const result = await initiatePaystackCheckout("order-1", 2);
 
     assert.equal(result.ok, false);
     if (!result.ok) {
@@ -285,7 +293,7 @@ describe("POST /api/payments/paystack/initialize — exactly one field, never a 
       },
     });
 
-    const result = await initiatePaystackCheckout("order-1");
+    const result = await initiatePaystackCheckout("order-1", 2);
 
     assert.equal(result.ok, false);
     if (!result.ok) {
@@ -365,6 +373,33 @@ describe("state honesty — an initiated checkout is never success", () => {
     const cancelled = snapshot({ payment: { ...processing.payment!, status: "CANCELLED" } });
     assert.equal(paymentPhaseFromSnapshot(cancelled), "failed");
   });
+
+  it("does not strand a newly accepted quote on a stale no-attempt snapshot", () => {
+    assert.equal(paymentAttemptBlocksInitiation(snapshot({ payment: null, payable: false, canInitiate: false })), false);
+    const oldAttempt: NonNullable<BuyerPaymentSnapshot["payment"]> = {
+      id: "p1", status: "FAILED", provider: "PAYSTACK", amountCents: 200_000,
+      customerReference: "MH-1", providerTransactionId: null, providerReference: null,
+      retryCount: 4, createdAt: new Date().toISOString(), paidAt: null, failureCode: null, failureReason: null,
+    };
+    assert.equal(paymentAttemptBlocksInitiation(snapshot({ payment: oldAttempt, canInitiate: false })), true);
+    assert.equal(paymentAttemptBlocksInitiation(snapshot({ payment: oldAttempt, canInitiate: true })), false);
+  });
+
+  it("never calls an order paid solely because a payment claim succeeded", () => {
+    const payment: NonNullable<BuyerPaymentSnapshot["payment"]> = {
+      id: "p1", status: "SUCCESS", provider: "PAYSTACK", amountCents: 200_000,
+      customerReference: "MH-1", providerTransactionId: null, providerReference: null,
+      retryCount: 0, createdAt: new Date().toISOString(), paidAt: new Date().toISOString(),
+      failureCode: null, failureReason: null,
+    };
+    const pending = snapshot({ payment, awaitingConfirmation: true, payable: false, canInitiate: false });
+    assert.equal(paymentPhaseFromSnapshot(pending), "awaiting");
+    assert.equal(isSettledSnapshot(pending), false);
+    const cancelled = snapshot({ payment, order: { ...pending.order, status: "CANCELLED" } });
+    assert.equal(paymentPhaseFromSnapshot(cancelled), "failed");
+    const shipped = snapshot({ payment, order: { ...pending.order, status: "SHIPPED" } });
+    assert.equal(paymentPhaseFromSnapshot(shipped), "succeeded");
+  });
 });
 
 describe("duplicate safety and multi-seller sequencing", () => {
@@ -386,7 +421,7 @@ describe("duplicate safety and multi-seller sequencing", () => {
     };
 
     const once = createSerializedTask(() =>
-      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue" }),
+      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 25000, acceptedSellerCount: 1 }),
     );
     const [first, second] = await Promise.all([once(), once()]);
 

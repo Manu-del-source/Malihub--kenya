@@ -1,31 +1,31 @@
 import "server-only";
 
 import { KENYA_COUNTIES } from "@/lib/constants";
+import { isMoneyCents } from "@/lib/money";
 
 export type DeliveryEstimate = {
   county: string;
   feeCents: number;
+  currency: "KES";
   source: "COUNTY_RATE";
-  requiresConfirmation: boolean;
+  basis: "PER_SELLER_ORDER";
+  requiresConfirmation: true;
 };
 
 /**
- * County rates are configured by deployment operators as JSON:
- * MALIHUB_DELIVERY_COUNTY_RATES_JSON='{"Nairobi":25000,"Kiambu":35000}'
- * Values are in cents (100 cents = KSh 1). Missing county rates intentionally
- * fail closed: checkout must not silently quote free delivery.
- *
- * No distance-based fee is calculated until a trusted routing provider is
- * configured. Client-supplied distance is never accepted.
+ * Rates are explicit JSON keyed by canonical Kenya county, in KES minor units
+ * (100 cents = KSh 1). Each seller dispatches a separate order and is charged
+ * one rate. Missing/invalid configuration fails closed; distance pricing is
+ * deliberately unsupported until a trusted routing provider is integrated.
  */
 export function estimateCountyDelivery(countyInput: string): DeliveryEstimate {
   const county = KENYA_COUNTIES.find(
-    (candidate) => candidate.toLocaleLowerCase() === countyInput.trim().toLocaleLowerCase()
+    (candidate) => candidate.toLowerCase() === countyInput.trim().toLowerCase()
   );
   if (!county) throw new Error("Select a valid Kenyan delivery county.");
 
   const raw = process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON;
-  if (!raw) throw new Error("Delivery pricing is not configured yet. Please contact support before placing this order.");
+  if (!raw?.trim()) throw new Error("Delivery pricing is not configured yet. Please contact support.");
 
   let rates: unknown;
   try {
@@ -36,11 +36,15 @@ export function estimateCountyDelivery(countyInput: string): DeliveryEstimate {
   if (!rates || typeof rates !== "object" || Array.isArray(rates)) {
     throw new Error("Delivery pricing configuration is invalid. Please contact support.");
   }
-
-  const value = (rates as Record<string, unknown>)[county];
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error("Delivery is not yet priced for this county. Please contact support before placing this order.");
+  const entries = Object.entries(rates);
+  if (entries.length === 0 || entries.some(([key, value]) =>
+    !(KENYA_COUNTIES as readonly string[]).includes(key) || !isMoneyCents(value)
+  )) {
+    throw new Error("Delivery pricing configuration is invalid. Please contact support.");
   }
-
-  return { county, feeCents: value, source: "COUNTY_RATE", requiresConfirmation: true };
+  const value = (rates as Record<string, unknown>)[county];
+  if (!isMoneyCents(value)) {
+    throw new Error("Delivery is not yet priced for this county. Please contact support.");
+  }
+  return { county, feeCents: value, currency: "KES", source: "COUNTY_RATE", basis: "PER_SELLER_ORDER", requiresConfirmation: true };
 }

@@ -1,6 +1,10 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
+// Explicit zero-rate fixture; no production/default delivery price is implied.
+process.env.MALIHUB_DELIVERY_COUNTY_RATES_JSON = '{"Nairobi":0}';
+const TEST_DELIVERY = { county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0, acceptedSellerCount: 1 };
+
 mock.module("server-only", { namedExports: {} });
 
 /**
@@ -82,7 +86,7 @@ function seedListing(quantity = 5, priceCents = 100_000) {
 async function placeOrder(buyerId: string, productId: string, quantity = 2) {
   seedCartItem(store, buyerId, productId, quantity);
   const { checkoutCart } = await import("@/services/order-service");
-  const result = await checkoutCart(db(), buyerId);
+  const result = await checkoutCart(db(), buyerId, TEST_DELIVERY);
   return result.orders[0]!;
 }
 

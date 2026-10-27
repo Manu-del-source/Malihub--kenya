@@ -45,6 +45,9 @@ export type ProductRow = {
   isNegotiable: boolean;
   condition: string;
   brand: string | null;
+  size: string | null;
+  sizeSystem: string | null;
+  availableSizes: string | null;
   quantity: number;
   contactPreference: string;
   county: string;
@@ -153,6 +156,16 @@ export type OrderRow = {
   status: string;
   subtotalCents: number;
   totalCents: number;
+  deliveryCounty: string | null;
+  deliveryAddress: string | null;
+  deliveryEstimateCents: number | null;
+  deliveryFeeCents: number;
+  deliveryFeeStatus: string;
+  deliveryFeeAcceptedAt: Date | null;
+  deliveryQuoteCents: number | null;
+  deliveryQuoteNote: string | null;
+  deliveryQuoteUpdatedAt: Date | null;
+  deliveryQuoteVersion: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -446,6 +459,9 @@ function matchesOrderWhere(row: OrderRow, where: Args | undefined): boolean {
   if (typeof where.buyerId === "string" && row.buyerId !== where.buyerId) return false;
   if (typeof where.sellerId === "string" && row.sellerId !== where.sellerId) return false;
   if (typeof where.status === "string" && row.status !== where.status) return false;
+  if (typeof where.deliveryFeeStatus === "string" && row.deliveryFeeStatus !== where.deliveryFeeStatus) return false;
+  if (typeof where.deliveryQuoteVersion === "number" && row.deliveryQuoteVersion !== where.deliveryQuoteVersion) return false;
+  if (typeof where.deliveryQuoteCents === "number" && row.deliveryQuoteCents !== where.deliveryQuoteCents) return false;
   if (where.status && typeof where.status === "object") {
     const s = where.status as { not?: string; in?: string[] };
     if (s.not !== undefined && row.status === s.not) return false;
@@ -1000,6 +1016,9 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           isNegotiable: Boolean(data.isNegotiable),
           condition: String(data.condition ?? "GOOD"),
           brand: (data.brand as string | null) ?? null,
+          size: (data.size as string | null) ?? null,
+          sizeSystem: (data.sizeSystem as string | null) ?? null,
+          availableSizes: (data.availableSizes as string | null) ?? null,
           quantity: Number(data.quantity ?? 1),
           contactPreference: String(data.contactPreference ?? "ANY"),
           county: String(data.county ?? ""),
@@ -1267,6 +1286,16 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           status: String(data.status ?? "PENDING"),
           subtotalCents: Number(data.subtotalCents ?? 0),
           totalCents: Number(data.totalCents ?? 0),
+          deliveryCounty: (data.deliveryCounty as string | null) ?? null,
+          deliveryAddress: (data.deliveryAddress as string | null) ?? null,
+          deliveryEstimateCents: (data.deliveryEstimateCents as number | null) ?? null,
+          deliveryFeeCents: Number(data.deliveryFeeCents ?? 0),
+          deliveryFeeStatus: String(data.deliveryFeeStatus ?? "ESTIMATED"),
+          deliveryFeeAcceptedAt: (data.deliveryFeeAcceptedAt as Date | null) ?? null,
+          deliveryQuoteCents: (data.deliveryQuoteCents as number | null) ?? null,
+          deliveryQuoteNote: (data.deliveryQuoteNote as string | null) ?? null,
+          deliveryQuoteUpdatedAt: (data.deliveryQuoteUpdatedAt as Date | null) ?? null,
+          deliveryQuoteVersion: Number(data.deliveryQuoteVersion ?? 0),
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -1790,12 +1819,11 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
    * to the root store except `$executeRaw` (lock-aware, bound to this
    * transaction's token), `$transaction` (nested calls start a fresh
    * transaction scope, as Prisma's nested-transaction support would), and
-   * the payment/paymentEvent delegates, which are WRITE-TRACKED: their
-   * before-images feed `undoLog`, so a rollback undoes exactly this
-   * transaction's financial writes instead of the wholesale `restore(snap)`
-   * — which would also erase a CONCURRENT transaction's committed settlement
-   * (e.g. the duplicate-callback race, where the loser's event insert hits
-   * P2002 and rolls back an empty log, leaving the winner's commit intact).
+   * the product/order/payment/paymentEvent delegates, which are WRITE-TRACKED:
+   * their before-images feed `undoLog`, so a rollback undoes exactly this
+   * transaction's writes instead of the wholesale `restore(snap)` — which
+   * would also erase a concurrent settlement or restored stock when the loser
+   * of a payment-versus-cancellation race rolls back.
    * The other tables keep the legacy snapshot/restore semantics the existing
    * suites are built and verified on.
    */
@@ -1813,6 +1841,12 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
         if (property === "$transaction") {
           return (nested: ((tx: FakeMarketplaceStore) => Promise<unknown>) | Promise<unknown>[]) =>
             store.$transaction(nested);
+        }
+        if (property === "product") {
+          return instrumentWrites(tables.products, store.product, matchesProductWhere, undoLog);
+        }
+        if (property === "order") {
+          return instrumentWrites(tables.orders, store.order, matchesOrderWhere, undoLog);
         }
         if (property === "payment") {
           return instrumentWrites(tables.payments, store.payment, matchesPaymentWhere, undoLog);
@@ -1843,7 +1877,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
 const LOGGED_MUTATORS = new Set(["create", "update", "updateMany", "delete", "deleteMany"]);
 
 /** Tables rolled back via the per-transaction undo log, not the snapshot. */
-const PRECISE_ROLLBACK_TABLES: ReadonlySet<keyof Tables> = new Set(["payments", "paymentEvents"]);
+const PRECISE_ROLLBACK_TABLES: ReadonlySet<keyof Tables> = new Set(["products", "orders", "payments", "paymentEvents"]);
 
 /**
  * Wraps one delegate so every mutating call records an undo closure
@@ -1975,6 +2009,9 @@ export function seedProduct(
     isNegotiable: overrides.isNegotiable ?? false,
     condition: overrides.condition ?? "GOOD",
     brand: overrides.brand ?? null,
+    size: overrides.size ?? null,
+    sizeSystem: overrides.sizeSystem ?? null,
+    availableSizes: overrides.availableSizes ?? null,
     quantity: overrides.quantity ?? 5,
     contactPreference: overrides.contactPreference ?? "ANY",
     county: overrides.county ?? "Nairobi",

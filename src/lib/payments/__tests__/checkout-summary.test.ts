@@ -41,7 +41,8 @@ describe("buildCheckoutSummary", () => {
     assert.equal(summary.itemCount, 2);
     assert.equal(summary.unavailableCount, 0);
     assert.equal(summary.subtotalCents, 450_000);
-    assert.equal(summary.totalCents, summary.subtotalCents, "delivery is arranged with the seller");
+    assert.equal(summary.totalCents, summary.subtotalCents, "this projection is before the county estimate is loaded");
+    assert.equal(summary.amountsValid, true);
     assert.equal(summary.groups.length, 1);
     assert.equal(summary.groups[0]!.subtotalCents, 450_000);
     assert.equal(summary.groups[0]!.lines[0]!.lineTotalCents, 200_000);
@@ -80,6 +81,22 @@ describe("buildCheckoutSummary", () => {
     assert.equal(summary.groups[0]!.lines[1]!.lineTotalCents, 0);
   });
 
+  it("blocks invalid line or per-seller totals but permits a safe combined total across sellers", () => {
+    assert.equal(buildCheckoutSummary([line({ unitPriceCents: 2_147_483_647, quantity: 2 })]).amountsValid, false);
+    assert.equal(buildCheckoutSummary([line({ unitPriceCents: -1, quantity: 1 })]).amountsValid, false);
+    assert.equal(buildCheckoutSummary([line({ unitPriceCents: 1_000, quantity: 1.5 })]).amountsValid, false);
+    assert.equal(buildCheckoutSummary([
+      line({ id: "a", quantity: 1, unitPriceCents: 2_000_000_000 }),
+      line({ id: "b", quantity: 1, unitPriceCents: 2_000_000_000 }),
+    ]).amountsValid, false, "a single seller's subtotal must fit a PostgreSQL integer");
+    const split = buildCheckoutSummary([
+      line({ id: "a", sellerId: "seller-1", quantity: 1, unitPriceCents: 2_000_000_000 }),
+      line({ id: "b", sellerId: "seller-2", quantity: 1, unitPriceCents: 2_000_000_000 }),
+    ]);
+    assert.equal(split.amountsValid, true);
+    assert.equal(split.subtotalCents, 4_000_000_000, "separate seller orders can have a larger combined cart total");
+  });
+
   it("is empty and free of groups when the cart is empty", () => {
     const summary = buildCheckoutSummary([]);
     assert.deepEqual(summary, {
@@ -87,6 +104,7 @@ describe("buildCheckoutSummary", () => {
       sellerCount: 0,
       itemCount: 0,
       unavailableCount: 0,
+      amountsValid: true,
       subtotalCents: 0,
       totalCents: 0,
     });

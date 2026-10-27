@@ -44,6 +44,9 @@ export function ListingForm({
     resolver: zodResolver(listingSchema),
     defaultValues: {
       isNegotiable: false,
+      size: "",
+      sizeSystem: "",
+      availableSizes: "",
       quantity: 1,
       contactPreference: "ANY",
       images: [],
@@ -142,7 +145,7 @@ export function ListingForm({
         </FormField>
       </div>
       <FormField id="availableSizes" label="Available sizes (optional)" error={errors.availableSizes?.message}>
-        <Input id="availableSizes" placeholder="e.g. UK 7, UK 8, UK 9 or S, M, L" {...register("availableSizes")} />
+        <Input id="availableSizes" placeholder="e.g. 7, 8, 9 or S, M, L" {...register("availableSizes")} />
       </FormField>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField id="brand" label="Brand (optional)" error={errors.brand?.message}>

@@ -671,6 +671,8 @@ model Order {
   status        OrderStatus @default(PENDING)
   subtotalCents Int         @map("subtotal_cents")
   totalCents    Int         @map("total_cents")
+  deliveryFeeCents Int      @default(0) @map("delivery_fee_cents")
+  deliveryFeeStatus String  @default("ESTIMATED") @map("delivery_fee_status")
   deliveryCounty String?    @map("delivery_county")
   deliveryAddress String?   @map("delivery_address")
   notes         String?

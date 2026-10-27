@@ -1,57 +1,92 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import {
+  asOrderStore,
+  createFakeMarketplaceStore,
+  seedCartItem,
+  seedCategory,
+  seedProduct,
+  seedSeller,
+} from "@/services/__tests__/fake-marketplace-store";
 
-let query: Record<string, unknown> | null = null;
-const database = {
-  order: {
-    findMany: async (args: Record<string, unknown>) => {
-      query = args;
-      return [{
-        id: "order-1", orderNumber: "MH-12345678", buyerId: "buyer-1", sellerId: "seller-1",
-        status: "PENDING", subtotalCents: 12500, totalCents: 12500,
-        deliveryCounty: "Nairobi", deliveryAddress: "Example address", payoutEligibleAt: new Date(),
-        items: [{
-          id: "item-1", quantity: 1, unitPriceCents: 12500, totalCents: 12500,
-          supplierProductId: "supplier-product-id", supplierProductTitle: "internal title", supplierSku: "internal sku",
-          product: { title: "Lamp", slug: "lamp", condition: "NEW", ownerId: "owner-id", supplierProductId: "supplier-product-id", images: [{ url: "https://example.com/lamp.jpg", cloudinaryId: "storage-id" }] },
-        }],
-        seller: { businessName: "Seller", slug: "seller", userId: "seller-user-id" },
-        buyer: { id: "buyer-1", email: "buyer@example.com" },
-      }];
-    },
-  },
-};
+const store = createFakeMarketplaceStore();
+let user: { id: string; email: string } | null = null;
 
 mock.module("server-only", { namedExports: {} });
-mock.module("@/lib/prisma", { namedExports: { prisma: database } });
+mock.module("@/lib/prisma", { namedExports: { prisma: store } });
 mock.module("@/lib/auth", {
-  namedExports: { getCurrentUser: async () => ({ user: { id: "buyer-1" } }) },
+  namedExports: { getCurrentUser: async () => (user ? { user } : null) },
 });
 
 let route: typeof import("@/app/api/orders/route");
+let orders: typeof import("@/modules/orders/service");
 
 before(async () => {
   route = await import("@/app/api/orders/route");
+  orders = await import("@/modules/orders/service");
 });
 
 beforeEach(() => {
-  query = null;
+  for (const table of Object.values(store.tables)) table.clear();
+  user = null;
 });
 
-describe("GET /api/orders response projection", () => {
+describe("GET /api/orders buyer boundary and response projection", () => {
+  it("requires a session", async () => {
+    assert.equal((await route.GET()).status, 401);
+  });
+
   it("scopes reads to the session buyer and omits supplier and internal fields", async () => {
+    const seller = seedSeller(store, { userId: "seller-user" });
+    const category = seedCategory(store);
+    const product = seedProduct(store, {
+      sellerId: seller.id,
+      ownerId: seller.userId,
+      categoryId: category.id,
+    });
+    store.tables.productImages.set("image-1", {
+      id: "image-1",
+      productId: product.id,
+      url: "https://example.com/image.jpg",
+      cloudinaryId: "private-storage-id",
+      sortOrder: 0,
+      isPrimary: true,
+    });
+    seedCartItem(store, "buyer-a", product.id, 1);
+    const created = await orders.checkoutCart(asOrderStore(store), "buyer-a");
+
+    const orderItem = [...store.tables.orderItems.values()][0]!;
+    orderItem.supplierSku = "private-sku";
+    orderItem.supplierProductId = "private-supplier-id";
+    orderItem.supplierProductTitle = "internal title";
+
+    user = { id: "buyer-b", email: "buyer-b@example.com" };
+    assert.deepEqual((await (await route.GET()).json()).data, []);
+
+    user = { id: "buyer-a", email: "buyer-a@example.com" };
     const response = await route.GET();
     assert.equal(response.status, 200);
-    assert.deepEqual(query?.where, { buyerId: "buyer-1" });
-    const select = query?.select as Record<string, unknown>;
-    assert.equal("buyerId" in select, false);
-    assert.equal("sellerId" in select, false);
     const payload = await response.json();
-    const text = JSON.stringify(payload);
-    for (const privateField of ["buyerId", "sellerId", "supplierProductId", "supplierProductTitle", "supplierSku", "ownerId", "cloudinaryId", "payoutEligibleAt", "userId", "email"]) {
-      assert.equal(text.includes(privateField), false, `${privateField} must not be serialized`);
+    assert.equal(payload.data[0].id, created.orders[0]!.id);
+    assert.equal(payload.data[0].totalCents, product.priceCents);
+    assert.equal(payload.data[0].items[0].product.title, product.title);
+
+    const serialized = JSON.stringify(payload);
+    for (const privateField of [
+      "buyerId",
+      "sellerId",
+      "supplierProductId",
+      "supplierProductTitle",
+      "supplierSku",
+      "ownerId",
+      "cloudinaryId",
+      "private-storage-id",
+      "payoutEligibleAt",
+      "userId",
+      "email",
+    ]) {
+      assert.equal(serialized.includes(privateField), false, `${privateField} must not be serialized`);
     }
-    assert.equal(payload.data[0].items[0].product.title, "Lamp");
-    assert.equal(payload.data[0].items[0].product.images[0].url, "https://example.com/lamp.jpg");
+    assert.equal(payload.data[0].items[0].product.images[0].url, "https://example.com/image.jpg");
   });
 });

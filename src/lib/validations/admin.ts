@@ -162,7 +162,7 @@ export function firstParam(params: RawSearchParams, key: string): string | undef
 export function parseListParams<S extends z.ZodTypeAny>(
   schema: S,
   searchParams: RawSearchParams
-): z.infer<S> | null {
+): z.infer<S> {
   const shape = (schema as unknown as { shape?: Record<string, unknown> }).shape;
   const data: Record<string, unknown> = {};
   for (const key of Object.keys(shape ?? {})) {
@@ -170,5 +170,5 @@ export function parseListParams<S extends z.ZodTypeAny>(
     if (value !== undefined) data[key] = value;
   }
   const result = schema.safeParse(data);
-  return result.success ? result.data : null;
+  return result.success ? result.data : schema.parse({});
 }

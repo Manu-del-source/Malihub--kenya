@@ -49,7 +49,7 @@ export default async function AdminAuditPage({
   await requireAdministrator();
 
   const parsed = parseListParams(adminAuditListSchema, await searchParams);
-  const filters = parsed ?? { page: 1 };
+  const filters = parsed;
 
   const { events, total, pageSize } = await listAdminAuditEvents(filters);
   const current = { q: filters.q ?? "" };

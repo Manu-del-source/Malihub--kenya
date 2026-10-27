@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/safe-log";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
@@ -43,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }),
     ]);
   } catch (error) {
-    console.error("[sitemap] database unavailable — serving static routes only:", error);
+    logServerError("[sitemap] database unavailable — serving static routes only", error);
   }
 
   const categoryRoutes: MetadataRoute.Sitemap = categories.map((c) => ({

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { logServerError } from "@/lib/safe-log";
 
 import {
   isAuthUnavailable,
@@ -135,12 +136,7 @@ export async function signUpAction(
   if (!provisioning.userId) {
     // Logged, not surfaced: the account exists and the retry path is the next
     // sign-in. Only the failure reason is recorded — never the password.
-    console.error("[auth] signUp: application rows not provisioned", {
-      authUserId: identity.authUserId,
-      context: "sign-up",
-      code: errorCodeOf(provisioning.error),
-      message: provisioning.error instanceof Error ? provisioning.error.message : "unknown",
-    });
+    logServerError("[auth] signUp: application rows not provisioned", provisioning.error);
   }
 
   return { success: true, data: { email } };
@@ -181,7 +177,7 @@ export async function signInAction(
     // `provisionUserRows` returns the application user id when a MaliHub row
     // maps to this identity. Without it we cannot read onboarding state, and
     // guessing would be exactly the fail-open the old code avoided.
-    await clearSessionBestEffort(identity.authUserId, "missing application user");
+    await clearSessionBestEffort("missing application user");
     // A legacy row that has not been moved to the new sign-in system is an
     // expected, explainable state — `resolveApplicationUserId` already wrote the
     // copy for it, and swallowing it left people with a message that gave
@@ -206,15 +202,11 @@ export async function signInAction(
     // Authentication itself succeeded, but the application cannot safely keep
     // a session whose onboarding/role state it cannot verify. The fail-closed
     // path below clears it instead of risking a redirect loop.
-    console.error("[auth] Failed to read onboarding state after sign-in", {
-      userId: provisioning.userId,
-      code: errorCodeOf(readError),
-      message: readError instanceof Error ? readError.message : String(readError),
-    });
+    logServerError("[auth] Failed to read onboarding state after sign-in", readError);
   }
 
   if (!state) {
-    await clearSessionBestEffort(provisioning.userId, "onboarding state unreadable");
+    await clearSessionBestEffort("onboarding state unreadable");
     return {
       success: false,
       error: "We couldn't load your MaliHub account. Please try signing in again.",
@@ -239,20 +231,14 @@ export async function signInAction(
  * protected page with unverified state — middleware only checks that a session
  * exists, and every page re-reads authorization from the database.
  */
-async function clearSessionBestEffort(userId: string, reason: string): Promise<void> {
+async function clearSessionBestEffort(reason: string): Promise<void> {
   try {
     const { failure } = await providerSignOut();
     if (failure) {
-      console.error(`[auth] Failed to clear session (${reason})`, {
-        userId,
-        message: failure.message,
-      });
+      logServerError(`[auth] Failed to clear session (${reason})`, failure);
     }
   } catch (error) {
-    console.error(`[auth] Failed to clear session (${reason})`, {
-      userId,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    logServerError(`[auth] Failed to clear session (${reason})`, error);
   }
 }
 
@@ -577,12 +563,7 @@ export async function completeProfileAction(
     // Log the real failure with enough context to identify it in production
     // (Prisma errors carry a `code` — P2025 "record to update not found" is
     // the one that used to mean "the application rows were never created").
-    console.error("[auth] completeProfileAction failed", {
-      authUserId: identity.authUserId,
-      code: errorCodeOf(error),
-      name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    logServerError("[auth] completeProfileAction failed", error);
 
     if (errorCodeOf(error) === "P2002") {
       return {
@@ -615,9 +596,7 @@ export async function signOutAction(): Promise<void> {
   // on a page they were trying to leave.
   const { failure } = await providerSignOut();
   if (failure) {
-    console.error("[auth] signOut: provider did not confirm session clear", {
-      message: failure.message,
-    });
+    logServerError("[auth] signOut: provider did not confirm session clear", failure);
   }
   redirect("/");
 }

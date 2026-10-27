@@ -1,5 +1,7 @@
 "use server";
 
+import { logServerError } from "@/lib/safe-log";
+
 import { revalidatePath } from "next/cache";
 import { requireOnboardedActionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -79,7 +81,7 @@ export async function submitSellerApplicationAction(
     revalidatePath("/admin/sellers");
     return { success: true, data: { verificationStatus: "PENDING" } };
   } catch (error) {
-    console.error("submitSellerApplicationAction failed", error);
+    logServerError("submitSellerApplicationAction failed", error);
     return {
       success: false,
       error: "We couldn't submit your application right now. Please try again.",

@@ -7,7 +7,13 @@
   },
   "overrides": {
     "sharp": "0.35.5",
-    "postcss": "8.5.29"
+    "postcss": "8.5.29",
+    "@neondatabase/auth": {
+      "zod": "4.6.7"
+    },
+    "next-cloudinary": {
+      "@cloudinary-util/url-loader": "6.3.2"
+    }
   },
   "scripts": {
     "dev": "next dev --turbopack",
@@ -30,7 +36,7 @@
     "backend:format": "cd backend && python -m ruff format app tests"
   },
   "dependencies": {
-    "@hookform/resolvers": "3.10.0",
+    "@hookform/resolvers": "5.9.1",
     "@neondatabase/auth": "0.5.0-beta",
     "@prisma/client": "6.2.1",
     "@radix-ui/react-accordion": "1.2.2",
@@ -49,7 +55,7 @@
     "framer-motion": "11.15.0",
     "lucide-react": "0.469.0",
     "nanoid": "5.1.16",
-    "next": "15.5.27",
+    "next": "15.5.28",
     "next-cloudinary": "6.16.0",
     "next-safe-action": "7.10.2",
     "prisma": "6.2.1",
@@ -64,7 +70,7 @@
     "tailwindcss": "3.4.19",
     "tailwindcss-animate": "1.0.7",
     "typescript": "5.7.3",
-    "zod": "3.24.1"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.2.0",
@@ -74,10 +80,11 @@
     "@types/react-dom": "19.0.2",
     "autoprefixer": "10.4.20",
     "eslint": "9.39.5",
-    "eslint-config-next": "15.5.27",
+    "eslint-config-next": "15.5.28",
     "postcss": "8.5.29",
     "prettier": "3.4.2",
     "prettier-plugin-tailwindcss": "0.6.9",
+    "react-test-renderer": "19.0.0",
     "tsx": "4.23.15"
   },
   "prisma": {

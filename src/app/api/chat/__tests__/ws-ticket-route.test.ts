@@ -247,6 +247,27 @@ describe("ticket issuance", () => {
     assert.equal(storedTickets.get(`malihub:api:chat:ws-ticket:${ticket}`)?.userId, USER_A);
   });
 
+  it("sets no-store, issues unique tickets and ignores client-provided destinations", async () => {
+    const first = await route.POST(request({ url: "wss://other.example" }));
+    const second = await route.POST(request({ userId: USER_B }));
+    assert.equal(first.headers.get("cache-control"), "no-store");
+    const firstUrl = new URL((await first.json()).data.url);
+    const secondUrl = new URL((await second.json()).data.url);
+    assert.equal(firstUrl.origin, "wss://api.malihub.test");
+    assert.notEqual(firstUrl.searchParams.get("ticket"), secondUrl.searchParams.get("ticket"));
+    assert.equal(storedTickets.get(`malihub:api:chat:ws-ticket:${secondUrl.searchParams.get("ticket")}`)?.userId, USER_A);
+  });
+
+  it("does not issue a ticket for insecure or malformed configured destinations", async () => {
+    for (const base of ["http://api.example", "ws://remote.example", "wss://user:pass@api.example", "wss://api.example?redirect=other", "wss://api.example/#fragment"]) {
+      process.env.NEXT_PUBLIC_CHAT_WS_BASE_URL = base;
+      const res = await route.POST(request({}));
+      assert.equal(res.status, 503, "invalid base must fail closed");
+      assert.equal(storedTickets.size, 0);
+    }
+    process.env.NEXT_PUBLIC_CHAT_WS_BASE_URL = WS_BASE;
+  });
+
   it("503 when Redis rejects the write", async () => {
     redisSetError = new Error("timeout");
     const res = await route.POST(request({}));

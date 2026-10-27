@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { resolveChatWebSocketBase } from "./src/lib/chat/ws-config";
 
 /**
  * Security response headers.
@@ -28,6 +29,10 @@ import type { NextConfig } from "next";
  * Browsers ignore HSTS on plain HTTP and localhost, so this is a no-op in
  * dev and takes effect behind the HTTPS deployment. One year, subdomains.
  */
+// This public destination must be present at build time, like other
+// NEXT_PUBLIC_ configuration. CSP permits no other WebSocket origin.
+const chatWebSocketOrigin = resolveChatWebSocketBase(process.env.NEXT_PUBLIC_CHAT_WS_BASE_URL)?.origin;
+
 const SECURITY_HEADERS: { key: string; value: string }[] = [
   {
     key: "Content-Security-Policy",
@@ -37,7 +42,7 @@ const SECURITY_HEADERS: { key: string; value: string }[] = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com https://stats.g.doubleclick.net https://www.google.co.ke",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com https://www.google.com https://analytics.google.com https://stats.g.doubleclick.net",
+      ["connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://api.cloudinary.com https://res.cloudinary.com https://www.google.com https://analytics.google.com https://stats.g.doubleclick.net", chatWebSocketOrigin].filter(Boolean).join(" "),
       "frame-src 'self' https://checkout.paystack.com https://upload-widget.cloudinary.com",
       "object-src 'none'",
       "base-uri 'self'",

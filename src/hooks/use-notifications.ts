@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Notification } from "@/types";
+import type { NotificationView } from "@/types";
 
 type NotificationsResponse = {
   success: true;
-  data: { notifications: Notification[]; unreadCount: number };
+  data: { notifications: NotificationView[]; unreadCount: number };
 };
 
 export function useNotifications(enabled: boolean) {

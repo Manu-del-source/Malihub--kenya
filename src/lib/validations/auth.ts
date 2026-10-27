@@ -23,9 +23,7 @@ export const registerSchema = z
     email: z.string().email("Enter a valid email address"),
     password: passwordSchema,
     confirmPassword: z.string(),
-    agreeToTerms: z.literal(true, {
-      errorMap: () => ({ message: "You must agree to the terms to continue" }),
-    }),
+    agreeToTerms: z.literal(true, { error: "You must agree to the terms to continue" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -91,9 +89,7 @@ export const completeProfileSchema = z.object({
     .string()
     .trim()
     .regex(kenyanPhoneRegex, "Enter a valid Kenyan phone number, e.g. 0712345678"),
-  county: z.enum(KENYA_COUNTIES, {
-    errorMap: () => ({ message: "Select your county" }),
-  }),
+  county: z.enum(KENYA_COUNTIES, { error: "Select your county" }),
   accountIntent: accountIntentSchema,
   // Profile photos upload through OUR server-side Cloudinary route
   // (POST /api/avatar/upload) — a bare url() would let a client point the

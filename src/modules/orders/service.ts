@@ -73,27 +73,104 @@ function nextOrderNumber(): string {
   return `MH-${orderNumber()}`;
 }
 
-/** The relation shape both the buyer and seller order screens consume. */
-const ORDER_INCLUDE = {
+/** Explicit, audience-specific order projections. Internal fulfilment data and
+ * supplier snapshots remain available to trusted checkout/fulfilment services,
+ * but are never included in buyer or seller order views. */
+const ORDER_BASE_SELECT = {
+  id: true,
+  orderNumber: true,
+  status: true,
+  subtotalCents: true,
+  totalCents: true,
+  deliveryCounty: true,
+  deliveryAddress: true,
+  deliveredAt: true,
+  inspectionEndsAt: true,
+  createdAt: true,
   items: {
-    include: {
+    select: {
+      id: true,
+      productId: true,
+      quantity: true,
+      unitPriceCents: true,
+      totalCents: true,
       product: {
         select: {
           title: true,
           slug: true,
           condition: true,
-          images: { orderBy: { sortOrder: "asc" as const }, take: 1, select: { url: true } },
+          images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
         },
       },
     },
   },
-  seller: { select: { businessName: true, slug: true, verificationStatus: true } },
-  // The seller screens need to greet the buyer by name; the buyer's own
-  // screens simply never read this branch.
-  buyer: { select: { profile: { select: { fullName: true } } } },
-} satisfies Prisma.OrderInclude;
+} satisfies Prisma.OrderSelect;
 
-export type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE }>;
+const BUYER_ORDER_SELECT = {
+  ...ORDER_BASE_SELECT,
+  seller: { select: { businessName: true, slug: true, verificationStatus: true } },
+} satisfies Prisma.OrderSelect;
+
+const SELLER_ORDER_SELECT = {
+  ...ORDER_BASE_SELECT,
+  sellerId: true,
+  // The seller needs the buyer's name and delivery details for fulfilment.
+  buyer: { select: { profile: { select: { fullName: true } } } },
+} satisfies Prisma.OrderSelect;
+
+type OrderBaseRow = Prisma.OrderGetPayload<{ select: typeof ORDER_BASE_SELECT }>;
+type BuyerOrderRow = Prisma.OrderGetPayload<{ select: typeof BUYER_ORDER_SELECT }>;
+type SellerOrderRow = Prisma.OrderGetPayload<{ select: typeof SELLER_ORDER_SELECT }>;
+
+function orderFields(order: OrderBaseRow) {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    subtotalCents: order.subtotalCents,
+    totalCents: order.totalCents,
+    deliveryCounty: order.deliveryCounty,
+    deliveryAddress: order.deliveryAddress,
+    deliveredAt: order.deliveredAt,
+    inspectionEndsAt: order.inspectionEndsAt,
+    createdAt: order.createdAt,
+    items: order.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+      totalCents: item.totalCents,
+      product: {
+        title: item.product.title,
+        slug: item.product.slug,
+        condition: item.product.condition,
+        images: item.product.images.map((image) => ({ url: image.url })),
+      },
+    })),
+  };
+}
+
+function toBuyerOrder(order: BuyerOrderRow) {
+  return {
+    ...orderFields(order),
+    seller: {
+      businessName: order.seller.businessName,
+      slug: order.seller.slug,
+      verificationStatus: order.seller.verificationStatus,
+    },
+  };
+}
+
+function toSellerOrder(order: SellerOrderRow) {
+  return {
+    ...orderFields(order),
+    sellerId: order.sellerId,
+    buyer: { profile: order.buyer.profile ? { fullName: order.buyer.profile.fullName } : null },
+  };
+}
+
+export type BuyerOrder = ReturnType<typeof toBuyerOrder>;
+export type SellerOrder = ReturnType<typeof toSellerOrder>;
 
 type CheckoutItem = {
   productId: string;
@@ -351,12 +428,13 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 /** The caller's own orders, newest first. Scoped by `buyerId` — always. */
-export async function listBuyerOrders(db: OrderStore, userId: string): Promise<OrderWithItems[]> {
-  return db.order.findMany({
+export async function listBuyerOrders(db: OrderStore, userId: string): Promise<BuyerOrder[]> {
+  const orders = await db.order.findMany({
     where: { buyerId: userId },
     orderBy: { createdAt: "desc" },
-    include: ORDER_INCLUDE,
+    select: BUYER_ORDER_SELECT,
   });
+  return orders.map(toBuyerOrder);
 }
 
 /**
@@ -368,11 +446,12 @@ export async function getBuyerOrder(
   db: OrderStore,
   userId: string,
   orderId: string
-): Promise<OrderWithItems | null> {
-  return db.order.findFirst({
+): Promise<BuyerOrder | null> {
+  const order = await db.order.findFirst({
     where: { id: orderId, buyerId: userId },
-    include: ORDER_INCLUDE,
+    select: BUYER_ORDER_SELECT,
   });
+  return order ? toBuyerOrder(order) : null;
 }
 
 /**
@@ -395,15 +474,16 @@ export async function getSellerRowForUser(db: OrderStore, userId: string) {
 export async function listSellerOrders(
   db: OrderStore,
   userId: string
-): Promise<OrderWithItems[] | null> {
+): Promise<SellerOrder[] | null> {
   const seller = await getSellerRowForUser(db, userId);
   if (!seller) return null;
 
-  return db.order.findMany({
+  const orders = await db.order.findMany({
     where: { sellerId: seller.id },
     orderBy: { createdAt: "desc" },
-    include: ORDER_INCLUDE,
+    select: SELLER_ORDER_SELECT,
   });
+  return orders.map(toSellerOrder);
 }
 
 /** One order, visible only to the seller it belongs to. `null` otherwise. */
@@ -411,14 +491,15 @@ export async function getSellerOrder(
   db: OrderStore,
   userId: string,
   orderId: string
-): Promise<OrderWithItems | null> {
+): Promise<SellerOrder | null> {
   const seller = await getSellerRowForUser(db, userId);
   if (!seller) return null;
 
-  return db.order.findFirst({
+  const order = await db.order.findFirst({
     where: { id: orderId, sellerId: seller.id },
-    include: ORDER_INCLUDE,
+    select: SELLER_ORDER_SELECT,
   });
+  return order ? toSellerOrder(order) : null;
 }
 
 export type SalesSnapshot = {

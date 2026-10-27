@@ -1,9 +1,10 @@
+import { logServerError } from "@/lib/safe-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
-import { checkoutCart, OrderError } from "@/services/order-service";
+import { checkoutCart, listBuyerOrders, OrderError } from "@/services/order-service";
 
 /**
  * Buyer orders endpoint — the checkout boundary for this phase.
@@ -23,52 +24,10 @@ export async function GET() {
   }
 
   try {
-    const orders = await prisma.order.findMany({
-      where: { buyerId: user.id },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true, orderNumber: true, status: true, subtotalCents: true, totalCents: true,
-        deliveryCounty: true, deliveryAddress: true, createdAt: true,
-        items: {
-          select: {
-            id: true, quantity: true, unitPriceCents: true, totalCents: true,
-            product: {
-              select: {
-                title: true, slug: true, condition: true,
-                images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
-              },
-            },
-          },
-        },
-        seller: { select: { businessName: true, slug: true } },
-      },
-    });
-    const data = orders.map((order) => ({
-      id: order.id,
-      orderNumber: order.orderNumber,
-      status: order.status,
-      subtotalCents: order.subtotalCents,
-      totalCents: order.totalCents,
-      deliveryCounty: order.deliveryCounty,
-      deliveryAddress: order.deliveryAddress,
-      createdAt: order.createdAt,
-      items: order.items.map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
-        totalCents: item.totalCents,
-        product: {
-          title: item.product.title,
-          slug: item.product.slug,
-          condition: item.product.condition,
-          images: item.product.images.map((image) => ({ url: image.url })),
-        },
-      })),
-      seller: { businessName: order.seller.businessName, slug: order.seller.slug },
-    }));
-    return NextResponse.json({ success: true, data });
+    const orders = await listBuyerOrders(prisma, user.id);
+    return NextResponse.json({ success: true, data: orders });
   } catch (error) {
-    console.error("GET /api/orders failed", error);
+    logServerError("GET /api/orders failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }
@@ -136,7 +95,7 @@ export async function POST(request: NextRequest) {
         { status }
       );
     }
-    console.error("POST /api/orders failed", error);
+    logServerError("POST /api/orders failed", error);
     return NextResponse.json({ success: false, error: "Something went wrong." }, { status: 500 });
   }
 }

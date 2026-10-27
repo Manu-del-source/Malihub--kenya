@@ -38,7 +38,7 @@ export default async function AdminUsersPage({
   await requireAdministrator();
 
   const parsed = parseListParams(adminUserListSchema, await searchParams);
-  const filters = parsed ?? { page: 1 };
+  const filters = parsed;
 
   const { users, total, pageSize } = await listAdminUsers(filters);
   const current = {

@@ -72,7 +72,11 @@ export function ListingForm({
 
   return (
     <form className="flex flex-col gap-6">
-      <FormField id="images" label="Photos" error={errors.images?.message}>
+      <FormField
+        id="images"
+        label="Photos"
+        error={typeof errors.images?.message === "string" ? errors.images.message : undefined}
+      >
         <ImageUploadGrid images={images} onChange={(imgs) => setValue("images", imgs, { shouldValidate: true })} />
       </FormField>
 

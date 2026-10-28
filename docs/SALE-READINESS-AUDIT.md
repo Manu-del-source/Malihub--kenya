@@ -15,7 +15,7 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 
 ### Confirmed in repository / CI
 - A dedicated full-stack CI workflow now runs frontend tests, Prisma validation, TypeScript, lint, production build, FastAPI tests, Ruff and JavaScript/Python dependency audits.
-- CI run `40648487092` on the isolated hardening branch passed all three jobs: frontend, backend, and JavaScript dependency audit.
+- CI run `40648487092` passed the isolated dependency/CI hardening branch; the complete campaign-management head was subsequently validated by CI run `40650277575`, which passed frontend, backend, and JavaScript dependency-audit jobs. The latter run reported **854 frontend tests passed, 0 failed**. The Vercel preview build is ready at `https://malihub-kenya-m2j9wls1n-manu-del-sources-projects.vercel.app`.
 - The frontend test suite, TypeScript check, lint and build passed on that run.
 - Better Auth and related adapters are pinned to 1.7.7; Resend is updated to 6.35.0.
 - The `npm audit --audit-level=high` gate passes, but seven low-severity advisories remain through the upstream `deepmerge` → `html-to-text` → React Email / Neon Auth UI dependency chain. Do not claim zero vulnerabilities or use `npm audit fix --force` without a reviewed compatibility plan.
@@ -23,11 +23,11 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 - Paystack's browser popup result is not trusted as proof of payment; the documented code path requires server verification/webhook settlement.
 - Dropshipping includes supplier approval, private supplier-cost records, catalogue import/approval and manual supplier-purchase/fulfilment tracking. The operational runbook explicitly says there is no automated supplier API integration and no money movement in the manual purchase confirmation route.
 - The FastAPI provider layer contains explicit not-implemented capabilities: direct Safaricom Daraja/M-Pesa integration is reserved, refund execution through the generic payment-provider interface returns a not-implemented error, and the FastAPI Cloudinary storage adapter upload method is a stub. The Next.js app has separate image paths: avatar upload is server-side, while listing images use an unsigned Cloudinary widget and therefore depend on a correctly restricted Cloudinary upload preset. Do not market the FastAPI provider capabilities as live integrations.
-- Campaign schema/migration exists. The campaign-management branch adds admin create/edit/delete and public active-campaign pages; the current PR must pass fresh CI and review before merge.
+- Campaign schema/migration exists. Draft PR #74 adds admin create/edit/delete and public active-campaign pages, Kenya-time date handling, verified-listing eligibility, audit events, and sitemap entries. CI is green on the current code head; review and a manual preview smoke test are still required before merge.
 - The production status document records that the operator confirmed the checkout entry flow works on the canonical `www.malihubke.online` domain. This is not evidence that every webhook, refund, dispute, delivery, or payout lifecycle has been tested end to end.
 
 ### Not yet independently verified
-- Fresh CI on the complete campaign-management PR (including public and admin campaign paths).
+- Interactive smoke test of campaign create/edit/delete and public visibility on the preview using an authorized admin session; CI is green, but the workflows have not yet been exercised interactively.
 - A real, low-value production test order through payment verification, webhook delivery, duplicate-event replay, order state transitions and buyer notification. Use a controlled test plan and never invent a successful result.
 - Refund/dispute behavior, delivery tracking and seller settlement/payout behavior against real provider and database state.
 - Live Neon migration state and whether production schema matches the checked-in Prisma schema. Check read-only first; do not run migrations as part of an audit.

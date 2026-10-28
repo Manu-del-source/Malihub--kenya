@@ -13,7 +13,10 @@
     },
     "next-cloudinary": {
       "@cloudinary-util/url-loader": "6.3.2"
-    }
+    },
+    "better-auth": "1.7.7",
+    "@better-auth/drizzle-adapter": "1.7.7",
+    "@better-auth/kysely-adapter": "1.7.7"
   },
   "scripts": {
     "dev": "next dev --turbopack",
@@ -63,7 +66,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "7.54.2",
     "recharts": "3.10.1",
-    "resend": "4.0.1",
+    "resend": "6.35.0",
     "server-only": "0.0.1",
     "sonner": "1.7.1",
     "tailwind-merge": "2.6.0",

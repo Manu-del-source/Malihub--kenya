@@ -269,7 +269,7 @@ export async function getPublicCampaignBySlug(slug: string, now = new Date()) {
   const campaign = await prisma.campaign.findFirst({
     where: {
       slug,
-      status: CampaignStatus.ACTIVE,
+      status: { in: [CampaignStatus.ACTIVE, CampaignStatus.SCHEDULED] },
       startsAt: { lte: now },
       endsAt: { gt: now },
       products: { some: { product: publicProductFilter } },

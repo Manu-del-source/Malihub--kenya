@@ -69,7 +69,7 @@ MaliHub has substantial implementation: Next.js 15 storefront and dashboards, Ne
 
 MaliHub should be advertised as **sale-ready only after**:
 
-- [ ] Frontend and backend CI are green on the exact candidate commit.
+- [ ] Frontend and backend CI are green on the exact candidate commit, including a Node 22 test-runner pass.
 - [ ] Dependency/security and secret scans are reviewed; no unresolved critical/high finding remains without an explicitly accepted mitigation.
 - [ ] Payment and order lifecycle test matrix passes in provider test mode.
 - [ ] Cross-user/role isolation tests pass for both Next.js/Prisma and FastAPI/SQLAlchemy access paths.

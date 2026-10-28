@@ -21,10 +21,6 @@ jobs:
     name: Frontend tests, types, lint, Prisma and build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Temporary permission for the first lockfile regeneration only. Remove it
-    # before this PR is considered mergeable.
-    permissions:
-      contents: write
     env:
       NODE_ENV: test
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -42,32 +38,14 @@ jobs:
       DROPSHIPPING_STOCK_MAX_AGE_HOURS: "48"
 
     steps:
-      - name: Check out PR branch
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-
-      # Temporary lockfile regeneration. Remove this step and write permission
-      # after the generated package-lock.json is committed.
-      - name: Regenerate lockfile from reviewed dependency versions
-        run: npm install --save-exact @neondatabase/auth@0.5.0-beta resend@6.35.0
-
-      - name: Commit generated lockfile
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: refresh audited npm dependency lockfile"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
 
       - name: Install exact locked dependencies
         run: npm ci
@@ -77,8 +55,6 @@ jobs:
 
       - name: Run unit and regression tests
         run: npm test
-        env:
-          NEXT_PUBLIC_APP_URL: https://malihub.test
 
       - name: Check TypeScript
         run: npm run type-check

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarDays, Megaphone, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Megaphone, Plus } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CampaignDeleteButton } from "@/components/shell/admin/campaign-delete-button";
 import { requireAdministrator } from "@/lib/auth";

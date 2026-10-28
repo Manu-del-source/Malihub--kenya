@@ -11,6 +11,7 @@ import {
   FolderTree,
   ScrollText,
   Boxes,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -32,6 +33,7 @@ const ADMIN_SECTIONS = [
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { label: "Dropshipping", href: "/admin/dropshipping", icon: Boxes },
   { label: "Categories", href: "/admin/categories", icon: FolderTree },
+  { label: "Campaigns", href: "/admin/campaigns", icon: CalendarDays },
   { label: "Audit", href: "/admin/audit", icon: ScrollText },
 ];
 

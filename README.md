@@ -12,10 +12,14 @@ payments, provider webhooks and health reporting. They deploy independently and
 share PostgreSQL and Redis. **Neon Managed Better Auth is authentication** —
 credentials, sessions, email verification, password reset and Google OAuth all
 live there, and no password is ever stored in this repository's database.
-Supabase remains a dependency, but only for **Storage** (profile avatars) and
-**Realtime** (chat); it is not the application database, and no new file storage
-is built on it (marketplace images are Cloudinary). See §2 and §5 of
-ARCHITECTURE.md, and **`docs/auth/`** for the authoritative auth design.
+Supabase-related dependencies and SQL remain only for legacy migration and
+compatibility paths; Supabase is **not** used for active chat or as the
+application database. The application uses independent PostgreSQL, FastAPI
+WebSockets with Redis for chat updates, and Cloudinary for active image uploads
+(profile avatars and marketplace images). The legacy Supabase avatar bucket is
+used only by the avatar-migration script while old files remain there. See §2
+and §5 of `ARCHITECTURE.md`, and **`docs/auth/`** for the authoritative auth
+design.
 
 ## Getting started — Next.js app
 

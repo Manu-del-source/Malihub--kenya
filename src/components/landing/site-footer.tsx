@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/container";
 const FOOTER_LINKS = {
   Marketplace: [
     { label: "Explore listings", href: "/marketplace" },
+    { label: "Seasonal campaigns", href: "/campaigns" },
     { label: "Categories", href: "/#categories" },
     { label: "Sell on MaliHub", href: "/register?role=seller" },
     { label: "How it works", href: "/#why-malihub" },

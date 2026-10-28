@@ -20,7 +20,7 @@ jobs:
   frontend-quality:
     name: Frontend tests, types, lint, Prisma and build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       NODE_ENV: test
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -50,6 +50,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Audit production and development dependency tree
+        run: npm audit --audit-level=high
+
       - name: Validate Prisma schema
         run: npx prisma validate
 
@@ -64,3 +67,49 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+  backend-quality:
+    name: FastAPI tests, lint and dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ENVIRONMENT: test
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      BACKEND_PUBLIC_URL: http://localhost:8000
+      ENABLE_DOCS: "true"
+      DATABASE_URL: postgresql+asyncpg://ci:ci@127.0.0.1:5432/malihub_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      NEON_AUTH_BASE_URL: https://auth-placeholder.example.test/neondb/auth
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend and test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run backend tests
+        run: python -m pytest
+
+      - name: Check backend lint
+        run: python -m ruff check app tests
+
+      - name: Install dependency auditor
+        run: python -m pip install pip-audit
+
+      - name: Audit Python dependencies
+        run: python -m pip_audit

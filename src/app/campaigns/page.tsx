@@ -4,7 +4,7 @@ import { CalendarDays, Megaphone, ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { listPublicCampaigns } from "@/services/campaign-service";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Campaigns — MaliHub Kenya",
   description: "Seasonal collections of active listings from verified Kenyan sellers.",

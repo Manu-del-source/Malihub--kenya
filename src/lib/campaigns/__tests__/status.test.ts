@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { CampaignStatus } from "@prisma/client";
 import { resolveCampaignStatus } from "@/lib/campaigns/status";
-import { campaignDateRange, campaignFormSchema } from "@/lib/validations/campaign";
+import { campaignDateInputValue, campaignDateRange, campaignFormSchema } from "@/lib/validations/campaign";
 
 const productId = "a1b2c3d4-e5f6-4789-8123-123456789abc";
 
@@ -58,5 +58,13 @@ describe("campaign form validation and Kenya date boundaries", () => {
     const range = campaignDateRange("2026-10-17", "2026-10-24");
     assert.equal(range.startsAt.toISOString(), "2026-10-16T21:00:00.000Z");
     assert.equal(range.endsAt.toISOString(), "2026-10-24T20:59:59.999Z");
+  });
+});
+
+
+describe("campaign date input formatting", () => {
+  it("displays stored timestamps as Kenya calendar dates", () => {
+    assert.equal(campaignDateInputValue(new Date("2026-10-16T21:00:00.000Z")), "2026-10-17");
+    assert.equal(campaignDateInputValue(new Date("2026-10-24T20:59:59.999Z")), "2026-10-24");
   });
 });

@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "3.10.0",
-    "@neondatabase/auth": "0.5.0-beta",
+    "@neondatabase/auth": "0.7.0-beta",
     "@prisma/client": "6.2.1",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-avatar": "1.1.1",
@@ -57,7 +57,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "7.54.2",
     "recharts": "3.10.1",
-    "resend": "4.0.1",
+    "resend": "6.35.0",
     "server-only": "0.0.1",
     "sonner": "1.7.1",
     "tailwind-merge": "2.6.0",

@@ -31,7 +31,7 @@ export default async function EditCampaignPage({ params, searchParams }: PagePro
     getAdminCampaignById(id),
     listCampaignProductOptions(),
   ]);
-  const query = searchParams ? await searchParams : {};
+  const query: { error?: string } = searchParams ? await searchParams : {};
   if (!campaign) notFound();
   const selectedIds = new Set(campaign.products.map((item) => item.productId));
   const status = campaign.status === "ENDED" ? "SCHEDULED" : campaign.status;

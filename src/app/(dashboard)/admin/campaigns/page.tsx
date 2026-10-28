@@ -161,7 +161,9 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
               <p className="mt-3 font-medium">No campaigns created</p>
               <p className="mt-1 text-sm text-muted-foreground">Create a seasonal collection when eligible listings are available.</p>
             </div>
-          ) : campaigns.map((campaign) => (
+          ) : campaigns.map((campaign) => {
+            const displayStatus = resolveCampaignStatus(campaign.status, campaign.startsAt, campaign.endsAt);
+            return (
             <article key={campaign.id} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">

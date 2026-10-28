@@ -7,7 +7,10 @@
   },
   "overrides": {
     "sharp": "0.35.5",
-    "postcss": "8.5.29"
+    "postcss": "8.5.29",
+    "better-auth": "1.7.7",
+    "@better-auth/drizzle-adapter": "1.7.7",
+    "@better-auth/kysely-adapter": "1.7.7"
   },
   "scripts": {
     "dev": "next dev --turbopack",
@@ -31,7 +34,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "3.10.0",
-    "@neondatabase/auth": "0.7.0-beta",
+    "@neondatabase/auth": "0.5.0-beta",
     "@prisma/client": "6.2.1",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-avatar": "1.1.1",

@@ -27,11 +27,11 @@ const errors: Record<string, string> = {
 export default async function EditCampaignPage({ params, searchParams }: PageProps) {
   await requireAdministrator();
   const { id } = await params;
-  const [campaign, productOptions, query] = await Promise.all([
+  const [campaign, productOptions] = await Promise.all([
     getAdminCampaignById(id),
     listCampaignProductOptions(),
-    searchParams ? searchParams : Promise.resolve({}),
   ]);
+  const query = searchParams ? await searchParams : {};
   if (!campaign) notFound();
   const selectedIds = new Set(campaign.products.map((item) => item.productId));
   const status = campaign.status === "ENDED" ? "SCHEDULED" : campaign.status;

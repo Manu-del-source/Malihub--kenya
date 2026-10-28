@@ -112,13 +112,14 @@ export default async function EditCampaignPage({ params, searchParams }: PagePro
               </p>
             ) : null}
           </fieldset>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <button type="submit" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
-              Save campaign
-            </button>
-            <CampaignDeleteButton id={campaign.id} title={campaign.title} />
-          </div>
+          <button type="submit" className="w-fit rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
+            Save campaign
+          </button>
         </form>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+          <p className="text-xs text-muted-foreground">Deleting a campaign removes only the collection and its product links. Listings and order records are retained.</p>
+          <CampaignDeleteButton id={campaign.id} title={campaign.title} />
+        </div>
       </div>
     </Container>
   );

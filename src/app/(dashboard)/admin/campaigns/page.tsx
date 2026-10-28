@@ -50,7 +50,7 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
     listAdminCampaigns(),
     listCampaignProductOptions(),
   ]);
-  const params = searchParams ? await searchParams : {};
+  const params: { notice?: string; error?: string } = searchParams ? await searchParams : {};
 
   return (
     <Container className="flex flex-col gap-8 py-10">

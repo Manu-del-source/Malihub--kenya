@@ -1,0 +1,82 @@
+name: Isolated npm dependency remediation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: malihub-npm-remediation
+  cancel-in-progress: false
+
+jobs:
+  remediate-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_NAME: MaliHub Kenya
+      NEXT_PUBLIC_SUPABASE_URL: https://legacy-placeholder.supabase.co
+      NEON_AUTH_BASE_URL: https://auth-placeholder.example.test
+      NEON_AUTH_COOKIE_SECRET: ci-only-secret-value-at-least-32-characters
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/malihub_ci
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/malihub_ci
+      PAYSTACK_CALLBACK_URL: https://example.test/checkout/payment-result
+      PAYSTACK_TIMEOUT_MS: "15000"
+      DROPSHIPPING_PAYMENT_FEE_BPS: "0"
+      DROPSHIPPING_TAX_BPS: "0"
+      DROPSHIPPING_FEE_CONFIG_VERIFIED: "false"
+      DROPSHIPPING_STOCK_MAX_AGE_HOURS: "48"
+
+    steps:
+      - name: Check out the PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Upgrade affected auth and email dependency chains
+        if: ${{ !contains(github.event.pull_request.head.sha, 'chore: refresh audited npm dependencies') }}
+        run: npm install --save-exact @neondatabase/auth@0.7.0-beta resend@6.35.0
+
+      - name: Commit generated package and lockfile changes to this isolated branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: refresh audited npm dependencies"
+            git push origin HEAD:security/npm-dependency-remediation
+          fi
+
+      - name: Install exact locked dependency tree
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Check TypeScript
+        run: npm run type-check
+
+      - name: Check lint
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high

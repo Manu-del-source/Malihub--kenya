@@ -6,6 +6,7 @@ import { CampaignDeleteButton } from "@/components/shell/admin/campaign-delete-b
 import { requireAdministrator } from "@/lib/auth";
 import { formatKes } from "@/utils";
 import { listAdminCampaigns, listCampaignProductOptions } from "@/services/campaign-service";
+import { resolveCampaignStatus } from "@/lib/campaigns/status";
 import { createCampaignAction } from "../campaign-actions";
 
 export const dynamic = "force-dynamic";
@@ -167,7 +168,7 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                   <h3 className="font-medium">{campaign.title}</h3>
                   <p className="mt-1 truncate text-xs text-muted-foreground">/campaigns/{campaign.slug}</p>
                 </div>
-                <span className={`rounded-full border px-2.5 py-1 text-xs ${statusClass(campaign.status)}`}>{campaign.status}</span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs ${statusClass(displayStatus)}`}>{displayStatus}</span>
               </div>
               {campaign.description ? <p className="mt-3 text-sm text-muted-foreground">{campaign.description}</p> : null}
               <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -182,7 +183,8 @@ export default async function AdminCampaignsPage({ searchParams }: PageProps) {
                 <CampaignDeleteButton id={campaign.id} title={campaign.title} />
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
 

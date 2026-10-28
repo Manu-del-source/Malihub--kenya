@@ -15,19 +15,18 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 
 ### Confirmed in repository / CI
 - A dedicated full-stack CI workflow now runs frontend tests, Prisma validation, TypeScript, lint, production build, FastAPI tests, Ruff and JavaScript/Python dependency audits.
-- CI run `40648487092` on the isolated hardening branch passed all three jobs: frontend, backend, and JavaScript dependency audit.
-- The frontend test suite, TypeScript check, lint and build passed on that run.
+- CI run `40650277575` on the isolated sale-readiness/campaign branch passed all three jobs: frontend, backend, and JavaScript dependency audit. The frontend job passed unit/regression tests (854 tests, 0 failures as recorded in the campaign PR), Prisma validation, TypeScript, ESLint, and production build; the backend job passed pytest, Ruff, and `pip-audit`.
 - Better Auth and related adapters are pinned to 1.7.7; Resend is updated to 6.35.0.
 - The `npm audit --audit-level=high` gate passes, but seven low-severity advisories remain through the upstream `deepmerge` → `html-to-text` → React Email / Neon Auth UI dependency chain. Do not claim zero vulnerabilities or use `npm audit fix --force` without a reviewed compatibility plan.
 - The order API requires the buyer's server-authenticated session, checks same-origin requests, rate-limits order creation, validates delivery details and requires explicit delivery-fee acceptance. Order pricing and ownership are server-derived.
 - Paystack's browser popup result is not trusted as proof of payment; the documented code path requires server verification/webhook settlement.
 - Dropshipping includes supplier approval, private supplier-cost records, catalogue import/approval and manual supplier-purchase/fulfilment tracking. The operational runbook explicitly says there is no automated supplier API integration and no money movement in the manual purchase confirmation route.
 - The FastAPI provider layer contains explicit not-implemented capabilities: direct Safaricom Daraja/M-Pesa integration is reserved, refund execution through the generic payment-provider interface returns a not-implemented error, and the FastAPI Cloudinary storage adapter upload method is a stub. The Next.js app has separate image paths: avatar upload is server-side, while listing images use an unsigned Cloudinary widget and therefore depend on a correctly restricted Cloudinary upload preset. Do not market the FastAPI provider capabilities as live integrations.
-- Campaign schema/migration exists. The campaign-management branch adds admin create/edit/delete and public active-campaign pages; the current PR must pass fresh CI and review before merge.
+- Campaign schema/migration and admin create/edit/delete plus public active-campaign pages are present on the isolated `sale-readiness/ci-security-hardening` branch. PR #75 was merged into that work branch after CI run `40650277575` passed. This is **not** a merge to `main`; interactive preview smoke tests for authorized admin create/edit/delete and public visibility remain outstanding.
 - The production status document records that the operator confirmed the checkout entry flow works on the canonical `www.malihubke.online` domain. This is not evidence that every webhook, refund, dispute, delivery, or payout lifecycle has been tested end to end.
 
 ### Not yet independently verified
-- Fresh CI on the complete campaign-management PR (including public and admin campaign paths).
+- Interactive preview smoke test of campaign create/edit/delete and public visibility using an authorized admin session; automated CI is green, but interactive operation is not yet evidenced.
 - A real, low-value production test order through payment verification, webhook delivery, duplicate-event replay, order state transitions and buyer notification. Use a controlled test plan and never invent a successful result.
 - Refund/dispute behavior, delivery tracking and seller settlement/payout behavior against real provider and database state.
 - Live Neon migration state and whether production schema matches the checked-in Prisma schema. Check read-only first; do not run migrations as part of an audit.
@@ -46,7 +45,7 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 
 ### P1 — security and operational due diligence
 1. Verify every sensitive API/server action rechecks the current session and role and scopes reads/writes to the correct user, seller or order.
-2. The repository contains manual RLS policy scripts, but Prisma uses a privileged database connection that can bypass RLS. Treat explicit application authorization as the primary control until a dedicated non-owner role, request-scoped database identity and end-to-end cross-user tests prove otherwise. Do not claim database RLS currently protects Prisma routes.
+2. The RLS rollout tracker and read-only validation queries now document the current gaps. The isolated validation snapshot showed 42 policies across 41 tables, with SELECT-only policy coverage; `payment_events` had no policy, and the inspected `neondb_owner` and `malihub_rls_test` roles had `BYPASSRLS=true`. Existing Prisma and SQLAlchemy context helpers are opt-in, not universal. Treat explicit application authorization as the primary control until every access path is mapped, policies are implemented, and cross-user tests pass under a verified non-owner/non-bypass runtime role. Do not claim database RLS currently protects all routes.
 3. Check Neon production migration history read-only, compare against the repository migration set, and document a tested backup/restore procedure before any migration.
 4. Confirm secrets are absent from Git history, logs, build artifacts and public environment variables. Rotate credentials after transfer; do not send secrets to prospective buyers.
 5. Review remaining low-severity JavaScript advisories and pin/patch dependencies only where a tested, compatible fix exists.
@@ -80,11 +79,13 @@ Never provide buyers direct access to production customer personal data, payment
 ## Exit criteria
 
 Do not call MaliHub “sale-ready” until:
-- [ ] The campaign-management PR passes the complete current CI suite and has been reviewed.
+- [x] Automated CI for campaign management passed on the isolated sale-readiness branch (run `40650277575`); the change has not been merged to `main`.
+- [ ] Interactive preview smoke test verifies campaign create/edit/delete and public visibility with an authorized admin session.
 - [ ] Production environment/domain configuration has one canonical documented source of truth.
 - [ ] Read-only migration/schema comparison is complete and a backup/restore test is documented.
 - [ ] Controlled end-to-end payment/webhook/order-state tests pass with evidence.
-- [ ] Seller ownership isolation, admin authorization and buyer protection/refund paths have regression tests.
+- [ ] Complete the RLS/access-path inventory and enforce/test cross-account isolation under a non-owner, non-`BYPASSRLS` role; existing route-level authorization tests do not prove database RLS enforcement.
+- [ ] Verify buyer protection, refund/dispute and payout paths against the actual configured provider; recording workflow state does not prove money movement.
 - [ ] No unresolved high/critical dependency advisory is known; remaining low advisories are documented.
 - [ ] README, setup, deployment, operations and known-limitations docs agree with the actual stack.
 - [ ] A private data room, traction/financial sheet and asset/IP register are prepared.

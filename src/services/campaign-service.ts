@@ -3,6 +3,7 @@ import "server-only";
 import { CampaignStatus, ListingStatus, SellerVerificationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logAuditEvent } from "@/services/audit-service";
+import { resolveCampaignStatus } from "@/lib/campaigns/status";
 
 export class CampaignServiceError extends Error {}
 
@@ -20,17 +21,6 @@ export type CampaignWriteInput = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function resolveCampaignStatus(
-  requested: CampaignStatus,
-  startsAt: Date,
-  endsAt: Date,
-  now = new Date(),
-): CampaignStatus {
-  if (requested === CampaignStatus.DRAFT || requested === CampaignStatus.CANCELLED) return requested;
-  if (endsAt.getTime() <= now.getTime()) return CampaignStatus.ENDED;
-  if (startsAt.getTime() > now.getTime()) return CampaignStatus.SCHEDULED;
-  return CampaignStatus.ACTIVE;
-}
 
 function validateDateRange(startsAt: Date, endsAt: Date) {
   if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime())) {

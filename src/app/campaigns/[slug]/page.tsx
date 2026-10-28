@@ -7,7 +7,7 @@ import { Container } from "@/components/ui/container";
 import { formatKes } from "@/utils";
 import { getPublicCampaignBySlug } from "@/services/campaign-service";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ slug: string }> };
 

@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - sale-readiness/ci-security-hardening
   push:
     branches:
       - main

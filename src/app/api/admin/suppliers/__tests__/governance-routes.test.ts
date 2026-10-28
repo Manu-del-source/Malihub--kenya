@@ -17,6 +17,7 @@ type SessionUser = { id: string; email: string; role: string; isActive: boolean;
 
 let sessionUser: SessionUser = null;
 const ORIGIN = "https://malihub.test";
+process.env.NEXT_PUBLIC_APP_URL = ORIGIN;
 
 // Non-secret server configuration for deterministic pricing assertions.
 process.env.DROPSHIPPING_PAYMENT_FEE_BPS = "150";

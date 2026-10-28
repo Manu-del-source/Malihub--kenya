@@ -16,6 +16,7 @@ const transitionCalls: Array<Record<string, unknown>> = [];
 const returnDecisionCalls: Array<Record<string, unknown>> = [];
 
 const ORIGIN = "https://malihub.test";
+process.env.NEXT_PUBLIC_APP_URL = ORIGIN;
 
 mock.module("server-only", { namedExports: {} });
 mock.module("@/lib/prisma", { namedExports: { prisma: {} } });

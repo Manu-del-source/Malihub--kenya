@@ -237,7 +237,7 @@ const publicProductFilter = {
 export async function listPublicCampaigns(now = new Date()) {
   return prisma.campaign.findMany({
     where: {
-      status: CampaignStatus.ACTIVE,
+      status: { in: [CampaignStatus.ACTIVE, CampaignStatus.SCHEDULED] },
       startsAt: { lte: now },
       endsAt: { gt: now },
       products: { some: { product: publicProductFilter } },

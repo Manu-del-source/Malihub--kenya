@@ -7,7 +7,7 @@ import { CampaignDeleteButton } from "@/components/shell/admin/campaign-delete-b
 import { requireAdministrator } from "@/lib/auth";
 import { campaignDateInputValue } from "@/lib/validations/campaign";
 import { getAdminCampaignById, listCampaignProductOptions } from "@/services/campaign-service";
-import { updateCampaignAction } from "../campaign-actions";
+import { updateCampaignAction } from "../../campaign-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Edit campaign — admin" };

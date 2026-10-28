@@ -47,16 +47,20 @@ MaliHub has substantial implementation: Next.js 15 storefront and dashboards, Ne
 
 ### P2 — Product scope and commercial transfer
 
-8. **Dropshipping scope disclosure**
+8. **Campaign feature is schema-only on `main`**
+   - The current Prisma schema defines `Campaign` and `CampaignProduct`, but the admin campaign page path is absent on `main` and the code search did not find a current public campaign route/service.
+   - Either finish and test campaign creation/editing/deletion, product assignment, date/status transitions, public campaign pages and sitemap integration, or remove/disable campaign claims from the buyer-facing feature matrix. Do not rely on stale feature branches without rebasing and reviewing them against current `main`.
+
+9. **Dropshipping scope disclosure**
    - The current design is seller-led and manual: supplier approval, stock/cost verification, supplier purchases and fulfilment operations are not equivalent to fully automated supplier APIs or automated purchase orders.
    - Keep manual operations documented as manual. Validate supplier costs, stock freshness, pricing/margin calculations, private supplier data exposure, order-item/fulfilment links, returns, and dispute handling.
    - Never imply that the platform holds funds in escrow unless a compliant escrow arrangement actually exists.
 
-9. **Seller and buyer journey**
+10. **Seller and buyer journey**
    - Run a repeatable mobile smoke test for signup/login, profile completion, seller onboarding/verification, product creation/edit/publish, image upload, search/filter, cart/checkout, order history, delivery tracking, and buyer-protection case submission.
    - Confirm failed and empty states, validation messages, accessibility basics, and that no internal supplier cost/contact/notes leak into public responses.
 
-10. **Sale and transfer package**
+11. **Sale and transfer package**
     - Prepare a buyer-facing feature matrix (implemented / manual / incomplete), architecture and deployment diagram, dependency/licence inventory, security and test report, known-issues register, migration/backup runbook, domain and brand ownership evidence, and service-transfer checklist.
     - Keep all secrets, customer data, private supplier contacts, and production database exports out of the sales pack and repository.
     - Document current revenue, transaction volume, active sellers/users, operating costs and hosting dependencies truthfully. Do not imply traction that does not exist.
@@ -76,11 +80,12 @@ MaliHub should be advertised as **sale-ready only after**:
 
 ## Work order
 
-1. Land/repair safe CI gates for frontend **and** backend.
-2. Map sensitive routes and data ownership; finish security tests before considering database RLS enforcement.
-3. Run test-mode payment and order lifecycle checks.
-4. Run the staging marketplace/dropshipping smoke-test matrix and fix verified defects.
-5. Verify deployment/migration state and prepare the acquisition handover pack.
+1. Remediate the newly confirmed npm audit findings in an isolated branch, then get the expanded frontend/backend CI green.
+2. Finish the campaign feature or explicitly remove it from the marketed scope.
+3. Map sensitive routes and data ownership; finish security tests before considering database RLS enforcement.
+4. Run test-mode payment and order lifecycle checks.
+5. Run the staging marketplace/dropshipping smoke-test matrix and fix verified defects.
+6. Verify deployment/migration state and prepare the acquisition handover pack.
 
 ## Evidence and change control
 

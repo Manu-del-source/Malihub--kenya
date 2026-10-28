@@ -161,13 +161,14 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+    acceptedFeeCents: 0,
     });
 
     assert.equal(calls[0]!.url, ORDERS_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
     assert.deepEqual(
       bodyOf(calls[0]!),
-      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue" },
+      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue", acceptedDeliveryFeeCents: 0 },
       "prices, ids and totals are never sent",
     );
     assert.equal(result.ok, true);
@@ -187,6 +188,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+    acceptedFeeCents: 0,
     });
 
     assert.equal(result.ok, false);
@@ -205,6 +207,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+    acceptedFeeCents: 0,
     });
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.message, /reach the server/i);

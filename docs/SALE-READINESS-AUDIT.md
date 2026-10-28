@@ -80,7 +80,7 @@ MaliHub should be advertised as **sale-ready only after**:
 
 ## Work order
 
-1. Remediate the newly confirmed npm audit findings in an isolated branch, then get the expanded frontend/backend CI green.
+1. Verify PR #73's patched dependency lockfile with a clean read-only audit and full frontend/backend CI run.
 2. Finish the campaign feature or explicitly remove it from the marketed scope.
 3. Map sensitive routes and data ownership; finish security tests before considering database RLS enforcement.
 4. Run test-mode payment and order lifecycle checks.

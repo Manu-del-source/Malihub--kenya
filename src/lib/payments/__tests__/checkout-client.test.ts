@@ -385,7 +385,7 @@ describe("duplicate safety and multi-seller sequencing", () => {
     };
 
     const once = createSerializedTask(() =>
-      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue" }),
+      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0 }),
     );
     const [first, second] = await Promise.all([once(), once()]);
 

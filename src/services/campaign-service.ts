@@ -272,6 +272,7 @@ export async function getPublicCampaignBySlug(slug: string, now = new Date()) {
       status: CampaignStatus.ACTIVE,
       startsAt: { lte: now },
       endsAt: { gt: now },
+      products: { some: { product: publicProductFilter } },
     },
     include: {
       products: {

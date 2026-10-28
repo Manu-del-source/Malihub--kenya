@@ -2,7 +2,6 @@ import "server-only";
 
 import { CampaignStatus, ListingStatus, SellerVerificationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logServerError } from "@/lib/safe-log";
 import { logAuditEvent } from "@/services/audit-service";
 
 export class CampaignServiceError extends Error {}
@@ -42,7 +41,7 @@ function validateDateRange(startsAt: Date, endsAt: Date) {
   }
 }
 
-async function assertEligibleProducts(tx: typeof prisma, productIds: string[]) {
+async function assertEligibleProducts(tx: { product: typeof prisma.product }, productIds: string[]) {
   const uniqueIds = [...new Set(productIds)];
   if (uniqueIds.length === 0) throw new CampaignServiceError("Choose at least one eligible product.");
 
@@ -140,7 +139,7 @@ export async function createCampaign(input: CampaignWriteInput, actor: CampaignA
 
   try {
     const campaign = await prisma.$transaction(async (tx) => {
-      const productIds = await assertEligibleProducts(tx as typeof prisma, input.productIds);
+      const productIds = await assertEligibleProducts(tx, input.productIds);
       return tx.campaign.create({
         data: {
           title: input.title,

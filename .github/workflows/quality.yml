@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
-      contents: write
+      contents: read
     env:
       NODE_ENV: test
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -52,21 +52,6 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # Temporary lockfile regeneration. Remove this step and write permission
-      # after the generated package-lock.json is committed.
-      - name: Regenerate lockfile from the reviewed overrides
-        run: npm install --save-exact @neondatabase/auth@0.5.0-beta resend@6.35.0
-
-      - name: Commit generated lockfile
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: refresh audited npm dependency lockfile"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
-
       - name: Install exact locked dependencies
         run: npm ci
 
@@ -75,8 +60,6 @@ jobs:
 
       - name: Run unit and regression tests
         run: npm test
-        env:
-          NEXT_PUBLIC_APP_URL: https://malihub.test
 
       - name: Check TypeScript
         run: npm run type-check

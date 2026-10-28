@@ -22,6 +22,7 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 - The order API requires the buyer's server-authenticated session, checks same-origin requests, rate-limits order creation, validates delivery details and requires explicit delivery-fee acceptance. Order pricing and ownership are server-derived.
 - Paystack's browser popup result is not trusted as proof of payment; the documented code path requires server verification/webhook settlement.
 - Dropshipping includes supplier approval, private supplier-cost records, catalogue import/approval and manual supplier-purchase/fulfilment tracking. The operational runbook explicitly says there is no automated supplier API integration and no money movement in the manual purchase confirmation route.
+- The FastAPI provider layer contains explicit not-implemented capabilities: direct Safaricom Daraja/M-Pesa integration is reserved, refund execution through the generic payment-provider interface returns a not-implemented error, and the FastAPI Cloudinary storage adapter upload method is a stub that makes no Cloudinary request. Do not market these backend provider capabilities as live integrations. Confirm which upload path the deployed Next.js app actually uses before describing image uploads as production-ready.
 - Campaign schema/migration exists. The campaign-management branch adds admin create/edit/delete and public active-campaign pages; the current PR must pass fresh CI and review before merge.
 - The production status document records that the operator confirmed the checkout entry flow works on the canonical `www.malihubke.online` domain. This is not evidence that every webhook, refund, dispute, delivery, or payout lifecycle has been tested end to end.
 
@@ -53,10 +54,13 @@ MaliHub is a substantial marketplace codebase, not merely a prototype. It has a 
 
 ### P2 — product completeness and truthful scope
 1. Campaigns are merchandising collections, not discount rules. Do not advertise sale-price discounts until the discount amount is captured in checkout and immutable order snapshots and is covered by tests.
-2. Dropshipping is currently a **manual supplier operations workflow**. Do not advertise automatic supplier ordering, supplier stock synchronization, automatic tracking ingestion or supplier API integrations until implemented and tested.
-3. Buyer protection must be described precisely. A shipment tracking record is not proof of escrow, safeguarded funds, automatic payouts, or guaranteed dispute resolution.
-4. Finish a buyer-facing operations guide and admin runbook covering seller approval, catalogue moderation, failed payment recovery, supplier purchase failures, returns/refunds, disputes, fulfilment and incident escalation.
-5. Review mobile usability, accessibility, empty/error states and production performance with actual devices and data.
+2. Direct Safaricom Daraja/M-Pesa is **not implemented** in the FastAPI provider layer; the existing storefront collection path is Paystack-based. Verify which payment channels are enabled in the live Paystack account before promising M-Pesa checkout.
+3. Refund execution in the generic FastAPI provider layer is **not implemented**. Do not promise automatic refunds until an actual provider refund call, idempotency, failure recovery and tests exist.
+4. The FastAPI Cloudinary upload method is **not implemented**. Trace the live Next.js upload path and test upload/permission/cleanup before claiming the backend storage adapter is production-ready.
+5. Dropshipping is currently a **manual supplier operations workflow**. Do not advertise automatic supplier ordering, supplier stock synchronization, automatic tracking ingestion or supplier API integrations until implemented and tested.
+6. Buyer protection must be described precisely. A shipment tracking record is not proof of escrow, safeguarded funds, automatic payouts, or guaranteed dispute resolution.
+7. Finish a buyer-facing operations guide and admin runbook covering seller approval, catalogue moderation, failed payment recovery, supplier purchase failures, returns/refunds, disputes, fulfilment and incident escalation.
+8. Review mobile usability, accessibility, empty/error states and production performance with actual devices and data.
 
 ## Data-room package required before listing
 

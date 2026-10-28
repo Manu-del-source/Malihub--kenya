@@ -16,6 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${BASE_URL}/marketplace`, changeFrequency: "daily", priority: 0.9 },
     { url: `${BASE_URL}/search`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${BASE_URL}/campaigns`, changeFrequency: "daily", priority: 0.8 },
     { url: `${BASE_URL}/login`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE_URL}/register`, changeFrequency: "yearly", priority: 0.3 },
   ];
@@ -30,8 +31,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // once the database answers, and the failure is logged rather than swallowed.
   let categories: { slug: string }[] = [];
   let products: { slug: string; updatedAt: Date }[] = [];
+  let campaigns: { slug: string; updatedAt: Date }[] = [];
   try {
-    [categories, products] = await Promise.all([
+    const now = new Date();
+    [categories, products, campaigns] = await Promise.all([
       prisma.category.findMany({
         where: { isActive: true, slug: { notIn: ["vehicles", "property"] } },
         select: { slug: true },
@@ -40,6 +43,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         where: { status: "ACTIVE", category: { slug: { notIn: ["vehicles", "property"] } }, seller: { verificationStatus: "VERIFIED" } },
         select: { slug: true, updatedAt: true },
         take: 50000, // Sitemap protocol cap is 50k URLs per file
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.campaign.findMany({
+        where: {
+          status: { in: ["ACTIVE", "SCHEDULED"] },
+          startsAt: { lte: now },
+          endsAt: { gt: now },
+          products: { some: { product: { status: "ACTIVE", seller: { verificationStatus: "VERIFIED" } } } },
+        },
+        select: { slug: true, updatedAt: true },
+        take: 10000,
         orderBy: { updatedAt: "desc" },
       }),
     ]);
@@ -62,5 +76,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   );
 
-  return [...staticRoutes, ...categoryRoutes, ...productRoutes];
+  const campaignRoutes: MetadataRoute.Sitemap = campaigns.map((campaign) => ({
+    url: `${BASE_URL}/campaigns/${campaign.slug}`,
+    lastModified: campaign.updatedAt,
+    changeFrequency: "daily",
+    priority: 0.7,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...productRoutes, ...campaignRoutes];
 }

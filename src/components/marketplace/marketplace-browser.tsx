@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { BadgeCheck, PackageSearch, Search, ShieldCheck, Truck, SlidersHorizontal } from "lucide-react";
+import { BadgeCheck, CalendarDays, PackageSearch, Search, ShieldCheck, Truck, SlidersHorizontal } from "lucide-react";
 import { SearchFiltersSidebar } from "@/components/marketplace/search-filters-sidebar";
 import { SearchResultsGrid } from "@/components/marketplace/search-results-grid";
 import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrapper";
@@ -49,6 +49,13 @@ export async function MarketplaceBrowser({
           <p className="mt-1.5 max-w-xl text-xs leading-5 text-white/65 sm:mt-2 sm:text-base sm:leading-6">
             Discover products from sellers across Kenya. Compare prices and shop with confidence.
           </p>
+          <Link
+            href="/campaigns"
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-400/35 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-200 transition hover:border-amber-300/70 hover:bg-amber-400/15 sm:text-sm"
+          >
+            <CalendarDays className="h-4 w-4" aria-hidden />
+            Explore seasonal collections
+          </Link>
           <div className="mt-3 hidden items-center gap-2 text-xs text-white/65 sm:flex">
             <ShieldCheck className="h-4 w-4 text-amber-300" aria-hidden />
             Seller details on every listing

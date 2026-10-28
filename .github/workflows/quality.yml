@@ -50,9 +50,6 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Audit production and development dependency tree
-        run: npm audit --audit-level=high
-
       - name: Validate Prisma schema
         run: npx prisma validate
 
@@ -113,3 +110,23 @@ jobs:
 
       - name: Audit Python dependencies
         run: python -m pip_audit
+
+  dependency-audit:
+    name: JavaScript dependency security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit production and development dependency tree
+        run: npm audit --audit-level=high

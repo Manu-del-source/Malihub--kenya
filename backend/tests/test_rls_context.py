@@ -35,3 +35,38 @@ async def test_rls_context_uses_parameterized_transaction_local_setting() -> Non
     statement, params = session.calls[0]
     assert "set_config('app.user_id', :user_id, true)" in str(statement)
     assert params == {"user_id": user_id}
+
+
+async def test_authenticated_db_dependency_sets_context_from_internal_subject(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api import deps
+    from app.core.security import AuthContext
+
+    session = object()
+    context_calls: list[tuple[object, str]] = []
+
+    async def fake_get_db_session():
+        yield session
+
+    async def fake_set_context(actual_session: object, user_id: str) -> None:
+        context_calls.append((actual_session, user_id))
+
+    monkeypatch.setattr(deps, "get_db_session", fake_get_db_session)
+    monkeypatch.setattr(deps, "set_rls_user_context", fake_set_context)
+
+    auth = AuthContext(auth_user_id="provider-user", subject="internal-user-123")
+    dependency = deps.get_authenticated_db_session(auth)
+    assert await anext(dependency) is session
+    assert context_calls == [(session, "internal-user-123")]
+    await dependency.aclose()
+
+
+async def test_authenticated_db_dependency_rejects_unmapped_identity() -> None:
+    from app.api.deps import get_authenticated_db_session
+    from app.core.errors import UnauthorizedError
+    from app.core.security import AuthContext
+
+    auth = AuthContext(auth_user_id="provider-user", subject=None)
+    dependency = get_authenticated_db_session(auth)
+
+    with pytest.raises(UnauthorizedError):
+        await anext(dependency)

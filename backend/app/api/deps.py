@@ -1,39 +1,29 @@
 """Shared FastAPI dependencies.
 
 Everything a route can ask for, in one place, so a route reads as "what it
-needs" rather than "how to get it":
+needs" rather than "how to get it".
 
-    @router.get("/payments/providers")
-    async def list_providers(service: PaymentService = Depends(get_payment_service)):
-        ...
-
-Re-exported here rather than imported from `core`/`services` directly, so an
-endpoint module has exactly one dependency import line and the wiring can be
-changed (swapped for a test double, wrapped with caching) without touching
-routes.
-
-Authentication note: `get_auth_context` and friends live in `core.security` and
-are re-exported below. **Neon Managed Better Auth is the identity provider.**
-Nothing here issues, refreshes or stores a credential — these dependencies
-verify a token the auth service already signed, resolve it to a MaliHub account
-through `users.auth_user_id`, and hand the route an `AuthContext` whose `role`
-came from Postgres. There is no second user system and no password anywhere in
-this backend.
-
-Use `AuthContext.subject` (MaliHub's `users.id`) for every query. It is **not**
-`AuthContext.auth_user_id`, which is the provider's id and matches no foreign
-key in this schema.
+Authentication note: `get_auth_context` verifies Neon Auth and resolves the
+provider identity to a MaliHub account. Use `AuthContext.subject` (MaliHub's
+`users.id`) for queries; it is not `auth_user_id` (the provider's id).
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.db import get_database, get_db_session, get_optional_db_session
+from app.core.errors import UnauthorizedError
 from app.core.identity import (
     ApplicationIdentity,
     IdentityResolver,
     get_identity_resolver,
 )
 from app.core.redis import get_redis_gateway
+from app.core.rls_context import set_rls_user_context
 from app.core.security import (
     AuthContext,
     NeonAuthJwtVerifier,
@@ -47,6 +37,24 @@ from app.services.payment_service import PaymentService, get_payment_service
 from app.services.rate_limit import RateLimiter, get_rate_limiter, rate_limit_dependency
 from app.services.storage_service import StorageService, get_storage_service
 
+
+async def get_authenticated_db_session(
+    auth_context: AuthContext = Depends(get_auth_context),
+) -> AsyncIterator[AsyncSession]:
+    """Yield a session with transaction-local RLS context for a mapped user.
+
+    This dependency is opt-in; routes must be audited and migrated deliberately.
+    Identity is verified and mapped before the context is set. Unmapped provider
+    identities fail closed. All protected statements must use this same session.
+    """
+    if not auth_context.subject:
+        raise UnauthorizedError("A MaliHub application account is required")
+
+    async for session in get_db_session():
+        await set_rls_user_context(session, auth_context.subject)
+        yield session
+
+
 __all__ = [
     "ApplicationIdentity",
     "AuthContext",
@@ -57,6 +65,7 @@ __all__ = [
     "RateLimiter",
     "StorageService",
     "get_auth_context",
+    "get_authenticated_db_session",
     "get_database",
     "get_db_session",
     "get_email_service",

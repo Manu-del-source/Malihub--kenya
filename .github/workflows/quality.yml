@@ -21,6 +21,8 @@ jobs:
     name: Frontend tests, types, lint, Prisma and build
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: write
     env:
       NODE_ENV: test
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -38,8 +40,11 @@ jobs:
       DROPSHIPPING_STOCK_MAX_AGE_HOURS: "48"
 
     steps:
-      - name: Check out source
+      - name: Check out PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -47,7 +52,22 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - name: Install locked dependencies
+      # Temporary, isolated remediation step. Remove after the generated lockfile
+      # has been committed and the updated dependency tree has passed CI.
+      - name: Upgrade affected auth and email dependency chains
+        run: npm install --save-exact @neondatabase/auth@0.7.0-beta resend@6.35.0
+
+      - name: Commit generated package and lockfile changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: refresh audited npm dependencies"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+
+      - name: Install exact locked dependencies
         run: npm ci
 
       - name: Validate Prisma schema

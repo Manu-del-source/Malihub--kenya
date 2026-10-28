@@ -1,0 +1,156 @@
+name: MaliHub quality checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: malihub-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-quality:
+    name: Frontend tests, types, lint, Prisma and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Temporary permission for the first lockfile regeneration only. Remove it
+    # before this PR is considered mergeable.
+    permissions:
+      contents: write
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_NAME: MaliHub Kenya
+      NEXT_PUBLIC_SUPABASE_URL: https://legacy-placeholder.supabase.co
+      NEON_AUTH_BASE_URL: https://auth-placeholder.example.test
+      NEON_AUTH_COOKIE_SECRET: ci-only-secret-value-at-least-32-characters
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/malihub_ci
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/malihub_ci
+      PAYSTACK_CALLBACK_URL: https://example.test/checkout/payment-result
+      PAYSTACK_TIMEOUT_MS: "15000"
+      DROPSHIPPING_PAYMENT_FEE_BPS: "0"
+      DROPSHIPPING_TAX_BPS: "0"
+      DROPSHIPPING_FEE_CONFIG_VERIFIED: "false"
+      DROPSHIPPING_STOCK_MAX_AGE_HOURS: "48"
+
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Temporary lockfile regeneration. Remove this step and write permission
+      # after the generated package-lock.json is committed.
+      - name: Regenerate lockfile from reviewed dependency versions
+        run: npm install --save-exact @neondatabase/auth@0.5.0-beta resend@6.35.0
+
+      - name: Commit generated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: refresh audited npm dependency lockfile"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+
+      - name: Install exact locked dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Run unit and regression tests
+        run: npm test
+        env:
+          NEXT_PUBLIC_APP_URL: https://malihub.test
+
+      - name: Check TypeScript
+        run: npm run type-check
+
+      - name: Check lint
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+  backend-quality:
+    name: FastAPI tests, lint and dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ENVIRONMENT: test
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      BACKEND_PUBLIC_URL: http://localhost:8000
+      ENABLE_DOCS: "true"
+      DATABASE_URL: postgresql+asyncpg://ci:ci@127.0.0.1:5432/malihub_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      NEON_AUTH_BASE_URL: https://auth-placeholder.example.test/neondb/auth
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend and test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run backend tests
+        run: python -m pytest
+
+      - name: Check backend lint
+        run: python -m ruff check app tests
+
+      - name: Install dependency auditor
+        run: python -m pip install pip-audit
+
+      - name: Audit Python dependencies
+        run: python -m pip_audit
+
+  dependency-audit:
+    name: JavaScript dependency security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit production and development dependency tree
+        run: npm audit --audit-level=high

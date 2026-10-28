@@ -56,7 +56,7 @@ export function campaignDateRange(startDate: string, endDate: string) {
 }
 
 /** Convert stored timestamps to Kenya calendar dates for date inputs. */
-export function campaignDateInputValue(date: Date, endOfDay = false): string {
+export function campaignDateInputValue(date: Date): string {
   const kenya = new Date(date.getTime() + 3 * 60 * 60 * 1000);
   const year = kenya.getUTCFullYear();
   const month = String(kenya.getUTCMonth() + 1).padStart(2, "0");

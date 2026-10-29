@@ -24,7 +24,7 @@ export function MessageInput({
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_SIGNED_UPLOAD_PRESET;
 
   async function handleSend() {
     const trimmed = content.trim();
@@ -76,10 +76,18 @@ export function MessageInput({
       )}
 
       <div className="flex items-end gap-2">
-        {uploadPreset && (
-          <CldUploadWidget
+        {uploadPreset && <CldUploadWidget
             uploadPreset={uploadPreset}
-            options={{ maxFiles: 1, sources: ["local", "camera"] }}
+            signatureEndpoint="/api/cloudinary/sign"
+            options={{
+              maxFiles: 1,
+              maxFileSize: 1_000_000,
+              maxImageWidth: 2000,
+              maxImageHeight: 2000,
+              clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
+              folder: "malihub/messages",
+              sources: ["local", "camera"],
+            }}
             onSuccess={handleImageUploaded}
             onError={() => toast.error("Image upload failed.")}
           >
@@ -93,8 +101,7 @@ export function MessageInput({
                 <ImagePlus className="h-4.5 w-4.5" />
               </button>
             )}
-          </CldUploadWidget>
-        )}
+          </CldUploadWidget>}
 
         <textarea
           ref={textareaRef}

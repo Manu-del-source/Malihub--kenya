@@ -4,7 +4,7 @@ import Image from "next/image";
 import { CldUploadWidget, type CloudinaryUploadWidgetResults } from "next-cloudinary";
 import { ImagePlus, Star, X } from "lucide-react";
 import { toast } from "sonner";
-import { MAX_LISTING_IMAGES } from "@/lib/constants";
+import { MAX_SELLER_UPLOAD_IMAGES } from "@/lib/constants";
 import type { ListingInput } from "@/lib/validations/listing";
 import { cn } from "@/utils";
 
@@ -17,12 +17,22 @@ export function ImageUploadGrid({
   images: ListingImage[];
   onChange: (images: ListingImage[]) => void;
 }) {
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-  const remaining = MAX_LISTING_IMAGES - images.length;
+  const remaining = MAX_SELLER_UPLOAD_IMAGES - images.length;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_SIGNED_UPLOAD_PRESET;
 
   function handleSuccess(results: CloudinaryUploadWidgetResults) {
     const info = results.info;
     if (!info || typeof info === "string") return;
+
+    if (!info.secure_url || !info.public_id || !info.format || !["jpg", "jpeg", "png", "webp"].includes(info.format.toLowerCase())) {
+      toast.error("Please upload a JPEG, PNG, or WebP image.");
+      return;
+    }
+
+    if (images.length >= MAX_SELLER_UPLOAD_IMAGES) {
+      toast.error(`You can upload up to ${MAX_SELLER_UPLOAD_IMAGES} photos per product.`);
+      return;
+    }
 
     onChange([...images, { url: info.secure_url, cloudinaryId: info.public_id }]);
   }
@@ -84,9 +94,19 @@ export function ImageUploadGrid({
       {remaining > 0 && uploadPreset && (
         <CldUploadWidget
           uploadPreset={uploadPreset}
-          options={{ maxFiles: remaining, sources: ["local", "camera"], multiple: true }}
+          signatureEndpoint="/api/cloudinary/sign"
+          options={{
+            maxFiles: remaining,
+            maxFileSize: 1_000_000,
+            maxImageWidth: 2000,
+            maxImageHeight: 2000,
+            clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
+            folder: "malihub/products",
+            sources: ["local", "camera"],
+            multiple: true,
+          }}
           onSuccess={handleSuccess}
-          onError={() => toast.error("Upload failed — please try again.")}
+          onError={() => toast.error("Upload failed — check the image is under 1 MB and try again.")}
         >
           {({ open }) => (
             <button
@@ -98,6 +118,7 @@ export function ImageUploadGrid({
             >
               <ImagePlus className="h-5 w-5" aria-hidden />
               <span className="text-[11px]">Add photo</span>
+              <span className="px-1 text-center text-[9px]">JPEG, PNG, WebP · max 1 MB</span>
             </button>
           )}
         </CldUploadWidget>

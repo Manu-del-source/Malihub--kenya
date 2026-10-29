@@ -38,6 +38,9 @@ const limiters = {
   signup: () => buildLimiter("signup", 5, 600),
   passwordReset: () => buildLimiter("password-reset", 5, 600),
   listingCreate: () => buildLimiter("listing-create", 10, 3600),
+  // Signed listing-image upload signatures are capped at 30 per rolling 24 hours per seller.
+  listingImageUpload: () => buildLimiter("listing-image-upload", 30, 86400),
+  messageImageUpload: () => buildLimiter("message-image-upload", 20, 86400),
   // Order-creation spam control: each creation reserves stock and writes
   // rows. 10 per 5 minutes per buyer is generous for a real checkout (a
   // multi-seller cart creates at most a handful at once) and bounds a
@@ -94,6 +97,8 @@ export const rateLimit = {
   signup: (ip: string) => check(limiters.signup(), ip),
   passwordReset: (email: string) => check(limiters.passwordReset(), email.toLowerCase()),
   listingCreate: (sellerId: string) => check(limiters.listingCreate(), sellerId),
+  listingImageUpload: (sellerId: string) => check(limiters.listingImageUpload(), sellerId),
+  messageImageUpload: (userId: string) => check(limiters.messageImageUpload(), userId),
   orderCreate: (buyerId: string) => check(limiters.orderCreate(), buyerId),
   paymentInitiate: (buyerId: string) => check(limiters.paymentInitiate(), buyerId),
   paymentStatusCheck: (buyerId: string) => check(limiters.paymentStatusCheck(), buyerId),

@@ -41,4 +41,7 @@ export const PRODUCT_CONDITIONS = [
 ] as const;
 
 export const PAGE_SIZE = 24;
-export const MAX_LISTING_IMAGES = 8;\n\n/** New seller uploads are limited to five images; existing listings may retain up to eight. */\nexport const MAX_SELLER_UPLOAD_IMAGES = 5;
+export const MAX_LISTING_IMAGES = 8;
+
+/** New seller uploads are limited to five images; existing listings may retain up to eight. */
+export const MAX_SELLER_UPLOAD_IMAGES = 5;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { KENYA_COUNTIES } from "@/lib/constants";
 import { isOwnCloudinaryAvatarUrl, isOwnSupabaseStorageUrl } from "@/lib/validations/upload-security";
+import { isDisposableEmail } from "@/lib/validations/disposable-email";
 
 /**
  * Kenyan phone numbers, accepted in any of the common local formats
@@ -20,7 +21,12 @@ const passwordSchema = z
 
 export const registerSchema = z
   .object({
-    email: z.string().email("Enter a valid email address"),
+    email: z
+      .string()
+      .email("Enter a valid email address")
+      .refine((email) => !isDisposableEmail(email), {
+        message: "Temporary or disposable email addresses are not accepted. Please use a permanent email address.",
+      }),
     password: passwordSchema,
     confirmPassword: z.string(),
     agreeToTerms: z.literal(true, { error: "You must agree to the terms to continue" }),

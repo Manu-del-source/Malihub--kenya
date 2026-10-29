@@ -12,15 +12,16 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set<string>([
   "moblha.com",
 ]);
 
-/** Returns true when an email uses a known disposable domain. */
+/** Returns true when an email uses a known disposable domain or its subdomain. */
 export function isDisposableEmail(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   const at = normalized.lastIndexOf("@");
   if (at <= 0 || at === normalized.length - 1) return false;
 
   const domain = normalized.slice(at + 1).replace(/\.$/, "");
-  return (
-    DISPOSABLE_EMAIL_DOMAINS.has(domain) ||
-    [...DISPOSABLE_EMAIL_DOMAINS].some((blocked) => domain.endsWith("." + blocked))
-  );
+  const labels = domain.split(".");
+  for (let index = 0; index < labels.length; index += 1) {
+    if (DISPOSABLE_EMAIL_DOMAINS.has(labels.slice(index).join("."))) return true;
+  }
+  return false;
 }

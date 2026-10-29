@@ -71,6 +71,9 @@ export async function getCloudinaryUsage(options: { refresh?: boolean } = {}): P
   };
 
   await redis.set(USAGE_CACHE_KEY, snapshot, { ex: USAGE_CACHE_SECONDS });
+  if (snapshot.warning) {
+    console.warn(`[cloudinary-usage] MaliHub Cloudinary credit usage is at ${snapshot.creditUsagePercent.toFixed(1)}%; uploads block at 85%.`);
+  }
   return snapshot;
 }
 

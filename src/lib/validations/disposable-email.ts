@@ -17,6 +17,8 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "tempail.com", "tempr.email", "emailfake.com", "crazymailing.com",
   "harakirimail.com", "jetable.org", "mytemp.email", "tmpmail.org",
   "tmpmail.net", "getairmail.com", "anonbox.net", "spamgourmet.com",
+  // Reported during MaliHub registration testing.
+  "moblha.com",
 ]);
 
 /** Returns true when an email uses a known disposable domain. */

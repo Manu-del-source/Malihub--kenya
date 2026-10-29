@@ -1,0 +1,41 @@
+name: Refresh disposable email domains
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Download maintained blocklist
+        run: |
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf \
+            --output /tmp/disposable_email_blocklist.conf
+          node <<'NODE'
+          const fs = require('node:fs');
+          const domains = [...new Set(fs.readFileSync('/tmp/disposable_email_blocklist.conf', 'utf8')
+            .split(/\r?\n/)
+            .map((domain) => domain.trim().toLowerCase())
+            .filter((domain) => domain && !domain.startsWith('#') && /^[a-z0-9.-]+$/.test(domain)))].sort();
+          if (domains.length < 10000) throw new Error('Upstream blocklist unexpectedly small; refusing to replace current list.');
+          fs.writeFileSync('src/lib/validations/disposable-email-domains.json', JSON.stringify(domains, null, 2) + '\n');
+          NODE
+      - name: Commit updated blocklist
+        run: |
+          if git diff --quiet -- src/lib/validations/disposable-email-domains.json; then
+            echo "Blocklist is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/validations/disposable-email-domains.json
+          git commit -m "chore: refresh disposable email blocklist"
+          git push

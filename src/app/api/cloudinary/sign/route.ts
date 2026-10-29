@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const LISTING_FOLDER = "malihub/products";
+const LISTING_FOLDER = "malihub/products";\nconst MESSAGE_FOLDER = "malihub/messages";
 const MAX_SIGNATURE_AGE_SECONDS = 300;
 const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp"]);
 
@@ -34,14 +34,6 @@ export async function POST(request: NextRequest) {
 
   if (!getRedis()) {
     return errorResponse("Image uploads are temporarily unavailable while upload protection is offline.", 503);
-  }
-
-  const seller = await prisma.seller.findUnique({
-    where: { userId: user.id },
-    select: { id: true, verificationStatus: true },
-  });
-  if (!seller || seller.verificationStatus !== "VERIFIED") {
-    return errorResponse("Only verified sellers can upload product photos.", 403);
   }
 
   let body: Record<string, unknown>;
@@ -85,15 +77,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const limit = await rateLimit.listingImageUpload(seller.id);
-  if (!limit.success) {
-    return NextResponse.json(
-      { success: false, error: `Upload limit reached (30 images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) },
-      }
-    );
+  let limit;
+  if (params.folder === LISTING_FOLDER) {
+    const seller = await prisma.seller.findUnique({
+      where: { userId: user.id },
+      select: { id: true, verificationStatus: true },
+    });
+    if (!seller || seller.verificationStatus !== "VERIFIED") {
+      return errorResponse("Only verified sellers can upload product photos.", 403);
+    }
+    limit = await rateLimit.listingImageUpload(seller.id);
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, error: `Upload limit reached (30 product images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) },
+        }
+      );
+    }
+  } else {
+    limit = await rateLimit.messageImageUpload(user.id);
+    if (!limit.success) {
+      return NextResponse.json(
+        { success: false, error: `Upload limit reached (20 message images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) },
+        }
+      );
+    }
   }
 
   const apiKey = process.env.CLOUDINARY_API_KEY;

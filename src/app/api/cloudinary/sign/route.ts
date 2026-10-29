@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  if (!apiKey || !apiSecret || !cloudName) {
+  if (!apiKey || !apiSecret || !cloudName || !process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY) {
     return errorResponse("Image uploads are not configured. Please contact MaliHub support.", 503);
   }
 

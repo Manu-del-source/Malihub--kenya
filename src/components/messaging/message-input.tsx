@@ -79,7 +79,7 @@ export function MessageInput({
             signatureEndpoint="/api/cloudinary/sign"
             options={{
               maxFiles: 1,
-              maxImageFileSize: 1_000_000,
+              maxFileSize: 1_000_000,
               maxImageWidth: 2000,
               maxImageHeight: 2000,
               clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],

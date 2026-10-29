@@ -5,6 +5,7 @@ import { registerSchema } from "@/lib/validations/auth";
 
 test("identifies known disposable email domains case-insensitively", () => {
   assert.equal(isDisposableEmail("person@mailinator.com"), true);
+  assert.equal(isDisposableEmail("person@0-mail.com"), true);
   assert.equal(isDisposableEmail("person@YOPMAIL.COM"), true);
   assert.equal(isDisposableEmail("person@sub.mailinator.com"), true);
   assert.equal(isDisposableEmail("yacibeh412@moblha.com"), true);

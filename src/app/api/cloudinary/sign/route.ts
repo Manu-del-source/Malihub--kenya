@@ -9,7 +9,8 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const LISTING_FOLDER = "malihub/products";\nconst MESSAGE_FOLDER = "malihub/messages";
+const LISTING_FOLDER = "malihub/products";
+const MESSAGE_FOLDER = "malihub/messages";
 const MAX_SIGNATURE_AGE_SECONDS = 300;
 const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp"]);
 
@@ -18,11 +19,9 @@ function errorResponse(error: string, status: number) {
 }
 
 /**
- * Cloudinary Upload Widget signature endpoint.
- *
- * A signature is issued only to a signed-in, verified seller. Redis is
- * mandatory here: quotas must not silently become unlimited when rate-limit
- * storage is unavailable. The browser never receives the Cloudinary API secret.
+ * Signed upload endpoint for product and message images. Only approved folders
+ * and minimal parameters are signed. Product uploads require a verified seller;
+ * quotas and global Cloudinary usage checks run before a signature is issued.
  */
 export async function POST(request: NextRequest) {
   const originCheck = verifySameOrigin(request);
@@ -30,9 +29,10 @@ export async function POST(request: NextRequest) {
 
   const current = await getCurrentUser();
   const user = current?.user;
-  if (!user) return errorResponse("Sign in as a seller to upload product photos.", 401);
+  if (!user) return errorResponse("Sign in before uploading images.", 401);
 
-  if (!getRedis()) {
+  const redis = getRedis();
+  if (!redis) {
     return errorResponse("Image uploads are temporarily unavailable while upload protection is offline.", 503);
   }
 
@@ -53,6 +53,11 @@ export async function POST(request: NextRequest) {
     return errorResponse("Unsupported upload parameters.", 400);
   }
 
+  const folder = params.folder;
+  if (folder !== LISTING_FOLDER && folder !== MESSAGE_FOLDER) {
+    return errorResponse("Uploads are restricted to approved MaliHub image folders.", 400);
+  }
+
   const timestamp = params.timestamp;
   if (typeof timestamp !== "number" || !Number.isInteger(timestamp)) {
     return errorResponse("Invalid upload timestamp.", 400);
@@ -61,24 +66,21 @@ export async function POST(request: NextRequest) {
   if (timestamp < now - MAX_SIGNATURE_AGE_SECONDS || timestamp > now + 60) {
     return errorResponse("Upload signature timestamp expired. Please retry.", 400);
   }
-  if (params.folder !== LISTING_FOLDER) {
-    return errorResponse("Uploads are restricted to the MaliHub product-image folder.", 400);
-  }
 
   try {
     await assertCloudinaryUploadsAllowed();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Image uploads are temporarily paused.";
+    const message = error instanceof Error ? error.message : "";
     const blocked = message.includes("85%") || message.includes("paused by the MaliHub administrator");
     return errorResponse(
-      blocked ? "Product photo uploads are temporarily paused to protect MaliHub's storage allowance. Please try later." :
-        "Image uploads are temporarily unavailable because usage protection could not be verified.",
-      blocked ? 503 : 503
+      blocked
+        ? "Image uploads are temporarily paused to protect MaliHub's Cloudinary allowance. Please try later."
+        : "Image uploads are temporarily unavailable because usage protection could not be verified.",
+      503
     );
   }
 
-  let limit;
-  if (params.folder === LISTING_FOLDER) {
+  if (folder === LISTING_FOLDER) {
     const seller = await prisma.seller.findUnique({
       where: { userId: user.id },
       select: { id: true, verificationStatus: true },
@@ -86,10 +88,11 @@ export async function POST(request: NextRequest) {
     if (!seller || seller.verificationStatus !== "VERIFIED") {
       return errorResponse("Only verified sellers can upload product photos.", 403);
     }
-    limit = await rateLimit.listingImageUpload(seller.id);
+
+    const limit = await rateLimit.listingImageUpload(seller.id);
     if (!limit.success) {
       return NextResponse.json(
-        { success: false, error: `Upload limit reached (30 product images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
+        { success: false, error: `Upload limit reached (30 product-image signatures per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
         {
           status: 429,
           headers: { "Retry-After": String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) },
@@ -97,10 +100,10 @@ export async function POST(request: NextRequest) {
       );
     }
   } else {
-    limit = await rateLimit.messageImageUpload(user.id);
+    const limit = await rateLimit.messageImageUpload(user.id);
     if (!limit.success) {
       return NextResponse.json(
-        { success: false, error: `Upload limit reached (20 message images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
+        { success: false, error: `Upload limit reached (20 message-image signatures per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },
         {
           status: 429,
           headers: { "Retry-After": String(Math.max(1, Math.ceil((limit.reset - Date.now()) / 1000))) },
@@ -111,17 +114,13 @@ export async function POST(request: NextRequest) {
 
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  if (!apiKey || !apiSecret || !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
-    return errorResponse("Product image uploads are not configured. Please contact MaliHub support.", 503);
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (!apiKey || !apiSecret || !cloudName) {
+    return errorResponse("Image uploads are not configured. Please contact MaliHub support.", 503);
   }
 
   try {
-    cloudinary.config({
-      cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-      api_key: apiKey,
-      api_secret: apiSecret,
-      secure: true,
-    });
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
     const signature = cloudinary.utils.api_sign_request(params as Record<string, string | number>, apiSecret);
     return NextResponse.json({ signature });
   } catch {

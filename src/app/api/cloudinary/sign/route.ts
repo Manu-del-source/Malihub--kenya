@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 const LISTING_FOLDER = "malihub/products";
 const MESSAGE_FOLDER = "malihub/messages";
 const MAX_SIGNATURE_AGE_SECONDS = 300;
-const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp"]);
+const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp", "source"]);
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
@@ -51,6 +51,10 @@ export async function POST(request: NextRequest) {
   const params = rawParams as Record<string, unknown>;
   if (Object.keys(params).some((key) => !ALLOWED_SIGNED_PARAMS.has(key))) {
     return errorResponse("Unsupported upload parameters.", 400);
+  }
+
+  if (params.source !== undefined && params.source !== "uw") {
+    return errorResponse("Invalid upload source.", 400);
   }
 
   const folder = params.folder;
@@ -121,7 +125,10 @@ export async function POST(request: NextRequest) {
 
   try {
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
-    const signature = cloudinary.utils.api_sign_request(params as Record<string, string | number>, apiSecret);
+    // Cloudinary adds source=uw to Upload Widget requests; include it in the
+    // signature even when the widget omits it from paramsToSign.
+    const signingParams = { ...params, source: "uw" } as Record<string, string | number>;
+    const signature = cloudinary.utils.api_sign_request(signingParams, apiSecret);
     return NextResponse.json({ signature });
   } catch {
     return errorResponse("Could not authorize this upload. Please try again.", 503);

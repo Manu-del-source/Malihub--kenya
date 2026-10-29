@@ -18,6 +18,7 @@ export function ImageUploadGrid({
   onChange: (images: ListingImage[]) => void;
 }) {
   const remaining = MAX_SELLER_UPLOAD_IMAGES - images.length;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_SIGNED_UPLOAD_PRESET;
 
   function handleSuccess(results: CloudinaryUploadWidgetResults) {
     const info = results.info;
@@ -90,8 +91,9 @@ export function ImageUploadGrid({
         </div>
       ))}
 
-      {remaining > 0 && (
+      {remaining > 0 && uploadPreset && (
         <CldUploadWidget
+          uploadPreset={uploadPreset}
           signatureEndpoint="/api/cloudinary/sign"
           options={{
             maxFiles: remaining,

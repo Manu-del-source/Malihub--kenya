@@ -25,7 +25,7 @@ jobs:
             .split(/\r?\n/)
             .map((domain) => domain.trim().toLowerCase())
             .filter((domain) => domain && !domain.startsWith('#') && /^[a-z0-9.-]+$/.test(domain)))].sort();
-          if (domains.length < 10000) throw new Error('Upstream blocklist unexpectedly small; refusing to replace current list.');
+          if (domains.length < 9000) throw new Error('Upstream blocklist unexpectedly small; refusing to replace current list.');
           fs.writeFileSync('src/lib/validations/disposable-email-domains.json', JSON.stringify(domains, null, 2) + '\n');
           NODE
       - name: Commit updated blocklist

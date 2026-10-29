@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 const LISTING_FOLDER = "malihub/products";
 const MESSAGE_FOLDER = "malihub/messages";
 const MAX_SIGNATURE_AGE_SECONDS = 300;
-const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp", "source"]);
+const ALLOWED_SIGNED_PARAMS = new Set(["folder", "timestamp", "source", "upload_preset"]);
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
 
   if (params.source !== undefined && params.source !== "uw") {
     return errorResponse("Invalid upload source.", 400);
+  }
+
+  const signedPreset = process.env.NEXT_PUBLIC_CLOUDINARY_SIGNED_UPLOAD_PRESET;
+  if (!signedPreset || params.upload_preset !== signedPreset) {
+    return errorResponse("The restricted signed upload preset is not configured.", 503);
   }
 
   const folder = params.folder;

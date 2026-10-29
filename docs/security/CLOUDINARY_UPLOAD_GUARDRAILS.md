@@ -16,13 +16,14 @@ In the **Vercel environment for the preview first**, configure:
 
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
 - `NEXT_PUBLIC_CLOUDINARY_API_KEY` — the Cloudinary API key is public; it is not the API secret.
+- `NEXT_PUBLIC_CLOUDINARY_SIGNED_UPLOAD_PRESET` — the name of the signed preset created for MaliHub image uploads.
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET` — server-only; never prefix it with `NEXT_PUBLIC_`.
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 - `CLOUDINARY_UPLOADS_PAUSED=false`
 
-The public and server-side API key values should match. Keep the API secret private.
+The public and server-side API key values should match. Keep the API secret private. The new upload preset must be configured as **Signed**; do not point this variable at the old unsigned preset.
 
 ## Critical Cloudinary Console step
 

@@ -517,6 +517,19 @@ model User {
   @@map("users")
 }
 
+
+/// Tracks inactivity per Neon Auth session, not per account/device.
+model AuthSessionActivity {
+  sessionId      String   @id @map("session_id")
+  authUserId     String   @map("auth_user_id")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([authUserId])
+  @@map("auth_session_activity")
+}
+
 model Profile {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId        String   @unique @map("user_id") @db.Uuid

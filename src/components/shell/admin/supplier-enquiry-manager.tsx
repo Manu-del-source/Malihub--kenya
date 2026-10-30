@@ -26,10 +26,10 @@ export function SupplierEnquiryManager({ lead }: { lead: Lead }) {
   async function save() {
     setBusy(true); setMessage("");
     try {
-      const response = await fetch("/api/admin/supplier-enquiries", {
+      const response = await fetch(`/api/admin/supplier-enquiries/${lead.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: lead.id, status, internalNotes: notes || null, wholesaleTerms: wholesale || null,
+          status, internalNotes: notes || null, wholesaleTerms: wholesale || null,
           deliveryTerms: delivery || null, followUpAt: followUp ? new Date(followUp).toISOString() : null,
         }),
       });

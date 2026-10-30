@@ -9,8 +9,9 @@ import { enableSelling, AuthServiceError } from "@/services/account-provisioning
 import type { ApiResult } from "@/types";
 
 /**
- * Lets an onboarded BUYER start selling — the post-onboarding equivalent of
- * `/complete-profile`'s `accountIntent`.
+ * Lets an onboarded BUYER begin a seller application. This creates an
+ * unverified seller profile only; admin approval is required before the
+ * account receives the SELLER role or listing permissions.
  *
  * Authorization: the account is resolved from the server session
  * (`requireOnboardedActionUser`); the service then re-reads MaliHub's own rows

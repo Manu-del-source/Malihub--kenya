@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { startSellingAction } from "@/app/(dashboard)/account/actions";
 
 /**
- * "Start selling" for an onboarded buyer. Calls the account Server Action,
+ * "Apply to sell" for an onboarded buyer. Calls the account Server Action,
  * which resolves the account from the session — this component sends no ids,
  * no role, and no ownership of any kind.
  */
@@ -26,7 +26,7 @@ export function StartSellingButton() {
       toast.success(
         result.data.alreadyEnabled
           ? "Your seller profile is ready for an application."
-          : "Seller profile created. Submit your application for review."
+          : "Seller profile created. Submit your application for admin review."
       );
       router.push("/seller/onboarding");
       router.refresh();
@@ -36,7 +36,7 @@ export function StartSellingButton() {
   return (
     <Button onClick={handleClick} disabled={isPending}>
       <Store className="h-4 w-4" aria-hidden />
-      {isPending ? "Setting up…" : "Start selling"}
+      {isPending ? "Preparing application…" : "Apply to sell"}
     </Button>
   );
 }

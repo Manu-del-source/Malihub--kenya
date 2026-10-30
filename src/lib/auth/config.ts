@@ -173,6 +173,7 @@ export const ADMIN_DASHBOARD_PATH = "/admin";
 export const PROTECTED_PREFIXES = [
   "/buyer",
   "/seller",
+  "/seller-center",
   "/admin",
   "/messages",
   "/notifications",

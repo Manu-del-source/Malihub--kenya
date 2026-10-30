@@ -380,7 +380,7 @@ describe("account provisioning — existing accounts", () => {
     assert.equal(store.tables.users.size, 1);
     assert.equal(store.tables.profiles.size, 1);
     assert.equal(store.tables.users.get(userId)?.phone, "0712345678");
-    assert.equal(store.tables.users.get(userId)?.role, "SELLER");
+    assert.equal(store.tables.users.get(userId)?.role, "BUYER", "seller role is reserved for admin-approved applicants");
     assert.equal(store.tables.profiles.get(userId)?.fullName, "Emmanuel K. Yegon");
     assert.equal(store.tables.profiles.get(userId)?.county, "Nairobi");
   });
@@ -455,7 +455,7 @@ describe("enableSelling — post-onboarding seller opt-in", () => {
     return { store, userId };
   }
 
-  it("creates the sellers row and promotes BUYER to SELLER", async () => {
+  it("creates a pending seller profile without granting the seller role", async () => {
     const { store, userId } = await seedOnboardedBuyer();
 
     const result = await enableSelling(asStore(store), userId);

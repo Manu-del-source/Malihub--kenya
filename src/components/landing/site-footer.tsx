@@ -6,8 +6,6 @@ const FOOTER_LINKS = {
   Marketplace: [
     { label: "Explore listings", href: "/marketplace" },
     { label: "Categories", href: "/#categories" },
-    { label: "Sell on MaliHub", href: "/register?role=seller" },
-    { label: "Become a supplier", href: "/become-a-supplier" },
     { label: "How it works", href: "/#why-malihub" },
   ],
   Help: [

@@ -9,12 +9,12 @@ import { staggerContainer, defaultViewport } from "@/lib/motion";
 
 export function CategoriesSection() {
   return (
-    <section id="categories" className="py-20 sm:py-28">
-      <Container className="flex flex-col gap-10 sm:gap-14">
+    <section id="categories" className="py-10 sm:py-20 lg:py-28">
+      <Container className="flex flex-col gap-6 sm:gap-10 lg:gap-14">
         <SectionHeading
           eyebrow="Browse"
-          title="Browse marketplace categories"
-          subtitle="Browse categories to discover listings that are currently available on MaliHub."
+          title="Shop by category"
+          subtitle="Find listings across MaliHub."
         />
 
         <motion.div
@@ -22,7 +22,7 @@ export function CategoriesSection() {
           initial="hidden"
           whileInView="visible"
           viewport={defaultViewport}
-          className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
         >
           {DEFAULT_CATEGORIES.map((category) => (
             <CategoryCard

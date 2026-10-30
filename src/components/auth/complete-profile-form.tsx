@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ArrowRight, ShoppingBag, Store, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   completeProfileSchema,
   type CompleteProfileInput,
@@ -16,29 +16,6 @@ import { Button } from "@/components/ui/button";
 import { AvatarUpload } from "@/components/auth/avatar-upload";
 import { KENYA_COUNTIES } from "@/lib/constants";
 import { cn } from "@/utils";
-
-type AccountIntent = CompleteProfileInput["accountIntent"];
-
-const INTENT_OPTIONS: { value: AccountIntent; label: string; description: string; icon: LucideIcon }[] = [
-  {
-    value: "BUYER",
-    label: "Buyer",
-    description: "I'm here to shop",
-    icon: ShoppingBag,
-  },
-  {
-    value: "SELLER",
-    label: "Seller",
-    description: "I want to list items",
-    icon: Store,
-  },
-  {
-    value: "BOTH",
-    label: "Both",
-    description: "Buy and sell",
-    icon: Sparkles,
-  },
-];
 
 export function CompleteProfileForm({
   defaultFullName,
@@ -52,7 +29,6 @@ export function CompleteProfileForm({
   const {
     register,
     handleSubmit,
-    control,
     watch,
     setValue,
     formState: { errors, isSubmitting },
@@ -128,38 +104,6 @@ export function CompleteProfileForm({
             </option>
           ))}
         </select>
-      </FormField>
-
-      <FormField id="accountIntent" label="I want to">
-        <Controller
-          name="accountIntent"
-          control={control}
-          render={({ field }) => (
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Account type">
-              {INTENT_OPTIONS.map((option) => {
-                const selected = field.value === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => field.onChange(option.value)}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-center transition-all duration-200",
-                      selected
-                        ? "border-primary/50 bg-primary/10 text-primary-400"
-                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
-                    <option.icon className="h-5 w-5" aria-hidden />
-                    <span className="text-xs font-medium">{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        />
       </FormField>
 
       <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full">

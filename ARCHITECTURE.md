@@ -218,21 +218,21 @@ nav + footer; dashboards get a sidebar shell) without affecting the URL path.
 
 ## 5a. Auth implementation notes
 
-- **Buyer/Seller/Both is not a fourth enum value.** `User.role` stays
-  `BUYER` or `SELLER` (`ADMIN`/`SUPER_ADMIN` are staff-only, set manually,
-  never through signup). Buying is never role-gated — anyone can buy
-  regardless of role. Choosing "Seller" or "Both" at /complete-profile sets
-  `role = SELLER` **and** creates a starter `Seller` row (business name
-  defaults to their full name, editable later); "Both" doesn't block
-  buying, it's purely a UI/copy distinction on top of the same `SELLER`
-  role + Seller row. Seller-dashboard access is gated on **having a
-  Seller row**, not on the role string — enforced by `requireSellerAccess()`.
-  That row is only the application starting point: sellers submit business
-  details at `/seller/onboarding`, which moves verification to `PENDING`
-  for the existing admin review queue. Only `VERIFIED` sellers may create,
-  publish, or republish listings, and public listing queries require a verified
-  seller as well as a public listing status. Identity-document uploads are
-  intentionally not enabled until private document storage is configured.
+- **Customer registration is buyer-first; seller access is separately approved.**
+  Every new account completes `/complete-profile` as a buyer. The server-side
+  validation rejects attempts to submit a seller or combined account intent;
+  the public homepage, navigation, footer and customer onboarding do not recruit
+  sellers. An authenticated customer can apply from Account, which creates an
+  unverified seller profile but does not promote the user's role. The applicant
+  submits business details at `/seller/onboarding`, moving verification to
+  `PENDING` for the existing admin review queue. Admin verification changes
+  the seller status to `VERIFIED` and grants the `SELLER` role; rejection or
+  resetting verification removes that role from non-staff accounts. Seller
+  dashboard access is gated on having a Seller row, so applicants can track
+  their application, but only `VERIFIED` sellers may create, publish, or
+  republish listings. Public listing queries also require a verified seller.
+  Identity-document uploads remain disabled until private document storage is
+  configured.
 - **Onboarding is enforced server-side, not in middleware.** Any authenticated
   user whose `profiles.onboarded` is not true is sent to `/complete-profile` by
   `requireOnboardedUser()`. Middleware deliberately does not check this: it would

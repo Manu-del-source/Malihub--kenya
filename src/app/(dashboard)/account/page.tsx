@@ -75,7 +75,7 @@ export default async function AccountPage() {
     <Container className="py-10">
       <h1 className="mb-1 font-display text-3xl font-medium">Account</h1>
       <p className="mb-8 text-sm text-muted-foreground">
-        Your profile, roles and activity — shared across buying and selling.
+        Your shopping profile, orders and account activity.
       </p>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
@@ -153,11 +153,9 @@ export default async function AccountPage() {
             <section className="rounded-2xl border border-border bg-card p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-display text-lg font-medium">Start selling</h2>
+                  <h2 className="font-display text-lg font-medium">Apply to become a MaliHub seller</h2>
                   <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                    Turn your account into a seller shop — you&apos;ll get product
-                    management, orders and sales screens. Only accounts that opt in get
-                    seller access.
+                    Seller applications are reviewed by the MaliHub team. Seller permissions and product publishing are enabled only after approval.
                   </p>
                 </div>
                 {profile?.onboarded ? (
@@ -190,7 +188,7 @@ export default async function AccountPage() {
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   <LayoutDashboard className="h-4 w-4" aria-hidden />
-                  Seller dashboard
+                  Seller Centre
                 </Link>
               </div>
             </section>

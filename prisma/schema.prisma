@@ -192,6 +192,16 @@ enum SupplierStatus {
   SUSPENDED
 }
 
+enum SupplierLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATING
+  VERIFICATION_PENDING
+  ONBOARDED
+  DECLINED
+}
+
 /// Origin is operational metadata, not a guarantee of delivery time or customs status.
 enum SupplierRegion {
   KENYA
@@ -1521,6 +1531,34 @@ model BuyerProtectionEvidence {
 
   @@index([caseId, createdAt])
   @@map("buyer_protection_evidence")
+}
+
+/// Public supplier enquiries are kept separate from approved supplier
+/// records. All commercial negotiation fields are admin-only.
+model SupplierLead {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyName   String            @map("company_name")
+  contactName   String            @map("contact_name")
+  email         String
+  phone         String
+  location      String?
+  categories    String[]          @default([])
+  catalogueUrl  String?           @map("catalogue_url")
+  websiteUrl    String?           @map("website_url")
+  message       String?
+  consentedAt   DateTime          @default(now()) @map("consented_at")
+  status        SupplierLeadStatus @default(NEW)
+  internalNotes String?           @map("internal_notes")
+  wholesaleTerms String?          @map("wholesale_terms")
+  deliveryTerms String?           @map("delivery_terms")
+  followUpAt    DateTime?         @map("follow_up_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([followUpAt])
+  @@index([email])
+  @@map("supplier_leads")
 }
 
 /// A vetted source that sellers can use to fulfil MaliHub listings.

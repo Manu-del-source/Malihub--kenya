@@ -4,6 +4,7 @@ import { ShoppingDiscoverySection } from "@/components/landing/shopping-discover
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
+import { SupplierCtaSection } from "@/components/landing/supplier-cta-section";
 import { FaqSection } from "@/components/landing/faq-section";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function HomePage() {
       <CategoriesSection />
       <WhyMaliHubSection />
       <SellerCtaSection />
+      <SupplierCtaSection />
       <FaqSection />
     </>
   );

@@ -17,6 +17,7 @@ const enquirySchema = z.object({
   catalogueUrl: z.string().trim().url().max(2048).optional().or(z.literal("")),
   websiteUrl: z.string().trim().url().max(2048).optional().or(z.literal("")),
   message: z.string().trim().max(2000).optional().default(""),
+  consent: z.literal(true),
   // Honeypot. Real visitors never see or fill this field.
   companyWebsite: z.string().max(200).optional().default(""),
 });

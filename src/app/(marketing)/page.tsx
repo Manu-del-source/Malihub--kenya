@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
-import { ShoppingDiscoverySection } from "@/components/landing/shopping-discovery-section";
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
-import { SellerCtaSection } from "@/components/landing/seller-cta-section";
-import { SupplierCtaSection } from "@/components/landing/supplier-cta-section";
+import { MarketplaceGrowthSection } from "@/components/landing/marketplace-growth-section";
 import { FaqSection } from "@/components/landing/faq-section";
 
 export const metadata: Metadata = {
@@ -43,11 +41,9 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HeroSection />
-      <ShoppingDiscoverySection />
       <CategoriesSection />
       <WhyMaliHubSection />
-      <SellerCtaSection />
-      <SupplierCtaSection />
+      <MarketplaceGrowthSection />
       <FaqSection />
     </>
   );

@@ -58,6 +58,7 @@ export function SupplierEnquiryManager({ lead }: { lead: Lead }) {
         {lead.catalogueUrl && <a className="text-[#D8B66A] hover:underline" href={lead.catalogueUrl} target="_blank" rel="noreferrer">Open catalogue</a>}
         {lead.websiteUrl && <a className="text-[#D8B66A] hover:underline" href={lead.websiteUrl} target="_blank" rel="noreferrer">Open website</a>}
       </div>
+      <p className="mt-4 text-xs leading-5 text-amber-100/60">Only mark this enquiry as ONBOARDED after creating its supplier record through the Dropshipping supplier registry and completing the required manual verification.</p>
       <div className="mt-5 grid gap-4 border-t border-white/10 pt-5 md:grid-cols-2">
         <label className="text-xs font-medium text-white/60">Pipeline status
           <select value={status} onChange={(e) => setStatus(e.target.value)} className={fieldClass}>

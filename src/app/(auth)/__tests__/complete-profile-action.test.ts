@@ -51,7 +51,7 @@ const VALID_INPUT = {
   fullName: "Emmanuel Yegon",
   phone: "+254726090372",
   county: "Uasin Gishu" as const,
-  accountIntent: "BOTH" as const,
+  accountIntent: "BUYER" as const,
   avatarUrl: "",
 };
 
@@ -80,13 +80,13 @@ describe("completeProfileAction — first-time onboarding", () => {
 
     const result = await completeProfileAction(VALID_INPUT);
 
-    assertRedirect(result, "/seller");
+    assertRedirect(result, "/buyer");
     assert.equal(store.tables.users.size, 1);
     assert.equal(store.tables.profiles.size, 1);
 
     const user = [...store.tables.users.values()][0]!;
     assert.equal(user.authUserId, AUTH_USER_ID);
-    assert.equal(user.role, "SELLER");
+    assert.equal(user.role, "BUYER");
     assert.equal(user.phone, "+254726090372");
 
     const profile = store.tables.profiles.get(user.id)!;
@@ -95,15 +95,12 @@ describe("completeProfileAction — first-time onboarding", () => {
     assert.equal(profile.fullName, "Emmanuel Yegon");
   });
 
-  it("creates a starter Seller row when the person opts into selling", async () => {
+  it("does not create a Seller row during ordinary account onboarding", async () => {
     const { completeProfileAction } = await loadAction();
 
     await completeProfileAction(VALID_INPUT);
 
-    assert.equal(store.tables.sellers.size, 1);
-    const seller = [...store.tables.sellers.values()][0]!;
-    assert.equal(seller.businessName, "Emmanuel Yegon");
-    assert.equal(seller.county, "Uasin Gishu");
+    assert.equal(store.tables.sellers.size, 0);
   });
 
   it("sends a buyer-only account to the buyer dashboard and creates no Seller row", async () => {
@@ -115,6 +112,16 @@ describe("completeProfileAction — first-time onboarding", () => {
     assert.equal(store.tables.sellers.size, 0);
     const user = [...store.tables.users.values()][0]!;
     assert.equal(user.role, "BUYER");
+  });
+
+  it("rejects a forged seller intent instead of granting seller access", async () => {
+    const { completeProfileAction } = await loadAction();
+
+    const result = await completeProfileAction({ ...VALID_INPUT, accountIntent: "SELLER" });
+
+    assert.equal(result.success, false);
+    assert.equal(store.tables.users.size, 0);
+    assert.equal(store.tables.sellers.size, 0);
   });
 
   it("reuses the rows an earlier sign-in already provisioned", async () => {
@@ -137,7 +144,7 @@ describe("completeProfileAction — first-time onboarding", () => {
     });
     const { completeProfileAction } = await loadAction();
 
-    await completeProfileAction({ ...VALID_INPUT, accountIntent: "SELLER" });
+    await completeProfileAction({ ...VALID_INPUT, accountIntent: "BUYER" });
 
     assert.equal(store.tables.users.size, 1, "no second account for the same person");
     assert.equal(store.tables.profiles.get("existing-app-user")?.onboarded, true);

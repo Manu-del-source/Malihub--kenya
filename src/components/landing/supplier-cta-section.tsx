@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Boxes, ClipboardCheck, PackageCheck, Store, Truck } from "lucide-react";
+import { ArrowRight, Boxes, PackageCheck, Store, Truck } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

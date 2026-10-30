@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { companyWebsite: _honeypot, ...data } = parsed.data;
+    const data = parsed.data;
     const enquiry = await prisma.supplierLead.create({
       data: {
         companyName: data.companyName,

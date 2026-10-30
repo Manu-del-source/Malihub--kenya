@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Prisma, SupplierLeadStatus } from "@prisma/client";
 import { verifySameOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
-import { logAuditEvent } from "@/services/audit-service";
 import { logSafeError, requireAdminActor } from "@/lib/dropshipping/http";
 
 const statuses = ["NEW", "CONTACTED", "QUALIFIED", "NEGOTIATING", "VERIFICATION_PENDING", "ONBOARDED", "DECLINED"] as const;

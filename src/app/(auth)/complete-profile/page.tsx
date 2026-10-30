@@ -48,7 +48,7 @@ export default async function CompleteProfilePage() {
   return (
     <AuthCard
       title="Complete your profile"
-      subtitle="A few quick details so buyers and sellers know who they're dealing with."
+      subtitle="Add a few details to personalise your MaliHub shopping account."
     >
       <CompleteProfileForm
         // Display name and photo now come from the auth identity (`user.name` /

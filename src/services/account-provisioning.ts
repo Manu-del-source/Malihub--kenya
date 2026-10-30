@@ -455,8 +455,8 @@ export async function saveCompletedProfile(
  * Deliberately *additive and one-way*:
  *  - it only ever CREATES the `sellers` row (idempotent — a second call
  *    returns the existing row),
- *  - it only promotes `BUYER → SELLER`; a role that is already SELLER, ADMIN
- *    or SUPER_ADMIN is never downgraded or rewritten,
+ *  - it does NOT grant seller role or publishing permissions; those are
+ *    granted only after an administrator verifies the application,
  *  - it never touches `profiles` or the identity mapping.
  *
  * Like everything else in this module, the decision comes from MaliHub's own
@@ -495,13 +495,6 @@ export async function enableSelling(
       },
       select: { id: true },
     });
-
-    // One-way promotion only: BUYER gains seller access; anything else stays
-    // exactly as it is.
-    const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
-    if (user?.role === "BUYER") {
-      await tx.user.update({ where: { id: userId }, data: { role: "SELLER" } });
-    }
 
     return { sellerId: seller.id, alreadyEnabled: false };
   });

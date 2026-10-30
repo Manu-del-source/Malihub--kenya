@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, ClipboardCheck, PackageCheck, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, ClipboardCheck, PackageCheck } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

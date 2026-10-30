@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { verifySameOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
-import { requireAdminActor, logSafeError } from "@/lib/dropshipping/http";
+import { requireAdminActor, logSafeError, isPrismaErrorCode } from "@/lib/dropshipping/http";
+import { logAuditEvent } from "@/services/audit-service";
 
 const schema = z.object({
   status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "NEGOTIATING", "VERIFICATION_PENDING", "ONBOARDED", "DECLINED"]).optional(),
@@ -31,8 +32,13 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       },
       select: { id: true, status: true, updatedAt: true },
     });
+    await logAuditEvent({
+      action: "supplier.enquiry_updated", actorId: guard.actor.id, actorEmail: guard.actor.email,
+      targetType: "supplier_enquiry", targetId: id, metadata: { fields: Object.keys(fields) },
+    }).catch(() => undefined);
     return NextResponse.json({ success: true, data });
   } catch (error) {
+    if (isPrismaErrorCode(error, "P2025")) return NextResponse.json({ success: false, error: "Supplier enquiry not found." }, { status: 404 });
     logSafeError("PATCH /api/admin/supplier-enquiries/[id] failed", error);
     return NextResponse.json({ success: false, error: "Unable to update supplier enquiry." }, { status: 500 });
   }

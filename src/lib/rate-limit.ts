@@ -82,6 +82,8 @@ const limiters = {
   // per user covers reconnects while bounding how many sockets an abusive
   // session can spin up (each socket also costs a per-join DB check).
   chatWsTicket: () => buildLimiter("chat-ws-ticket", 20, 60),
+  // Public supplier lead form: a small hourly allowance per source IP.
+  supplierEnquiry: () => buildLimiter("supplier-enquiry", 5, 3600),
   api: () => buildLimiter("api", 120, 60),
 } as const;
 
@@ -106,6 +108,7 @@ export const rateLimit = {
   avatarUpload: (userId: string) => check(limiters.avatarUpload(), userId),
   chatWsTicket: (userId: string) => check(limiters.chatWsTicket(), userId),
   webhook: (sourceIp: string) => check(limiters.webhook(), sourceIp),
+  supplierEnquiry: (ip: string) => check(limiters.supplierEnquiry(), ip),
   api: (userIdOrIp: string) => check(limiters.api(), userIdOrIp),
 };
 

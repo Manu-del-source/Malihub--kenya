@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { SupplierEnquiryManager } from "@/components/shell/admin/supplier-enquiry-manager";
 import { requireAdministrator } from "@/lib/auth";
@@ -29,6 +30,7 @@ export default async function AdminSupplierEnquiriesPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#D8B66A]">Partnership pipeline</p>
         <h1 className="mt-2 font-display text-3xl font-medium">Supplier enquiries</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Review incoming wholesalers and distributors, track follow-ups, and record negotiated wholesale and delivery terms. All notes and commercial terms on this page are admin-only.</p>
+        <Link href="/admin/dropshipping" className="mt-4 inline-flex text-sm text-[#D8B66A] hover:underline">Open supplier registry and approval controls →</Link>
       </header>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <div className="rounded-xl border border-white/10 bg-[#151515] p-4"><p className="text-2xl text-[#E6C98B]">{total}</p><p className="text-xs text-white/50">All enquiries</p></div>

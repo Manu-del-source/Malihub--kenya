@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowUpRight } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
@@ -15,8 +15,6 @@ const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
   { label: "Categories", href: "/#categories" },
   { label: "How it works", href: "/#why-malihub" },
-  { label: "Sell on MaliHub", href: "/#sell" },
-  { label: "Become a supplier", href: "/become-a-supplier" },
 ];
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
@@ -49,11 +47,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
               <>
                 <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                   <Link href="/login">Sign in</Link>
-                </Button>
-                <Button variant="primary" size="sm" asChild className="hidden sm:inline-flex">
-                  <Link href="/register?role=seller">
-                    Start selling <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-                  </Link>
                 </Button>
               </>
             )}
@@ -103,9 +96,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                   <>
                     <Button variant="secondary" size="sm" asChild className="flex-1">
                       <Link href="/login" onClick={() => setMobileOpen(false)}>Sign in</Link>
-                    </Button>
-                    <Button variant="primary" size="sm" asChild className="flex-1">
-                      <Link href="/register?role=seller" onClick={() => setMobileOpen(false)}>Start selling</Link>
                     </Button>
                   </>
                 )}

@@ -633,6 +633,19 @@ export async function setSellerVerificationStatus(params: {
     select: { businessName: true, verificationStatus: true },
   });
 
+  // Seller privileges are granted only after admin verification. Pending or
+  // rejected applicants remain ordinary buyers; staff roles are never changed.
+  const owner = await db.user.findUnique({
+    where: { id: seller.userId },
+    select: { role: true },
+  });
+  if (owner?.role === "BUYER" || owner?.role === "SELLER") {
+    await db.user.update({
+      where: { id: seller.userId },
+      data: { role: params.decision === "VERIFIED" ? "SELLER" : "BUYER" },
+    });
+  }
+
   // The seller hears through the existing notification pipeline — in-app +
   // email per `notification-service`'s own rules — not a parallel one.
   const titles: Record<SellerDecision, string> = {

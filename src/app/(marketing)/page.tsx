@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
-import { MarketplaceGrowthSection } from "@/components/landing/marketplace-growth-section";
 import { FaqSection } from "@/components/landing/faq-section";
 
 export const metadata: Metadata = {
@@ -43,7 +42,6 @@ export default function HomePage() {
       <HeroSection />
       <CategoriesSection />
       <WhyMaliHubSection />
-      <MarketplaceGrowthSection />
       <FaqSection />
     </>
   );

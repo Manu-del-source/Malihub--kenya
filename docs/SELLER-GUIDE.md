@@ -2,10 +2,12 @@
 
 ## Getting started
 
-1. Create a MaliHub account and choose the seller flow.
-2. Complete the seller profile using accurate information.
-3. Add clear, current photos and truthful descriptions for each item.
-4. Set a price and keep stock/availability information current.
+1. Create a normal MaliHub customer account.
+2. Open Account and choose **Apply to become a MaliHub seller**.
+3. Complete the seller application using accurate business information.
+4. Wait for MaliHub admin review. Seller publishing permissions are enabled only after approval.
+5. Once approved, add clear, current photos and truthful descriptions for each item.
+6. Set a price and keep stock/availability information current.
 5. Respond to buyer enquiries and agree on delivery or collection details before a transaction.
 
 ## Listing quality

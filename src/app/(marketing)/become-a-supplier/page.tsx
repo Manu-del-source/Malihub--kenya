@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, ClipboardCheck, PackageCheck } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
+import { SupplierEnquiryForm } from "@/components/landing/supplier-enquiry-form";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
@@ -27,10 +28,6 @@ const requirements = [
 ];
 
 export default function BecomeSupplierPage() {
-  const subject = encodeURIComponent("MaliHub supplier partnership enquiry");
-  const body = encodeURIComponent("Hello MaliHub,\n\nI am interested in discussing a supplier partnership.\n\nBusiness name:\nContact person:\nPhone number:\nLocation:\nProduct categories:\nWebsite or catalogue link (if available):\n\nThank you.");
-  const enquiryHref = `mailto:support@malihubke.online?subject=${subject}&body=${body}`;
-
   return (
     <div className="min-h-screen bg-background pb-20 pt-32 sm:pt-36">
       <Container>
@@ -48,15 +45,11 @@ export default function BecomeSupplierPage() {
               We are inviting Kenyan wholesalers, manufacturers, importers and distributors to explore supplying products through MaliHub. You provide the products and fulfilment capability; MaliHub provides the marketplace channel.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" asChild>
-                <a href={enquiryHref}>Discuss a supplier partnership <ArrowRight className="h-4 w-4" aria-hidden /></a>
-              </Button>
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/marketplace">Explore the marketplace</Link>
-              </Button>
+              <Button size="lg" asChild><a href="#supplier-enquiry">Discuss a supplier partnership <ArrowRight className="h-4 w-4" aria-hidden /></a></Button>
+              <Button size="lg" variant="secondary" asChild><Link href="/marketplace">Explore the marketplace</Link></Button>
             </div>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Submitting an enquiry starts a conversation only. Supplier onboarding and approval are handled manually after verification and agreement on commercial terms.
+              Submitting an enquiry does not create an account or guarantee approval or orders. Supplier onboarding is handled manually after verification and agreement on commercial terms.
             </p>
           </div>
         </section>
@@ -96,16 +89,13 @@ export default function BecomeSupplierPage() {
           </ul>
         </section>
 
-        <section className="rounded-3xl border border-primary/15 bg-primary/[0.05] p-6 sm:p-10">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="max-w-2xl">
-              <h2 className="font-display text-2xl font-medium sm:text-3xl">Let’s discuss your catalogue.</h2>
-              <p className="mt-3 text-sm leading-7 text-muted-foreground">Email our team with your business details and product categories. We will review the enquiry and discuss the next steps.</p>
-            </div>
-            <Button size="lg" asChild className="shrink-0">
-              <a href={enquiryHref}>Contact MaliHub <ArrowRight className="h-4 w-4" aria-hidden /></a>
-            </Button>
+        <section id="supplier-enquiry" className="scroll-mt-28 border-t border-white/[0.08] py-16 sm:py-20">
+          <div className="mb-8 max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-400">Supplier application</p>
+            <h2 className="mt-3 font-display text-3xl font-medium sm:text-4xl">Tell us about your business.</h2>
+            <p className="mt-4 text-sm leading-7 text-muted-foreground">Your enquiry goes directly into MaliHub’s private supplier recruitment queue. Our team will contact you to verify the business, discuss wholesale pricing and agree how orders and courier delivery will be handled.</p>
           </div>
+          <SupplierEnquiryForm />
         </section>
       </Container>
     </div>

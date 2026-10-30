@@ -28,6 +28,7 @@ export function SupplierEnquiryForm() {
       catalogueUrl: String(form.get("catalogueUrl") ?? ""),
       websiteUrl: String(form.get("websiteUrl") ?? ""),
       message: String(form.get("message") ?? ""),
+      consent: form.get("consent") === "on",
       companyWebsite: String(form.get("companyWebsite") ?? ""),
     };
     try {
@@ -78,6 +79,7 @@ export function SupplierEnquiryForm() {
       <label className={labelClass + " mt-5"}>Anything else we should know?
         <textarea name="message" rows={4} maxLength={2000} className={inputClass} placeholder="Tell us about your catalogue, stock availability or supply capacity." />
       </label>
+      <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-white/60"><input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 accent-[#B8934A]" /> I agree that MaliHub may use these details to assess this supplier enquiry and contact me about a potential partnership.</label>
       <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
         <label>Leave this field empty<input name="companyWebsite" tabIndex={-1} autoComplete="off" /></label>
       </div>

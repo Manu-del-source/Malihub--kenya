@@ -1546,6 +1546,7 @@ model SupplierLead {
   catalogueUrl  String?           @map("catalogue_url")
   websiteUrl    String?           @map("website_url")
   message       String?
+  consentedAt   DateTime          @default(now()) @map("consented_at")
   status        SupplierLeadStatus @default(NEW)
   internalNotes String?           @map("internal_notes")
   wholesaleTerms String?          @map("wholesale_terms")

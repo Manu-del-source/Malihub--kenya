@@ -113,6 +113,11 @@ export const completeProfileSchema = z.object({
     })
     .optional()
     .or(z.literal("")),
+}).superRefine((data, ctx) => {
+  // New accounts always complete buyer onboarding. Seller access requires a separate application and admin approval.
+  if (data.accountIntent !== "BUYER") {
+    ctx.addIssue({ code: "custom", path: ["accountIntent"], message: "Seller access requires a separate application and approval." });
+  }
 });
 
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;

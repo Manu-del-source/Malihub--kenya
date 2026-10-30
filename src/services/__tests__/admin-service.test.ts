@@ -208,6 +208,8 @@ describe("admin list queries — filters and pagination are real", () => {
 describe("seller verification — only the transitions the enum supports", () => {
   it("moves a PENDING seller to VERIFIED, notifies the owner and audits it", async () => {
     const { seller, sellerUser } = marketplaceFixture();
+    // Applicants remain buyers until this explicit admin approval.
+    await store.user.update({ where: { id: sellerUser.id }, data: { role: "BUYER" } });
 
     const result = await service.setSellerVerificationStatus({
       sellerId: seller.id,
@@ -219,6 +221,7 @@ describe("seller verification — only the transitions the enum supports", () =>
 
     assert.equal(result.verificationStatus, "VERIFIED");
     assert.equal(store.tables.sellers.get(seller.id)!.verificationStatus, "VERIFIED");
+    assert.equal(store.tables.users.get(sellerUser.id)!.role, "SELLER", "admin approval grants seller role");
 
     // The seller heard about it, through the existing notification pipeline.
     const notification = [...store.tables.notifications.values()][0]!;

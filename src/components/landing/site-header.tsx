@@ -79,7 +79,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="px-4 pt-2 lg:hidden"
+            className="px-4 pt-2 xl:hidden"
           >
             <div className="site-header-surface mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl p-3">
               {NAV_LINKS.map((link) => (

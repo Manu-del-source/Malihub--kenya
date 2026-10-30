@@ -13,6 +13,7 @@ CREATE TABLE "supplier_leads" (
   "catalogue_url" TEXT,
   "website_url" TEXT,
   "message" TEXT,
+  "consented_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "status" "SupplierLeadStatus" NOT NULL DEFAULT 'NEW',
   "internal_notes" TEXT,
   "wholesale_terms" TEXT,

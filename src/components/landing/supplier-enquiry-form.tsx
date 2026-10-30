@@ -15,8 +15,9 @@ export function SupplierEnquiryForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true); setError(""); setSuccess("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const payload = {
       companyName: String(form.get("companyName") ?? ""),
       contactName: String(form.get("contactName") ?? ""),
@@ -37,7 +38,7 @@ export function SupplierEnquiryForm() {
       if (!response.ok || !result.success) throw new Error(result.error || "Unable to submit your enquiry.");
       setSuccess(result.message);
       setCategories("");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your enquiry.");
     } finally {

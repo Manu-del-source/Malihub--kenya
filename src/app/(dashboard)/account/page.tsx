@@ -184,7 +184,7 @@ export default async function AccountPage() {
                   </p>
                 </div>
                 <Link
-                  href="/seller"
+                  href="/seller-center"
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   <LayoutDashboard className="h-4 w-4" aria-hidden />

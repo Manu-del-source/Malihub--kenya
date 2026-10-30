@@ -60,11 +60,6 @@ export function HeroSection() {
                   Explore marketplace <ArrowRight className="ml-1 h-4 w-4 shrink-0" aria-hidden />
                 </Link>
               </Button>
-              <Button size="lg" variant="secondary" asChild className="min-h-11 flex-1 rounded-full px-3 text-sm sm:min-h-12 sm:flex-none sm:px-6 sm:text-base">
-                <Link href="/register?role=seller">
-                  Start selling <ArrowUpRight className="ml-1 h-4 w-4 shrink-0" aria-hidden />
-                </Link>
-              </Button>
             </div>
 
             <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground sm:pt-2 sm:text-sm">

@@ -37,7 +37,7 @@ import { ORDER_STATUS_LABEL } from "@/lib/order-status";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Seller dashboard" };
+export const metadata: Metadata = { title: "Seller Centre" };
 
 const STAT_CARDS = [
   { key: "totalListings" as const, label: "Total listings", icon: Package },

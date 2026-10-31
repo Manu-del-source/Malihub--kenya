@@ -30,6 +30,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npm test
+      - run: node --import tsx --experimental-test-module-mocks --test src/app/api/avatar/__tests__/upload-route.test.ts src/app/api/uploads/images/__tests__/route.test.ts src/lib/validations/__tests__/sanitize-image.test.ts scripts/cloudinary-widget-compat.test.mjs
       - run: npm run lint
       - run: npm run type-check

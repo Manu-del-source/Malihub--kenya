@@ -71,6 +71,7 @@ const scope = [
   ["Database", "SELECT current_database() AS value"],
   ["Application users", `SELECT count(*) FROM public.users WHERE id IN (${appUserList}) AND lower(email) IN (${emailList})`],
   ["Seller profiles", `SELECT count(*) FROM public.sellers WHERE id IN (${sellerList}) AND user_id IN (${appUserList})`],
+  ["Application-to-Neon-Auth identity mappings", `SELECT count(*) FROM public.users WHERE id IN (${appUserList}) AND auth_user_id IN (${authUsers.map((id) => `'${id}'`).join(", ")})`],
   ["Test seller orders", `SELECT count(*) FROM public.orders WHERE seller_id IN (${sellerList})`],
   ["Test seller products", `SELECT count(*) FROM public.products WHERE seller_id IN (${sellerList})`],
   ["Order items", `SELECT count(*) FROM public.order_items WHERE order_id IN (SELECT id FROM public.orders WHERE seller_id IN (${sellerList}))`],
@@ -115,7 +116,7 @@ async function inspect(client, { allowAbsent = false } = {}) {
   }
 
   const expectedIdentityCount = allowAbsent ? 0 : 2;
-  for (const label of ["Application users", "Seller profiles", "Neon Auth users"]) {
+  for (const label of ["Application users", "Seller profiles", "Application-to-Neon-Auth identity mappings", "Neon Auth users"]) {
     if (results.find((item) => item.label === label)?.count !== expectedIdentityCount) {
       throw new Error(`Identity guard failed: expected ${expectedIdentityCount} ${label.toLowerCase()} after ${allowAbsent ? "cleanup" : "preflight"}.`);
     }

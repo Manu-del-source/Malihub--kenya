@@ -9,6 +9,7 @@ import {
   ADMIN_DASHBOARD_PATH,
   SELLER_DASHBOARD_PATH,
 } from "@/lib/auth/config";
+import { prisma } from "@/lib/prisma";
 import { signOutAction } from "@/app/(auth)/actions";
 import { DashboardNavLinks } from "@/components/shell/dashboard-nav-links";
 
@@ -23,9 +24,11 @@ type NavItem = { label: string; href: string };
 function buildNav({
   hasSellerProfile,
   isAdmin,
+  sellerVerified,
 }: {
   hasSellerProfile: boolean;
   isAdmin: boolean;
+  sellerVerified: boolean;
 }): { primary: NavItem[]; account: NavItem[] } {
   const primary: NavItem[] = [
     { label: "Marketplace", href: "/marketplace" },
@@ -33,14 +36,18 @@ function buildNav({
   ];
 
   if (hasSellerProfile || isAdmin) {
-    primary.push(
-      { label: "Dashboard", href: SELLER_DASHBOARD_PATH },
-      { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products` },
-      { label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers` },
-      { label: "Supplier orders", href: `${SELLER_DASHBOARD_PATH}/supplier-orders` },
-      { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders` },
-      { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` },
-    );
+    primary.push({ label: "Dashboard", href: SELLER_DASHBOARD_PATH });
+    // Supplier catalog is browsable before approval (the page handles the
+    // unverified state). Everything else is empty until the seller is approved.
+    primary.push({ label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers` });
+    if (sellerVerified || isAdmin) {
+      primary.push(
+        { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products` },
+        { label: "Supplier orders", href: `${SELLER_DASHBOARD_PATH}/supplier-orders` },
+        { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders` },
+        { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` },
+      );
+    }
   } else {
     primary.push({ label: "My orders", href: "/buyer/orders" });
   }
@@ -56,33 +63,31 @@ function buildNav({
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
+  const seller = user.hasSellerProfile
+    ? await prisma.seller.findUnique({
+        where: { userId: user.id },
+        select: { verificationStatus: true },
+      })
+    : null;
   const { primary, account } = buildNav({
     hasSellerProfile: user.hasSellerProfile,
     isAdmin: isAdministratorRole(user.role),
+    sellerVerified: seller?.verificationStatus === "VERIFIED",
   });
 
   return (
-    <div className="min-h-svh bg-[#0A0A0A] text-white">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#111111]">
-        <div className="border-b border-white/10 bg-[#111111]">
-          <Container className="flex items-center justify-between py-1.5 text-xs text-white/60">
-            <span>Discover great finds on MaliHub</span>
-            <Link href="/marketplace" className="font-semibold text-[#FF8C42] transition hover:text-white">
-              Shop the marketplace
-            </Link>
-          </Container>
-        </div>
-
+    <div className="min-h-svh bg-background text-foreground">
+      <header className="sticky top-0 z-50 border-b border-border bg-card">
         <Container className="flex flex-wrap items-center gap-3 py-3 sm:gap-5 sm:py-4">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
             <span
               aria-hidden
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF8C42] text-lg font-extrabold text-black"
+              className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-extrabold text-primary-foreground"
             >
               M
             </span>
-            <span className="font-display text-xl font-bold tracking-tight text-white">
-              Mali<span className="text-orange-600">Hub</span>
+            <span className="font-display text-xl font-bold tracking-tight text-foreground">
+              Mali<span className="copper-text">Hub</span>
             </span>
           </Link>
 
@@ -90,18 +95,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <label htmlFor="dashboard-marketplace-search" className="sr-only">
               Search products and listings
             </label>
-            <div className="flex h-11 w-full overflow-hidden rounded-full border border-white/10 bg-[#1A1A1A] transition focus-within:border-[#FF8C42]/60 focus-within:ring-2 focus-within:ring-[#FF8C42]/15">
-              <Search className="ml-3.5 mt-3 h-4 w-4 shrink-0 text-white/40" aria-hidden />
+            <div className="flex h-11 w-full overflow-hidden rounded-full border border-border bg-muted transition focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
+              <Search className="ml-3.5 mt-3 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               <input
                 id="dashboard-marketplace-search"
                 name="q"
                 type="search"
                 placeholder="Search products, brands and more..."
-                className="min-w-0 flex-1 bg-transparent px-3 text-sm text-white outline-none placeholder:text-white/35"
+                className="min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
               <button
                 type="submit"
-                className="flex shrink-0 items-center gap-2 bg-[#FF8C42] px-4 text-sm font-bold text-black transition hover:bg-[#ff9b5c] sm:px-5"
+                className="flex shrink-0 items-center gap-2 bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 sm:px-5"
               >
                 Search
               </button>
@@ -112,14 +117,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <NotificationBell isSignedIn />
             <Link
               href="/account"
-              className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-white/60 transition hover:bg-white/5 hover:text-white sm:flex"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-white/5 hover:text-white"
             >
               <UserRound className="h-5 w-5" aria-hidden />
-              <span className="text-sm font-medium">Account</span>
+              <span className="hidden text-sm font-medium sm:inline">Account</span>
             </Link>
             <Link
               href="/buyer/cart"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-white/60 transition hover:bg-white/5 hover:text-white"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-white/5 hover:text-white"
             >
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium sm:inline">Cart</span>
@@ -137,7 +142,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </Container>
 
-        <div className="border-t border-white/10 bg-[#111111]">
+        <div className="border-t border-border bg-card">
           <Container>
             <nav className="hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
               <DashboardNavLinks items={primary} />
@@ -157,9 +162,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </nav>
 
             <nav className="flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
-              <DashboardNavLinks items={[...primary, ...account]} mobile />
+              <DashboardNavLinks items={[...primary, ...account.filter((i) => i.label !== "Profile")]} mobile />
               <form action={signOutAction} className="shrink-0">
-                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-400/20 bg-[#141414] px-3.5 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">
+                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-400/20 bg-card px-3.5 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">
                   <LogOut className="h-4 w-4" aria-hidden />
                   Sign out
                 </button>

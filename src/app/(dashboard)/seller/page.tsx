@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   Package,
-  Boxes,
   CheckCircle2,
   FileEdit,
   Tags,
@@ -11,9 +10,8 @@ import {
   MessageCircle,
   Plus,
   ShoppingCart,
-  Wallet,
-  UserRound,
   TriangleAlert,
+  Lock,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
@@ -47,14 +45,7 @@ const STAT_CARDS = [
   { key: "totalViews" as const, label: "Total views", icon: Eye },
 ];
 
-const QUICK_LINKS = [
-  { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products`, icon: Package },
-  { label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers`, icon: Boxes },
-  { label: "Supplier orders", href: `${SELLER_DASHBOARD_PATH}/supplier-orders`, icon: Boxes },
-  { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders`, icon: ShoppingCart },
-  { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales`, icon: Wallet },
-  { label: "Profile", href: "/account", icon: UserRound },
-];
+const VERIFICATION_STEPS = ["Business profile", "Under review", "Approved"] as const;
 
 export default async function SellerDashboardPage() {
   // Seller access is decided by the `sellers` row, not by `role === "SELLER"`:
@@ -80,9 +71,11 @@ export default async function SellerDashboardPage() {
     }),
   ]);
   const ordersPreview = (recentOrders ?? []).slice(0, 5);
+  const isVerified = seller.verificationStatus === "VERIFIED";
+  const stepIndex = isVerified ? 2 : seller.verificationStatus === "PENDING" ? 1 : 0;
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Badge variant={seller.verificationStatus === "VERIFIED" ? "verified" : "default"}>
@@ -90,96 +83,96 @@ export default async function SellerDashboardPage() {
           </Badge>
           <h1 className="mt-2 font-display text-3xl font-medium">{seller.businessName}</h1>
         </div>
-        {seller.verificationStatus === "VERIFIED" ? (
+        {isVerified && (
           <Link
             href={`${SELLER_DASHBOARD_PATH}/listings/new`}
-            className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
           >
             <Plus className="h-4 w-4" aria-hidden />
             Add new listing
           </Link>
-        ) : (
-          <Link
-            href="/seller/onboarding"
-            className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            {seller.verificationStatus === "PENDING" ? "View application" : "Complete application"}
-          </Link>
         )}
       </div>
 
-      {seller.verificationStatus !== "VERIFIED" && (
-        <section className="mb-8 rounded-2xl border border-[#FF8C42]/25 bg-[#141414] p-5 sm:p-6" aria-label="Seller verification status">
-          <h2 className="font-semibold text-white">
+      {!isVerified && (
+        <section className="mb-8 rounded-2xl border border-primary/25 bg-card p-5 sm:p-6" aria-label="Seller verification status">
+          <h2 className="font-semibold text-foreground">
             {seller.verificationStatus === "PENDING"
               ? "Your seller application is under review"
               : seller.verificationStatus === "REJECTED"
                 ? "Your seller application needs attention"
                 : "Finish setting up your seller account"}
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/70">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
             {seller.verificationStatus === "PENDING"
               ? "MaliHub is reviewing your business details. You can check or update your application while you wait."
               : seller.verificationStatus === "REJECTED"
                 ? "Update your business details and resubmit your application. New listings are available after approval."
                 : "Submit your business profile for review. Once MaliHub approves it, you can publish listings."}
           </p>
-          <Link href="/seller/onboarding" className="mt-3 inline-flex text-sm font-semibold text-[#FF8C42] underline underline-offset-4 hover:text-white">
-            {seller.verificationStatus === "PENDING" ? "View application →" : "Continue application →"}
+
+          <ol className="mt-5 grid grid-cols-3 gap-2" aria-label="Verification progress">
+            {VERIFICATION_STEPS.map((step, i) => (
+              <li key={step}>
+                <div className={`h-1.5 rounded-full ${i <= stepIndex ? "bg-primary" : "bg-muted"}`} />
+                <p className={`mt-2 text-xs ${i <= stepIndex ? "text-foreground" : "text-muted-foreground"}`}>{step}</p>
+              </li>
+            ))}
+          </ol>
+
+          <Link
+            href="/seller/onboarding"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
+          >
+            {seller.verificationStatus === "PENDING" ? "View application" : "Complete application"}
           </Link>
         </section>
       )}
 
-      {/* ── Quick links ─────────────────────────────────────────────────── */}
-      <nav className="mb-8 flex flex-wrap gap-2" aria-label="Seller sections">
-        {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
-          <Link
-            key={label}
-            href={href}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-white/60 transition-colors hover:border-[#FF8C42]/40 hover:text-white"
-          >
-            <Icon className="h-4 w-4" aria-hidden />
-            {label}
-          </Link>
-        ))}
-      </nav>
-
-      {/* ── First-product empty state ───────────────────────────────────── */}
-      {stats.totalListings === 0 && (
-        <div className="mb-8">
-          <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] py-20 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#FF8C42]">
-              <Package className="h-6 w-6" aria-hidden />
-            </div>
-            <h2 className="mt-5 text-lg font-semibold text-white">You haven&apos;t listed any products yet.</h2>
-            <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-white/60">
-              {seller.verificationStatus === "VERIFIED"
-                ? "Your first listing is how buyers find you. Add a product to start selling on MaliHub."
-                : "Complete seller verification first. Once approved, you can publish your first product."}
-            </p>
-            <Link
-              href={seller.verificationStatus === "VERIFIED" ? `${SELLER_DASHBOARD_PATH}/listings/new` : "/seller/onboarding"}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              {seller.verificationStatus === "VERIFIED" ? "Add your first product" : "Complete seller application"}
-            </Link>
+      {!isVerified ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+            <Lock className="h-5 w-5" aria-hidden />
           </div>
+          <h2 className="mt-4 text-base font-semibold text-foreground">Unlocks after approval</h2>
+          <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+            Products, orders, sales and listing stats appear here once your seller account is approved.
+          </p>
         </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {STAT_CARDS.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="rounded-2xl border border-white/10 bg-[#141414] p-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#FF8C42]/20 bg-[#FF8C42]/10 text-[#FF8C42]">
-              <Icon className="h-4 w-4" aria-hidden />
+      ) : (
+        <>
+          {stats.totalListings === 0 && (
+            <div className="mb-8 rounded-2xl border border-dashed border-border bg-card py-16 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted text-primary">
+                <Package className="h-6 w-6" aria-hidden />
+              </div>
+              <h2 className="mt-5 text-lg font-semibold text-foreground">You haven&apos;t listed any products yet.</h2>
+              <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-muted-foreground">
+                Your first listing is how buyers find you. Add a product to start selling on MaliHub.
+              </p>
+              <Link
+                href={`${SELLER_DASHBOARD_PATH}/listings/new`}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                Add your first product
+              </Link>
             </div>
-            <p className="mt-3 font-mono text-2xl font-medium tabular-nums">{stats[key].toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {STAT_CARDS.map(({ key, label, icon: Icon }) => (
+              <div key={key} className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </div>
+                <p className="mt-3 font-mono text-2xl font-medium tabular-nums">{stats[key].toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
       {lowStockCount > 0 && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
@@ -198,6 +191,7 @@ export default async function SellerDashboardPage() {
       )}
 
       {/* ── Recent orders ───────────────────────────────────────────────── */}
+      {isVerified && (<>
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-medium">Recent orders</h2>
@@ -288,6 +282,7 @@ export default async function SellerDashboardPage() {
           </div>
         )}
       </div>
+      </>)}
     </Container>
   );
 }

@@ -27,7 +27,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
         </Link>
         <div className="flex items-center justify-between gap-2 px-3 pb-4 sm:px-4">
           <p className="text-sm font-semibold text-white sm:text-base">{price(product.priceCents)}</p>
-          <Link href={`/products/${product.slug}`} aria-label={`View ${product.title} purchase options`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[#e6c98b] transition hover:border-[#c6a15d]/50 hover:bg-[#c6a15d]/10"><ArrowUpRight size={16} /></Link>
+          <Link href={`/products/${product.slug}`} aria-label={`View ${product.title} purchase options`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-primary transition hover:border-primary/50 hover:bg-primary/10"><ArrowUpRight size={16} /></Link>
         </div>
       </article>)}
     </div> : <div className="rounded-2xl border border-white/10 bg-[#111] p-8 text-sm text-neutral-400">New listings are on the way. Please check back soon.</div>}

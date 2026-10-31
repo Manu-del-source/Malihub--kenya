@@ -25,14 +25,15 @@ listing image URL belongs to our Cloudinary cloud before it is persisted, and
 is the backend's side of the same boundary, and having it correct in Phase 8
 means Phase 9 only has to add the two network calls.
 
-Why uploads are stubbed rather than built: MaliHub's images are uploaded
-directly from the browser by `next-cloudinary`'s unsigned widget
-(`NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`), so no server-side upload path is
-needed by anything that exists today. Building one now would be an unused
-integration holding live credentials — the definition of a fake production
-integration. When a server-side upload is actually required (admin bulk import,
-a provider callback attachment, message images moderated before publish) this
-is where it goes.
+Why transfer operations remain stubbed: the active user-facing image upload
+flow is implemented in the Next.js application, not in this FastAPI adapter.
+The browser posts to authenticated Next.js routes; those routes sanitize the
+image and use the server-side Cloudinary SDK. This FastAPI adapter currently
+provides URL derivation, URL ownership checks and upload-policy validation only.
+Do not use this adapter as an upload endpoint until its transfer methods are
+implemented and separately reviewed. Future backend-owned workflows (for
+example, an authorized bulk import) can implement upload/delete here without
+changing the browser upload boundary.
 
 PHASE 9+ CHECKLIST (when a server-side upload path is needed)
  1. One shared `httpx.AsyncClient`, closed on shutdown.
@@ -178,9 +179,9 @@ class CloudinaryStorageProvider(StorageProvider):
         self._refuse(
             "upload",
             "Server-side Cloudinary uploads are not implemented. "
-            "Listing images are uploaded directly from the browser via "
-            "next-cloudinary's unsigned widget; no server-side upload path "
-            "exists yet. Nothing was sent to Cloudinary.",
+            "User image uploads are handled by authenticated Next.js routes; "
+            "the FastAPI Cloudinary transfer adapter is not implemented. "
+            "Nothing was sent to Cloudinary.",
             filename=request.filename,
             size_bytes=len(request.content),
         )

@@ -5,7 +5,6 @@ import {
   MapPinned, Smartphone, Search, ClipboardList, Camera, Heart,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/utils";
 import { fadeUp } from "@/lib/motion";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -28,20 +27,14 @@ export function FeatureBentoCard({
   return (
     <motion.div
       variants={fadeUp}
-      className={cn(
-        "group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-colors duration-300 hover:border-primary/30 sm:p-8",
-        size === "lg" ? "sm:col-span-2" : "sm:col-span-1"
-      )}
+      data-size={size}
+      className="group flex min-h-44 flex-col items-start border-b border-border/80 py-6 sm:py-8"
     >
-      <div
-        className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-primary/20 to-cyan/10 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
-        aria-hidden
-      />
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-secondary/15 text-primary-400">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary-400 transition-colors group-hover:border-primary/35">
         <Icon className="h-5 w-5" aria-hidden />
       </div>
-      <h3 className="mt-5 font-display text-xl font-medium">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+      <h3 className="mt-5 font-display text-xl font-medium tracking-tight">{title}</h3>
+      <p className="mt-2 max-w-md text-base leading-7 text-muted-foreground">{description}</p>
     </motion.div>
   );
 }

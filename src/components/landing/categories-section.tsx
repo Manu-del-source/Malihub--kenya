@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { SectionHeading } from "@/components/ui/section-heading";
 import { Container } from "@/components/ui/container";
 import { CategoryCard } from "@/components/landing/category-card";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
@@ -9,13 +8,12 @@ import { staggerContainer, defaultViewport } from "@/lib/motion";
 
 export function CategoriesSection() {
   return (
-    <section id="categories" className="py-10 sm:py-20 lg:py-28">
-      <Container className="flex flex-col gap-6 sm:gap-10 lg:gap-14">
-        <SectionHeading
-          eyebrow="Browse"
-          title="Shop by category"
-          subtitle="Find listings across MaliHub."
-        />
+    <section id="categories" className="py-16 sm:py-24 lg:py-32">
+      <Container className="flex flex-col gap-8 sm:gap-12">
+        <div className="flex flex-col justify-between gap-4 border-b border-border/80 pb-6 sm:flex-row sm:items-end sm:pb-8">
+          <h2 className="max-w-xl font-display text-3xl font-medium leading-tight tracking-[-0.035em] sm:text-4xl lg:text-5xl">Start with a category</h2>
+          <p className="max-w-sm text-base leading-7 text-muted-foreground">Browse the categories available on MaliHub and open a listing for more details.</p>
+        </div>
 
         <motion.div
           variants={staggerContainer}

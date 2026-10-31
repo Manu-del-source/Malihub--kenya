@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { SectionHeading } from "@/components/ui/section-heading";
 import { Container } from "@/components/ui/container";
 import { FeatureBentoCard } from "@/components/landing/feature-bento-card";
 import { WHY_MALIHUB_FEATURES } from "@/lib/landing-data";
@@ -9,20 +8,19 @@ import { staggerContainer, defaultViewport } from "@/lib/motion";
 
 export function WhyMaliHubSection() {
   return (
-    <section id="why-malihub" className="border-y border-border/60 bg-card/20 py-10 sm:py-20 lg:py-28">
-      <Container className="flex flex-col gap-6 sm:gap-10 lg:gap-14">
-        <SectionHeading
-          eyebrow="Why MaliHub"
-          title="Shop with more confidence"
-          subtitle="Useful details to help you make informed buying decisions."
-        />
+    <section id="why-malihub" className="border-y border-border/60 bg-card/25 py-16 sm:py-24 lg:py-32">
+      <Container className="flex flex-col gap-8 sm:gap-12">
+        <div className="grid gap-4 border-b border-border/80 pb-6 sm:grid-cols-[1fr_auto] sm:items-end sm:pb-8">
+          <h2 className="max-w-xl font-display text-3xl font-medium leading-tight tracking-[-0.035em] sm:text-4xl lg:text-5xl">A clearer way to browse</h2>
+          <p className="max-w-sm text-base leading-7 text-muted-foreground">Useful details and simple tools for buyers and sellers.</p>
+        </div>
 
         <motion.div
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"
           viewport={defaultViewport}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4"
+          className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3"
         >
           {WHY_MALIHUB_FEATURES.map((feature) => (
             <FeatureBentoCard

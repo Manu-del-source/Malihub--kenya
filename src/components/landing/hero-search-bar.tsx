@@ -3,11 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Clock, TrendingUp, MapPin } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_CATEGORIES, KENYA_COUNTIES } from "@/lib/constants";
-import { RECENT_SEARCHES_SAMPLE, TRENDING_SEARCHES } from "@/lib/landing-data";
-import { cn } from "@/utils";
+import { POPULAR_SEARCHES } from "@/lib/landing-data";
 
 export function HeroSearchBar() {
   const router = useRouter();
@@ -19,7 +18,7 @@ export function HeroSearchBar() {
   const filteredSuggestions = useMemo(() => {
     if (!query.trim()) return null;
     const q = query.toLowerCase();
-    return TRENDING_SEARCHES.filter((s) => s.toLowerCase().includes(q));
+    return POPULAR_SEARCHES.filter((s) => s.toLowerCase().includes(q));
   }, [query]);
 
   function handleSubmit(e: React.FormEvent) {
@@ -40,7 +39,7 @@ export function HeroSearchBar() {
     <div className="relative w-full max-w-3xl">
       <form
         onSubmit={handleSubmit}
-        className="glass flex flex-col gap-2 rounded-2xl p-2 sm:flex-row sm:items-center sm:gap-0 sm:rounded-full"
+        className="homepage-search flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-md sm:flex-row sm:items-center sm:gap-0 sm:rounded-full"
       >
         <label htmlFor="hero-category" className="sr-only">
           Category
@@ -73,7 +72,7 @@ export function HeroSearchBar() {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSuggestionsOpen(true)}
             onBlur={() => setSuggestionsOpen(false)}
-            placeholder="Search phones, cars, apartments…"
+            placeholder="Search phones, furniture, fashion…"
             autoComplete="off"
             className="h-11 w-full min-w-0 border-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
@@ -113,7 +112,7 @@ export function HeroSearchBar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="glass absolute inset-x-2 top-full z-10 mt-2 rounded-2xl p-4 text-left sm:inset-x-4"
+            className="absolute inset-x-2 top-full z-10 mt-2 rounded-2xl border border-border bg-card p-4 text-left sm:inset-x-4"
           >
             {filteredSuggestions && filteredSuggestions.length > 0 ? (
               <ul className="flex flex-col gap-1">
@@ -131,47 +130,21 @@ export function HeroSearchBar() {
                 ))}
               </ul>
             ) : (
-              <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
-                <div className="flex-1">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" aria-hidden />
-                    Recent
-                  </p>
-                  <ul className="flex flex-wrap gap-2">
-                    {RECENT_SEARCHES_SAMPLE.map((s) => (
-                      <li key={s}>
-                        <button
-                          type="button"
-                          onMouseDown={() => applySuggestion(s)}
-                          className="rounded-full bg-muted px-3 py-1.5 text-xs text-foreground/90 transition-colors hover:bg-primary/15 hover:text-primary-400"
-                        >
-                          {s}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex-1">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                    Trending
-                  </p>
-                  <ul className="flex flex-wrap gap-2">
-                    {TRENDING_SEARCHES.slice(0, 4).map((s) => (
-                      <li key={s}>
-                        <button
-                          type="button"
-                          onMouseDown={() => applySuggestion(s)}
-                          className={cn(
-                            "rounded-full bg-muted px-3 py-1.5 text-xs text-foreground/90 transition-colors hover:bg-cyan/15 hover:text-cyan"
-                          )}
-                        >
-                          {s}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div>
+                <p className="mb-3 text-sm font-medium text-foreground">Try a search</p>
+                <ul className="flex flex-wrap gap-2">
+                  {POPULAR_SEARCHES.slice(0, 5).map((s) => (
+                    <li key={s}>
+                      <button
+                        type="button"
+                        onMouseDown={() => applySuggestion(s)}
+                        className="rounded-full border border-border px-3 py-1.5 text-sm text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </motion.div>

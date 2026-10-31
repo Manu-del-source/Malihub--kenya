@@ -1,5 +1,5 @@
 import "server-only";
-import sharp from "sharp";
+import sharp, { type Metadata } from "sharp";
 import { classifyImageMagic, mimeTypeFor, type ImageKind } from "@/lib/validations/image-file";
 
 export class ImageValidationError extends Error {
@@ -34,7 +34,7 @@ export async function sanitizeImageBuffer(
   }
 
   const maxPixels = limits.maxPixels ?? limits.maxDimension * limits.maxDimension;
-  let metadata: sharp.Metadata;
+  let metadata: Metadata;
   try {
     metadata = await sharp(input, {
       failOn: "error",

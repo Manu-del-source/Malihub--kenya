@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, PackageCheck, ShieldCheck, Store } from "lucide-react";
 import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
 import { StartSellingButton } from "@/components/shell/buyer/start-selling-button";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

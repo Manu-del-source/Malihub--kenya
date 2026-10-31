@@ -22,7 +22,7 @@ export default async function SellerOnboardingPage() {
     },
   });
 
-  if (!seller) redirect("/account");
+  if (!seller) redirect("/seller-center");
 
   return (
     <Container className="max-w-3xl py-10 sm:py-14">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpen, Smartphone, Shirt, Sofa, MapPin, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Smartphone, Shirt, Sofa, MapPin, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { HeroSearchBar } from "@/components/landing/hero-search-bar";
 
@@ -27,7 +27,6 @@ export function HeroSection() {
             <div className="absolute -right-12 -top-24 h-64 w-64 rounded-full border border-[#c9a568]/10" aria-hidden />
             <div className="absolute -right-4 -top-16 h-48 w-48 rounded-full border border-[#c9a568]/10" aria-hidden />
             <div className="relative max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#c9a568]/30 bg-[#c9a568]/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#e6c98b]"><Sparkles className="h-3.5 w-3.5" aria-hidden />MaliHub Marketplace</span>
               <h1 className="mt-4 max-w-xl font-display text-3xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">Find something <span className="text-[#d5b477]">worth keeping.</span></h1>
               <p className="mt-3 max-w-lg text-sm leading-6 text-white/65 sm:text-base">Discover products from Kenyan sellers. Compare prices, explore categories and find your next great deal.</p>
               <div className="mt-6"><HeroSearchBar /></div>
@@ -35,7 +34,7 @@ export function HeroSection() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {quickCategories.map(({ label, slug, icon: Icon }, index) => (
+            {quickCategories.map(({ label, slug, icon: Icon }) => (
               <Link key={slug} href={`/categories/${slug}`} className="group flex min-h-28 flex-col justify-between rounded-xl border border-white/10 bg-[#121212] p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-[#c9a568]/50 hover:bg-[#17140f] sm:min-h-32 sm:p-4">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#c9a568]/20 bg-[#c9a568]/10 text-[#d5b477]"><Icon className="h-4.5 w-4.5" aria-hidden /></span>
                 <span className="flex items-center justify-between gap-2 text-sm font-medium text-white">{label}<ArrowRight className="h-4 w-4 text-white/35 transition group-hover:translate-x-1 group-hover:text-[#e6c98b]" aria-hidden /></span>

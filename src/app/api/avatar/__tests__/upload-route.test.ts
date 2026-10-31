@@ -72,7 +72,7 @@ mock.module("@/lib/auth", {
       sessionUser ? { identity: { authUserId: "neon-1" }, user: sessionUser } : null,
   },
 });
-mock.module("server-only", { namedExports: {} });
+
 
 mock.module("@/lib/rate-limit", {
   namedExports: {

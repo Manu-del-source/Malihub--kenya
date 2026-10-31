@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import sharp from "sharp";
 
 mock.module("server-only", { namedExports: {} });
-let sanitizeImageBuffer;
+let sanitizeImageBuffer: typeof import("@/lib/validations/sanitize-image").sanitizeImageBuffer;
 before(async () => {
   ({ sanitizeImageBuffer } = await import("@/lib/validations/sanitize-image"));
 });

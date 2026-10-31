@@ -23,40 +23,30 @@ export function ListingGallery({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative aspect-[5/4] max-h-[420px] overflow-hidden rounded-2xl bg-muted">
-        {images[active] && (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
+      <div className="relative aspect-square max-h-[min(68vw,520px)] overflow-hidden rounded-xl bg-[#151515] sm:aspect-[5/4] sm:max-h-[430px]">
+        {images[active] ? (
           <Image
             src={images[active].url}
             alt={title}
             fill
-            sizes="(min-width: 1024px) 640px, 100vw"
+            sizes="(min-width: 1024px) 56vw, 100vw"
             priority
-            className="object-cover"
+            className="object-contain p-2 sm:p-4"
           />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No product image available</div>
         )}
 
         {hasMultiple && (
           <>
-            <button
-              type="button"
-              onClick={prev}
-              aria-label="Previous photo"
-              className="glass absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full"
-            >
+            <button type="button" onClick={prev} aria-label="Previous photo" className="glass absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full sm:left-3 sm:h-9 sm:w-9">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={next}
-              aria-label="Next photo"
-              className="glass absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full"
-            >
+            <button type="button" onClick={next} aria-label="Next photo" className="glass absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full sm:right-3 sm:h-9 sm:w-9">
               <ChevronRight className="h-4 w-4" />
             </button>
-            <span className="glass-sm absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-xs">
-              {active + 1} / {images.length}
-            </span>
+            <span className="glass-sm absolute bottom-2 right-2 rounded-full px-2.5 py-1 text-xs">{active + 1} / {images.length}</span>
           </>
         )}
       </div>
@@ -70,10 +60,7 @@ export function ListingGallery({
               onClick={() => setActive(i)}
               aria-label={`View photo ${i + 1}`}
               aria-current={i === active}
-              className={cn(
-                "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors",
-                i === active ? "border-primary/60" : "border-transparent opacity-70 hover:opacity-100"
-              )}
+              className={cn("relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors sm:h-16 sm:w-16", i === active ? "border-primary/60" : "border-transparent opacity-70 hover:opacity-100")}
             >
               <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
             </button>

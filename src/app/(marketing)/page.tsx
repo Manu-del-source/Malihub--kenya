@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { HeroSection } from "@/components/landing/hero-section";
-import { CategoriesSection } from "@/components/landing/categories-section";
-import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
-import { FaqSection } from "@/components/landing/faq-section";
+import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
 import styles from "./homepage.module.css";
 
 export const metadata: Metadata = {
@@ -36,15 +34,14 @@ const jsonLd = {
 export default function HomePage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={styles.homepage}>
         <HeroSection />
-        <CategoriesSection />
-        <WhyMaliHubSection />
-        <FaqSection />
+        <section className="border-y border-white/10 bg-[#090909] py-8 text-white sm:py-12">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
+            <MarketplaceBrowser rawParams={{}} heading="New arrivals" compact />
+          </div>
+        </section>
       </div>
     </>
   );

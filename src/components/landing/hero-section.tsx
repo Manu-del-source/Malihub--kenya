@@ -1,109 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import {
-  ArrowUpRight,
-  BookOpen,
-  MapPin,
-  Smartphone,
-  Shirt,
-  Sofa,
-  type LucideIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, BookOpen, Smartphone, Shirt, Sofa, MapPin, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { HeroSearchBar } from "@/components/landing/hero-search-bar";
-import { PopularSearches } from "@/components/landing/popular-searches";
 
-const quickCategories: { label: string; icon: LucideIcon }[] = [
-  { label: "Electronics", icon: Smartphone },
-  { label: "Furniture", icon: Sofa },
-  { label: "Fashion", icon: Shirt },
-  { label: "Books", icon: BookOpen },
+const quickCategories: { label: string; slug: string; icon: LucideIcon }[] = [
+  { label: "Electronics", slug: "electronics", icon: Smartphone },
+  { label: "Furniture", slug: "furniture", icon: Sofa },
+  { label: "Fashion", slug: "fashion", icon: Shirt },
+  { label: "Books", slug: "books", icon: BookOpen },
 ];
 
 export function HeroSection() {
-  const reduceMotion = useReducedMotion();
-
   return (
-    <section className="relative isolate overflow-hidden border-b border-border/70 pb-12 pt-28 sm:pb-16 sm:pt-36 lg:pb-24 lg:pt-40">
-      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
-        <div className="absolute inset-x-0 bottom-0 h-px bg-primary/25" />
-      </div>
+    <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#090909] pb-7 pt-8 text-white sm:pb-10 sm:pt-12">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_78%_8%,rgba(184,147,74,0.20),transparent_38%),radial-gradient(ellipse_at_10%_80%,rgba(184,147,74,0.08),transparent_42%)]" aria-hidden />
+      <Container>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-xs text-white/55">
+          <span className="inline-flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-[#c9a568]" aria-hidden />Shop from sellers across Kenya</span>
+          <Link href="/marketplace" className="inline-flex items-center gap-1.5 transition hover:text-[#e6c98b]">Explore all products <ArrowRight className="h-3.5 w-3.5" aria-hidden /></Link>
+        </div>
 
-      <Container className="relative">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)] lg:gap-16">
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex min-w-0 flex-col items-start"
-          >
-            <h1 className="max-w-[11ch] text-balance font-display text-5xl font-medium leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl xl:text-[5.5rem]">
-              Good finds.
-              <br />
-              <span className="text-primary-400">Closer to home.</span>
-            </h1>
-
-            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-              Search listings, compare details and connect with sellers across Kenya.
-            </p>
-
-            <div className="mt-8 w-full max-w-3xl">
-              <HeroSearchBar />
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+          <div className="relative overflow-hidden rounded-2xl border border-[#c9a568]/25 bg-[linear-gradient(115deg,#1c1710_0%,#11100e_54%,#090909_100%)] p-5 sm:p-8 lg:min-h-[270px] lg:p-10">
+            <div className="absolute -right-12 -top-24 h-64 w-64 rounded-full border border-[#c9a568]/10" aria-hidden />
+            <div className="absolute -right-4 -top-16 h-48 w-48 rounded-full border border-[#c9a568]/10" aria-hidden />
+            <div className="relative max-w-2xl">
+              <h1 className="mt-4 max-w-xl font-display text-3xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">Find something <span className="text-[#d5b477]">worth keeping.</span></h1>
+              <p className="mt-3 max-w-lg text-sm leading-6 text-white/65 sm:text-base">Discover products from Kenyan sellers. Compare prices, explore categories and find your next great deal.</p>
+              <div className="mt-6"><HeroSearchBar /></div>
             </div>
-            <div className="mt-4 w-full max-w-3xl">
-              <PopularSearches />
-            </div>
+          </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <Button size="lg" asChild className="min-h-12 rounded-full px-6">
-                <Link href="/marketplace">
-                  Explore listings <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden />
-                </Link>
-              </Button>
-              <Link href="/#categories" className="rounded-sm py-2 text-sm text-foreground/80 underline decoration-border underline-offset-4 transition-colors hover:text-primary-400 hover:decoration-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Browse categories
+          <div className="grid grid-cols-2 gap-3">
+            {quickCategories.map(({ label, slug, icon: Icon }) => (
+              <Link key={slug} href={`/categories/${slug}`} className="group flex min-h-28 flex-col justify-between rounded-xl border border-white/10 bg-[#121212] p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-[#c9a568]/50 hover:bg-[#17140f] sm:min-h-32 sm:p-4">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#c9a568]/20 bg-[#c9a568]/10 text-[#d5b477]"><Icon className="h-4.5 w-4.5" aria-hidden /></span>
+                <span className="flex items-center justify-between gap-2 text-sm font-medium text-white">{label}<ArrowRight className="h-4 w-4 text-white/35 transition group-hover:translate-x-1 group-hover:text-[#e6c98b]" aria-hidden /></span>
               </Link>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="relative mx-auto w-full max-w-xl lg:ml-auto"
-            aria-label="Browse popular categories"
-          >
-            <div className="mb-4 flex items-center justify-between border-b border-border/80 pb-3">
-              <h2 className="font-display text-lg font-medium tracking-tight sm:text-xl">Find something for today</h2>
-              <span className="text-sm text-muted-foreground">Browse by category</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {quickCategories.map(({ label, icon: Icon }, index) => (
-                <Link
-                  key={label}
-                  href="/marketplace"
-                  className={`group flex min-h-36 flex-col justify-between rounded-2xl border border-border/80 bg-card/70 p-4 transition-colors duration-200 hover:border-primary/45 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transform-none motion-reduce:transition-none sm:min-h-44 sm:p-5 ${index === 1 || index === 3 ? "sm:translate-y-5" : ""}`}
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/[0.07] text-primary-400">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="flex items-end justify-between gap-2 text-sm font-medium text-foreground sm:text-base">
-                    {label}
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary-400" aria-hidden />
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-8 flex items-center gap-3 border-t border-border/80 pt-5 text-sm text-muted-foreground sm:mt-10">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-primary-400">
-                <MapPin className="h-4 w-4" aria-hidden />
-              </span>
-              <span>Explore listings and locations from across Kenya.</span>
-            </div>
-          </motion.div>
+            ))}
+          </div>
         </div>
       </Container>
     </section>

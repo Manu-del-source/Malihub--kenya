@@ -17,9 +17,11 @@ import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back
 export async function MarketplaceBrowser({
   rawParams,
   heading,
+  compact = false,
 }: {
   rawParams: Record<string, string | string[] | undefined>;
   heading?: string;
+  compact?: boolean;
 }) {
   const flatParams = Object.fromEntries(
     Object.entries(rawParams).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
@@ -36,8 +38,8 @@ export async function MarketplaceBrowser({
 
   return (
     <div className="mx-auto max-w-[1440px] min-w-0 text-white">
-      <MarketplaceBackButton />
-      <section className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-[#111111] shadow-2xl shadow-black/20 sm:mb-6 sm:rounded-2xl">
+      {!compact && <MarketplaceBackButton />}
+      {!compact && <section className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-[#111111] shadow-2xl shadow-black/20 sm:mb-6 sm:rounded-2xl">
         <div className="bg-[radial-gradient(ellipse_at_top_right,rgba(201,151,70,0.16),transparent_55%),linear-gradient(135deg,#171717,#0a0a0a)] px-4 py-5 sm:p-8 lg:p-10">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 sm:mb-3 sm:px-3 sm:text-xs">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -73,9 +75,9 @@ export async function MarketplaceBrowser({
             </button>
           </div>
         </form>
-      </section>
+      </section>}
 
-      <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
+      {!compact && <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">Categories</h2>
           <span className="hidden text-xs text-white/50 sm:inline">Shop by category</span>
@@ -95,7 +97,7 @@ export async function MarketplaceBrowser({
             );
           })}
         </div>
-      </nav>
+      </nav>}
 
       <div className="mb-4 flex items-end justify-between gap-3 border-b border-white/10 pb-3 sm:mb-5 sm:pb-4">
         <div className="min-w-0">
@@ -113,7 +115,7 @@ export async function MarketplaceBrowser({
       </div>
 
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:gap-7">
-        <div className="lg:hidden">
+        {!compact && <div className="lg:hidden">
           <details className="group rounded-xl border border-white/10 bg-[#111111]">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium text-white [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden /> Filters &amp; refine</span>
@@ -124,10 +126,10 @@ export async function MarketplaceBrowser({
               <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
             </div>
           </details>
-        </div>
-        <aside className="hidden lg:block lg:w-64 lg:shrink-0 lg:self-start">
+        </div>}
+        {!compact && <aside className="hidden lg:block lg:w-64 lg:shrink-0 lg:self-start">
           <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
-        </aside>
+        </aside>}
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
             <p className="text-xs text-muted-foreground sm:text-sm">
@@ -144,7 +146,7 @@ export async function MarketplaceBrowser({
         </div>
       </div>
 
-      <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-[#111111] p-4 sm:grid sm:p-5 lg:mt-10">
+      {!compact && <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-[#111111] p-4 sm:grid sm:p-5 lg:mt-10">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300"><BadgeCheck className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold text-white">Verified sellers</p><p className="text-xs text-white/55">Look for seller verification</p></div>
@@ -157,7 +159,7 @@ export async function MarketplaceBrowser({
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold text-white">Know the seller</p><p className="text-xs text-white/55">Review seller information</p></div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

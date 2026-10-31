@@ -10,7 +10,7 @@ export function PromoBanner({ imageUrl }: { imageUrl: string | null }) {
       <p className="text-xs uppercase tracking-[0.22em] text-[#d8b775]">Discover something special</p>
       <h2 className="mt-4 font-display text-3xl leading-tight text-white sm:text-4xl">Great Finds.<br />Everyday Value.</h2>
       <p className="mt-3 max-w-sm text-sm leading-6 text-neutral-400">Explore fresh listings and offers from merchants across Kenya.</p>
-      <Link href="/marketplace" className="mt-6 inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#b8934a] to-[#e6c98b] px-5 py-3 text-sm font-semibold text-[#17130b] hover:brightness-110">Explore Listings <ArrowRight size={16} /></Link>
+      <Link href="/marketplace" className="mt-6 inline-flex items-center gap-3 rounded-xl bg-primary hover:bg-primary-400 px-5 py-3 text-sm font-semibold text-primary-foreground ">Explore Listings <ArrowRight size={16} /></Link>
     </div>
   </section>;
 }

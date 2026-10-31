@@ -77,9 +77,9 @@ export function DashboardNavLinks({
             className={[
               "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
               active
-                ? "bg-white text-black"
-                : "text-white/60 hover:bg-white/5 hover:text-white",
-              mobile ? "border border-white/10" : "",
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+              mobile ? "border border-border" : "",
             ].join(" ")}
           >
             <NavIcon label={item.label} />

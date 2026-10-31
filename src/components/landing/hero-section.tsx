@@ -3,110 +3,105 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, ArrowUpRight, Sofa, Smartphone, Shirt, Sparkles, ShieldCheck,
+  ArrowUpRight,
+  BookOpen,
+  MapPin,
+  Smartphone,
+  Shirt,
+  Sofa,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { GradientMeshBackground } from "@/components/landing/gradient-mesh-background";
 import { HeroSearchBar } from "@/components/landing/hero-search-bar";
 import { PopularSearches } from "@/components/landing/popular-searches";
 
-const visualCategories = [
-  { label: "Electronics", icon: Smartphone, className: "hero-tile-electronics" },
-  { label: "Home essentials", icon: Sofa, className: "hero-tile-home" },
-  { label: "Fashion", icon: Shirt, className: "hero-tile-fashion" },
-  { label: "Beauty", icon: Sparkles, className: "hero-tile-fashion" },
+const quickCategories: { label: string; icon: LucideIcon }[] = [
+  { label: "Electronics", icon: Smartphone },
+  { label: "Furniture", icon: Sofa },
+  { label: "Fashion", icon: Shirt },
+  { label: "Books", icon: BookOpen },
 ];
 
 export function HeroSection() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="relative isolate overflow-hidden pb-10 pt-24 sm:pb-20 sm:pt-32 lg:pb-28 lg:pt-40">
-      <GradientMeshBackground />
-      <Container className="relative">
-        <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10">
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex flex-col items-start gap-4 sm:gap-6"
-          >
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.08] px-3 py-1.5 text-[10px] font-medium tracking-wide text-primary-400 sm:py-2 sm:text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_12px_hsl(var(--primary)/0.8)]" />
-              YOUR MARKETPLACE. YOUR KENYA.
-            </span>
+    <section className="relative isolate overflow-hidden border-b border-border/70 pb-12 pt-28 sm:pb-16 sm:pt-36 lg:pb-24 lg:pt-40">
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div className="absolute inset-x-0 bottom-0 h-px bg-primary/25" />
+      </div>
 
-            <h1 className="max-w-2xl text-balance font-display text-4xl font-semibold leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-7xl xl:text-[5.4rem]">
+      <Container className="relative">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)] lg:gap-16">
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 flex min-w-0 flex-col items-start"
+          >
+            <h1 className="max-w-[11ch] text-balance font-display text-5xl font-medium leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl xl:text-[5.5rem]">
               Good finds.
               <br />
-              <span className="copper-text">Closer to home.</span>
+              <span className="text-primary-400">Closer to home.</span>
             </h1>
 
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-lg sm:leading-8">
-              Discover listings, compare details, and connect with sellers across Kenya.
+            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+              Search listings, compare details and connect with sellers across Kenya.
             </p>
 
-            <div className="w-full pt-1">
+            <div className="mt-8 w-full max-w-3xl">
               <HeroSearchBar />
             </div>
-            <div className="w-full">
+            <div className="mt-4 w-full max-w-3xl">
               <PopularSearches />
             </div>
 
-            <div className="flex w-full gap-2 pt-1 sm:w-auto sm:gap-3">
-              <Button size="lg" asChild className="min-h-11 flex-1 rounded-full px-3 text-sm sm:min-h-12 sm:flex-none sm:px-6 sm:text-base">
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Button size="lg" asChild className="min-h-12 rounded-full px-6">
                 <Link href="/marketplace">
-                  Explore marketplace <ArrowRight className="ml-1 h-4 w-4 shrink-0" aria-hidden />
+                  Explore listings <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden />
                 </Link>
               </Button>
-            </div>
-
-            <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground sm:pt-2 sm:text-sm">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-primary-400" aria-hidden />
-              <span>Browse carefully. Ask questions. Make informed choices.</span>
+              <Link href="/#categories" className="rounded-sm py-2 text-sm text-foreground/80 underline decoration-border underline-offset-4 transition-colors hover:text-primary-400 hover:decoration-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Browse categories
+              </Link>
             </div>
           </motion.div>
 
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-            className="relative mx-auto hidden w-full max-w-[34rem] lg:ml-auto lg:block"
-            aria-label="Explore popular marketplace categories"
+            initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="relative mx-auto w-full max-w-xl lg:ml-auto"
+            aria-label="Browse popular categories"
           >
-            <div className="hero-orbit absolute inset-[8%] rounded-full border border-primary/10" aria-hidden />
-            <div className="hero-orbit hero-orbit-delayed absolute inset-[17%] rounded-full border border-primary/[0.08]" aria-hidden />
-            <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
-              {visualCategories.map(({ label, icon: Icon, className }, index) => (
+            <div className="mb-4 flex items-center justify-between border-b border-border/80 pb-3">
+              <h2 className="font-display text-lg font-medium tracking-tight sm:text-xl">Find something for today</h2>
+              <span className="text-sm text-muted-foreground">Browse by category</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {quickCategories.map(({ label, icon: Icon }, index) => (
                 <Link
                   key={label}
                   href="/marketplace"
-                  style={{ "--tile-delay": `${index * 75}ms` } as React.CSSProperties}
-                  className={`hero-visual-tile hero-tile-enter group relative flex min-h-40 flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.09] p-5 transition duration-300 hover:-translate-y-1 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-52 sm:p-6 ${className} ${index % 2 === 1 ? "sm:translate-y-7" : ""}`}
+                  className={`group flex min-h-36 flex-col justify-between rounded-2xl border border-border/80 bg-card/70 p-4 transition-colors duration-200 hover:border-primary/45 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transform-none motion-reduce:transition-none sm:min-h-44 sm:p-5 ${index === 1 || index === 3 ? "sm:translate-y-5" : ""}`}
                 >
-                  <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/[0.08] blur-2xl transition group-hover:bg-primary/[0.16]" aria-hidden />
-                  <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-black/30 text-primary-400">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/[0.07] text-primary-400">
                     <Icon className="h-5 w-5" aria-hidden />
-                  </div>
-                  <div className="relative flex items-end justify-between gap-2">
-                    <span className="text-sm font-medium text-foreground sm:text-base">{label}</span>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-primary-400 opacity-70 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" aria-hidden />
-                  </div>
+                  </span>
+                  <span className="flex items-end justify-between gap-2 text-sm font-medium text-foreground sm:text-base">
+                    {label}
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary-400" aria-hidden />
+                  </span>
                 </Link>
               ))}
             </div>
-            <div className="relative mt-10 flex items-center justify-between rounded-2xl border border-white/[0.09] bg-[#10100f]/90 p-5 shadow-2xl backdrop-blur-xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary-400">
-                  <Sparkles className="h-4 w-4" aria-hidden />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Find something worth keeping</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Explore what’s listed on MaliHub</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 text-primary-400" aria-hidden />
+            <div className="mt-8 flex items-center gap-3 border-t border-border/80 pt-5 text-sm text-muted-foreground sm:mt-10">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-primary-400">
+                <MapPin className="h-4 w-4" aria-hidden />
+              </span>
+              <span>Explore listings and locations from across Kenya.</span>
             </div>
           </motion.div>
         </div>

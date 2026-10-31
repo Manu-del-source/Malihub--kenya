@@ -3,6 +3,7 @@ import { HeroSection } from "@/components/landing/hero-section";
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { WhyMaliHubSection } from "@/components/landing/why-malihub-section";
 import { FaqSection } from "@/components/landing/faq-section";
+import styles from "./homepage.module.css";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -39,10 +40,12 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HeroSection />
-      <CategoriesSection />
-      <WhyMaliHubSection />
-      <FaqSection />
+      <div className={styles.homepage}>
+        <HeroSection />
+        <CategoriesSection />
+        <WhyMaliHubSection />
+        <FaqSection />
+      </div>
     </>
   );
 }

@@ -1,0 +1,29 @@
+/* Hallmark · shape: Index · genre: editorial · theme: brand · redesign: full
+ * paper: hsl(0 0% 4%) · accent: hsl(32 72% 58%) · display: Fraunces · body: Plus Jakarta Sans · hero: search-first split · nav: floating pill kept · footer: colophon kept · signature: search paired with real category paths
+ * axes: dark/grotesk-serif/copper · posture: quiet editorial · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 · weakest: S, grounded the hero in Kenya-wide search and the actual category taxonomy */
+/* Hallmark · reworded "Shop by category" to "Start with a category" · 19, a more direct invitation to browse */
+/* Hallmark · reworded "Shop with more confidence" to "A clearer way to browse" · 19, avoids implying guaranteed outcomes */
+/* Hallmark · reworded "Frequently asked questions" to "Questions before you begin" · 19, frames the section around visitor intent */
+
+.homepage {
+  isolation: isolate;
+}
+
+.homepage :global(h1),
+.homepage :global(h2),
+.homepage :global(h3) {
+  min-width: 0;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.homepage :global(a:active),
+.homepage :global(button:active) {
+  opacity: 0.78;
+}
+
+.homepage :global(button:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

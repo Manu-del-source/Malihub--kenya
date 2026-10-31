@@ -182,7 +182,7 @@ export function SupplierFulfilmentBoard({
         </div>
       )}
       {items.length === 0 && (
-        <div className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-8 text-center text-sm text-white/60">
+        <div className="rounded-2xl border border-foreground/10 bg-muted p-8 text-center text-sm text-muted-foreground">
           No supplier fulfilment tasks yet. Tasks appear here only after a provider-verified payment.
         </div>
       )}
@@ -195,7 +195,7 @@ export function SupplierFulfilmentBoard({
         return (
           <section
             key={item.id}
-            className="rounded-2xl border border-white/10 bg-[#151515] p-5 text-white"
+            className="rounded-2xl border border-foreground/10 bg-card p-5 text-foreground"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -208,33 +208,33 @@ export function SupplierFulfilmentBoard({
                 <h2 className="mt-2 font-display text-lg font-medium">
                   {item.supplierProduct.title}
                 </h2>
-                <p className="mt-1 text-xs text-white/60">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {item.reference} · Order {item.order.orderNumber} · Qty {item.quantity} · Supplier {item.supplier.name}
                 </p>
               </div>
               <Link
                 href={isAdmin ? `/admin/orders/${item.order.id}` : `/seller/orders/${item.order.id}`}
-                className="text-xs text-[#FF8C42] hover:underline"
+                className="text-xs text-primary hover:underline"
               >
                 View order
               </Link>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-white/5 bg-[#1A1A1A] p-3 text-xs sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-foreground/5 bg-muted p-3 text-xs sm:grid-cols-4">
               <div>
-                <span className="text-white/50">Retail / unit</span>
+                <span className="text-muted-foreground">Retail / unit</span>
                 <p className="font-mono">{formatKes(item.unitRetailCents)}</p>
               </div>
               <div>
-                <span className="text-white/50">Supplier unit cost</span>
+                <span className="text-muted-foreground">Supplier unit cost</span>
                 <p className="font-mono">{formatKes(item.unitCostMinor)} · {item.costStatus}</p>
               </div>
               <div>
-                <span className="text-white/50">Total supplier cost</span>
+                <span className="text-muted-foreground">Total supplier cost</span>
                 <p className="font-mono">{formatKes(item.totalCostMinor)}</p>
               </div>
               <div>
-                <span className="text-white/50">Purchase</span>
+                <span className="text-muted-foreground">Purchase</span>
                 <p className="font-mono">{item.purchase?.status ?? "NOT_CREATED"}</p>
               </div>
             </div>
@@ -251,7 +251,7 @@ export function SupplierFulfilmentBoard({
               <p className="mt-2 text-xs text-red-300">Failure reason: {item.failureReason}</p>
             )}
             {item.trackingNumber && (
-              <p className="mt-2 text-xs text-white/70">
+              <p className="mt-2 text-xs text-foreground/80">
                 Courier: {item.carrierName ?? "Carrier"} · {item.trackingNumber}
                 {item.trackingUrl ? ` · ${item.trackingUrl}` : ""}
               </p>
@@ -270,35 +270,35 @@ export function SupplierFulfilmentBoard({
                 placeholder="Final supplier unit cost (KES)"
                 value={f.costKes}
                 onChange={(e) => setForm(item.id, { costKes: e.target.value })}
-                className="h-9 border-white/10 bg-[#1A1A1A] text-xs"
+                className="h-9 border-foreground/10 bg-muted text-xs"
               />
               <Input
                 type="text"
                 placeholder="Supplier order / purchase reference"
                 value={f.supplierReference}
                 onChange={(e) => setForm(item.id, { supplierReference: e.target.value })}
-                className="h-9 border-white/10 bg-[#1A1A1A] text-xs"
+                className="h-9 border-foreground/10 bg-muted text-xs"
               />
               <Input
                 type="text"
                 placeholder="Carrier name"
                 value={f.carrierName}
                 onChange={(e) => setForm(item.id, { carrierName: e.target.value })}
-                className="h-9 border-white/10 bg-[#1A1A1A] text-xs"
+                className="h-9 border-foreground/10 bg-muted text-xs"
               />
               <Input
                 type="text"
                 placeholder="Tracking number"
                 value={f.trackingNumber}
                 onChange={(e) => setForm(item.id, { trackingNumber: e.target.value })}
-                className="h-9 border-white/10 bg-[#1A1A1A] text-xs"
+                className="h-9 border-foreground/10 bg-muted text-xs"
               />
               <Input
                 type="text"
                 placeholder="Reason / evidence / payment ref"
                 value={f.reason}
                 onChange={(e) => setForm(item.id, { reason: e.target.value })}
-                className="h-9 border-white/10 bg-[#1A1A1A] text-xs sm:col-span-2"
+                className="h-9 border-foreground/10 bg-muted text-xs sm:col-span-2"
               />
               {isAdmin && (
                 <Input
@@ -306,7 +306,7 @@ export function SupplierFulfilmentBoard({
                   placeholder="Reviewed delivery evidence (admin only)"
                   value={f.deliveryEvidenceNote}
                   onChange={(e) => setForm(item.id, { deliveryEvidenceNote: e.target.value })}
-                  className="h-9 border-white/10 bg-[#1A1A1A] text-xs sm:col-span-2"
+                  className="h-9 border-foreground/10 bg-muted text-xs sm:col-span-2"
                 />
               )}
             </div>

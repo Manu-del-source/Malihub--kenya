@@ -62,7 +62,7 @@ export default function BecomeSupplierPage() {
           </div>
           <div className="mt-9 grid gap-4 sm:grid-cols-2">
             {steps.map(({ icon: Icon, title, text }, index) => (
-              <article key={title} className="rounded-2xl border border-white/[0.08] bg-card p-6">
+              <article key={title} className="rounded-2xl border border-foreground/[0.08] bg-card p-6">
                 <div className="flex items-center justify-between">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary-400"><Icon className="h-5 w-5" aria-hidden /></span>
                   <span className="text-xs font-medium tracking-widest text-muted-foreground">0{index + 1}</span>
@@ -74,7 +74,7 @@ export default function BecomeSupplierPage() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-t border-white/[0.08] py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="grid gap-10 border-t border-foreground/[0.08] py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-400">What we need</p>
             <h2 className="mt-3 font-display text-3xl font-medium sm:text-4xl">Come prepared to supply reliably.</h2>
@@ -89,7 +89,7 @@ export default function BecomeSupplierPage() {
           </ul>
         </section>
 
-        <section id="supplier-enquiry" className="scroll-mt-28 border-t border-white/[0.08] py-16 sm:py-20">
+        <section id="supplier-enquiry" className="scroll-mt-28 border-t border-foreground/[0.08] py-16 sm:py-20">
           <div className="mb-8 max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-400">Supplier application</p>
             <h2 className="mt-3 font-display text-3xl font-medium sm:text-4xl">Tell us about your business.</h2>

@@ -117,14 +117,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <NotificationBell isSignedIn />
             <Link
               href="/account"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-white/5 hover:text-white"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
             >
               <UserRound className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium sm:inline">Account</span>
             </Link>
             <Link
               href="/buyer/cart"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-white/5 hover:text-white"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
             >
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium sm:inline">Cart</span>
@@ -134,7 +134,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 type="submit"
                 aria-label="Sign out"
                 title="Sign out"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/50 transition hover:bg-red-500/10 hover:text-red-300"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300"
               >
                 <LogOut className="h-4 w-4" aria-hidden />
               </button>
@@ -146,13 +146,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Container>
             <nav className="hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
               <DashboardNavLinks items={primary} />
-              <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-white/10" />
+              <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-foreground/10" />
               <DashboardNavLinks items={account} />
               <div className="ml-auto flex shrink-0 items-center gap-2 pl-3">
                 <form action={signOutAction}>
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-white/50 transition hover:bg-red-500/10 hover:text-red-300"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300"
                   >
                     <LogOut className="h-4 w-4" aria-hidden />
                     Sign out

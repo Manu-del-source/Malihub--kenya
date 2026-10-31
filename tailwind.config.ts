@@ -71,6 +71,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--cyan) / <alpha-value>)",
           foreground: "hsl(var(--cyan-foreground) / <alpha-value>)",
         },
+        gold: "hsl(var(--gold) / <alpha-value>)",
         success: "hsl(var(--success) / <alpha-value>)",
         warning: "hsl(var(--warning) / <alpha-value>)",
         destructive: {

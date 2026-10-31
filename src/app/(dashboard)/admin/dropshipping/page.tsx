@@ -115,11 +115,11 @@ export default async function AdminDropshippingPage() {
   ];
 
   return (
-    <Container className="py-10 text-white">
+    <Container className="py-10 text-foreground">
       <div className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Admin operations</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Admin operations</p>
         <h1 className="mt-2 font-display text-3xl font-medium">Dropshipping control centre</h1>
-        <p className="mt-1 text-sm text-white/60">
+        <p className="mt-1 text-sm text-muted-foreground">
           Approve suppliers and products, refresh stock/cost snapshots, and resolve fulfilment or
           dispute exceptions. No supplier credential, secret or live feed is stored here.
         </p>
@@ -127,24 +127,24 @@ export default async function AdminDropshippingPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/10 bg-[#151515] p-4">
-            <p className="font-mono text-2xl text-[#FF8C42]">{stat.value}</p>
-            <p className="mt-1 text-[11px] text-white/60">{stat.label}</p>
+          <div key={stat.label} className="rounded-2xl border border-foreground/10 bg-card p-4">
+            <p className="font-mono text-2xl text-primary">{stat.value}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      <section className="mt-10 rounded-2xl border border-white/10 bg-[#151515] p-5">
+      <section className="mt-10 rounded-2xl border border-foreground/10 bg-card p-5">
         <h2 className="font-display text-xl font-medium">Products awaiting review</h2>
         {recentProducts.length === 0 ? (
-          <p className="mt-3 text-sm text-white/60">No products are waiting for review.</p>
+          <p className="mt-3 text-sm text-muted-foreground">No products are waiting for review.</p>
         ) : (
-          <div className="mt-4 divide-y divide-white/5">
+          <div className="mt-4 divide-y divide-foreground/5">
             {recentProducts.map((product) => (
               <div key={product.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <div>
                   <p className="font-medium">{product.title}</p>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs text-muted-foreground">
                     {product.supplier.name} · {product.sku ?? "no SKU"} · cost {formatKes(product.costMinor)} {product.currency}
                   </p>
                 </div>
@@ -153,29 +153,29 @@ export default async function AdminDropshippingPage() {
             ))}
           </div>
         )}
-        <p className="mt-4 text-xs text-white/50">
+        <p className="mt-4 text-xs text-muted-foreground">
           Use the admin supplier product API to record manual stock/cost verification before approval.
         </p>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-white/10 bg-[#151515] p-5">
+      <section className="mt-8 rounded-2xl border border-foreground/10 bg-card p-5">
         <h2 className="font-display text-xl font-medium">Unresolved returns and disputes</h2>
         {recentReturns.length === 0 ? (
-          <p className="mt-3 text-sm text-white/60">No unresolved return or dispute requests.</p>
+          <p className="mt-3 text-sm text-muted-foreground">No unresolved return or dispute requests.</p>
         ) : (
           <div className="mt-4 space-y-4">
             {recentReturns.map((request) => (
-              <div key={request.id} className="rounded-xl border border-white/5 bg-[#1A1A1A] p-4">
+              <div key={request.id} className="rounded-xl border border-foreground/5 bg-muted p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <p className="font-medium">
                     {request.fulfilment.reference} · {request.reason}
                   </p>
                   <Badge className="bg-amber-500/15 text-amber-200">{request.status}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-white/60">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Order {request.order.orderNumber} · Responsibility {request.responsibility} · Refund {request.refundId ? "requested" : "not requested"}
                 </p>
-                <p className="mt-2 text-xs text-white/70">{request.reasonNote}</p>
+                <p className="mt-2 text-xs text-foreground/80">{request.reasonNote}</p>
                 <SupplierReturnDecisionPanel returnId={request.id} />
               </div>
             ))}
@@ -186,7 +186,7 @@ export default async function AdminDropshippingPage() {
       <section className="mt-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-xl font-medium">Fulfilment exceptions</h2>
-          <Link href="/admin/audit" className="text-xs text-[#FF8C42] hover:underline">
+          <Link href="/admin/audit" className="text-xs text-primary hover:underline">
             View audit log
           </Link>
         </div>

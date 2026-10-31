@@ -42,13 +42,13 @@ export function SupplierReturnDecisionPanel({ returnId }: { returnId: string }) 
   }
 
   return (
-    <div className="mt-3 flex flex-wrap items-end gap-2 text-xs text-white">
+    <div className="mt-3 flex flex-wrap items-end gap-2 text-xs text-foreground">
       <label className="flex flex-col gap-1">
-        <span className="text-white/50">Next status</span>
+        <span className="text-muted-foreground">Next status</span>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-lg border border-white/10 bg-[#1A1A1A] px-2"
+          className="h-9 rounded-lg border border-foreground/10 bg-muted px-2"
         >
           {NEXT_STATUSES.map((value) => (
             <option key={value} value={value}>{value}</option>
@@ -56,11 +56,11 @@ export function SupplierReturnDecisionPanel({ returnId }: { returnId: string }) 
         </select>
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-white/50">Responsibility</span>
+        <span className="text-muted-foreground">Responsibility</span>
         <select
           value={responsibility}
           onChange={(e) => setResponsibility(e.target.value)}
-          className="h-9 rounded-lg border border-white/10 bg-[#1A1A1A] px-2"
+          className="h-9 rounded-lg border border-foreground/10 bg-muted px-2"
         >
           {RESPONSIBILITIES.map((value) => (
             <option key={value} value={value}>{value}</option>
@@ -71,7 +71,7 @@ export function SupplierReturnDecisionPanel({ returnId }: { returnId: string }) 
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Resolution / evidence note"
-        className="h-9 min-w-48 flex-1 rounded-lg border border-white/10 bg-[#1A1A1A] px-3"
+        className="h-9 min-w-48 flex-1 rounded-lg border border-foreground/10 bg-muted px-3"
       />
       <Button size="sm" disabled={busy} onClick={submit}>
         {busy ? "Saving..." : "Apply"}

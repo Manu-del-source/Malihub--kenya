@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const rawParams = await searchParams;
 
   return (
-    <main className="min-h-svh bg-[#0A0A0A]">
+    <main className="min-h-svh bg-background">
       <Container className="py-10">
         <MarketplaceBrowser rawParams={rawParams} />
       </Container>

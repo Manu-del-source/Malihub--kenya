@@ -4,8 +4,8 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const inputClass = "mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/60";
-const labelClass = "block text-sm font-medium text-white/80";
+const inputClass = "mt-2 w-full rounded-xl border border-foreground/10 bg-black/30 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/60";
+const labelClass = "block text-sm font-medium text-foreground/80";
 
 export function SupplierEnquiryForm() {
   const [busy, setBusy] = useState(false);
@@ -48,7 +48,7 @@ export function SupplierEnquiryForm() {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-white/10 bg-[#111110] p-5 sm:p-7">
+    <form onSubmit={submit} className="rounded-2xl border border-foreground/10 bg-card p-5 sm:p-7">
       <div className="grid gap-5 sm:grid-cols-2">
         <label className={labelClass}>Business name *
           <input name="companyName" required minLength={2} maxLength={160} className={inputClass} autoComplete="organization" />
@@ -67,7 +67,7 @@ export function SupplierEnquiryForm() {
         </label>
         <label className={labelClass}>Product categories *
           <input value={categories} onChange={(e) => setCategories(e.target.value)} required placeholder="Fashion, electronics, home..." className={inputClass} />
-          <span className="mt-1 block text-xs font-normal text-white/40">Separate categories with commas.</span>
+          <span className="mt-1 block text-xs font-normal text-muted-foreground">Separate categories with commas.</span>
         </label>
         <label className={labelClass}>Catalogue link
           <input name="catalogueUrl" type="url" placeholder="https://" className={inputClass} />
@@ -79,7 +79,7 @@ export function SupplierEnquiryForm() {
       <label className={labelClass + " mt-5"}>Anything else we should know?
         <textarea name="message" rows={4} maxLength={2000} className={inputClass} placeholder="Tell us about your catalogue, stock availability or supply capacity." />
       </label>
-      <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-white/60"><input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 accent-[#B8934A]" /> I agree that MaliHub may use these details to assess this supplier enquiry and contact me about a potential partnership.</label>
+      <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-muted-foreground"><input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 accent-[#B8934A]" /> I agree that MaliHub may use these details to assess this supplier enquiry and contact me about a potential partnership.</label>
       <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
         <label>Leave this field empty<input name="companyWebsite" tabIndex={-1} autoComplete="off" /></label>
       </div>
@@ -88,7 +88,7 @@ export function SupplierEnquiryForm() {
       <Button type="submit" size="lg" disabled={busy} className="mt-6 w-full sm:w-auto">
         {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <>Submit supplier enquiry <ArrowRight className="h-4 w-4" /></>}
       </Button>
-      <p className="mt-3 text-xs leading-5 text-white/40">Your details are used to assess this supplier enquiry. Submission does not create an account or guarantee approval or orders.</p>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">Your details are used to assess this supplier enquiry. Submission does not create an account or guarantee approval or orders.</p>
     </form>
   );
 }

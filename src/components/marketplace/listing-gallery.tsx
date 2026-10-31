@@ -24,7 +24,7 @@ export function ListingGallery({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
-      <div className="relative aspect-square max-h-[min(68vw,520px)] overflow-hidden rounded-xl bg-[#151515] sm:aspect-[5/4] sm:max-h-[430px]">
+      <div className="relative aspect-square max-h-[min(68vw,520px)] overflow-hidden rounded-xl bg-card sm:aspect-[5/4] sm:max-h-[430px]">
         {images[active] ? (
           <Image
             src={images[active].url}

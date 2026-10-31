@@ -20,7 +20,7 @@ const FOOTER_LINKS = {
 
 export function SiteFooter() {
   return (
-    <footer className="site-footer relative overflow-hidden border-t border-white/[0.08]">
+    <footer className="site-footer relative overflow-hidden border-t border-foreground/[0.08]">
       <div className="footer-glow pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden />
       <Container className="relative py-12 sm:py-16">
         <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr] lg:gap-12">
@@ -56,7 +56,7 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-white/[0.08] pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-foreground/[0.08] pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} MaliHub Kenya. All rights reserved.</p>
           <p className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primary-400" aria-hidden /> Made in Kenya, for Kenya <span aria-hidden>🇰🇪</span></p>
         </div>

@@ -37,7 +37,7 @@ export function SupplierCtaSection() {
               </p>
               <ul className="grid gap-3 sm:grid-cols-2">
                 {BENEFITS.slice(0, 2).map(({ icon: Icon, title, text }) => (
-                  <li key={title} className="flex gap-3 rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+                  <li key={title} className="flex gap-3 rounded-2xl border border-foreground/[0.07] bg-black/20 p-4">
                     <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary-400" aria-hidden />
                     <span><strong className="block text-sm font-medium">{title}</strong><span className="mt-1 block text-xs leading-5 text-muted-foreground">{text}</span></span>
                   </li>
@@ -49,7 +49,7 @@ export function SupplierCtaSection() {
             </div>
             <div className="grid gap-3">
               {BENEFITS.slice(2).map(({ icon: Icon, title, text }) => (
-                <div key={title} className="flex gap-4 rounded-2xl border border-white/[0.08] bg-black/25 p-5">
+                <div key={title} className="flex gap-4 rounded-2xl border border-foreground/[0.08] bg-black/25 p-5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary-400">
                     <Icon className="h-5 w-5" aria-hidden />
                   </div>

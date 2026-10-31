@@ -37,7 +37,7 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={styles.homepage}>
         <HeroSection />
-        <section className="border-y border-white/10 bg-[#090909] py-8 text-white sm:py-12">
+        <section className="border-y border-foreground/10 bg-background py-8 text-foreground sm:py-12">
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
             <MarketplaceBrowser rawParams={{}} heading="New arrivals" compact />
           </div>

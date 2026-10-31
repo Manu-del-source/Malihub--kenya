@@ -48,17 +48,17 @@ export default async function SellerListingsPage() {
   });
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-medium">My listings</h1>
-          <p className="mt-1 text-sm text-white/60">
+          <p className="mt-1 text-sm text-muted-foreground">
             {listings.length} listing{listings.length === 1 ? "" : "s"}
           </p>
         </div>
         <Link
           href={`${SELLER_DASHBOARD_PATH}/listings/new`}
-          className="inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2 text-sm font-bold text-black transition hover:bg-[#ff9b5c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8C42]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
         >
           <Plus className="h-4 w-4" aria-hidden />
           Add new listing
@@ -66,26 +66,26 @@ export default async function SellerListingsPage() {
       </div>
 
       {listings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] py-20 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#FF8C42]">
+        <div className="rounded-2xl border border-dashed border-foreground/10 bg-card py-20 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/5 text-primary">
             <Package className="h-6 w-6" aria-hidden />
           </div>
-          <h2 className="mt-5 text-lg font-semibold text-white">Add your first product</h2>
-          <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-white/60">
+          <h2 className="mt-5 text-lg font-semibold text-foreground">Add your first product</h2>
+          <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-muted-foreground">
             Create your first listing to start selling on MaliHub.
           </p>
           <Link
             href={`${SELLER_DASHBOARD_PATH}/listings/new`}
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#FF8C42] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#ff9b5c]"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
           >
             <Plus className="h-4 w-4" aria-hidden />
             Add new listing
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414]">
+        <div className="overflow-hidden rounded-2xl border border-foreground/10 bg-card">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-white/50">
+            <thead className="border-b border-foreground/10 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-5 py-3 font-medium">Listing</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -102,22 +102,22 @@ export default async function SellerListingsPage() {
             </thead>
             <tbody>
               {listings.map((listing: ListingRow) => (
-                <tr key={listing.id} className="border-b border-white/10 last:border-0 hover:bg-white/[0.03]">
+                <tr key={listing.id} className="border-b border-foreground/10 last:border-0 hover:bg-foreground/[0.03]">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#1A1A1A]">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-foreground/10 bg-muted">
                         {listing.images[0] && (
                           <Image src={listing.images[0].url} alt="" fill sizes="48px" className="object-cover" />
                         )}
                       </div>
-                      <span className="line-clamp-1 font-medium text-white">{listing.title}</span>
+                      <span className="line-clamp-1 font-medium text-foreground">{listing.title}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3">
                     <ListingStatusBadge status={listing.status} />
                   </td>
-                  <td className="px-5 py-3 font-mono tabular-nums text-white/90">{formatKes(listing.priceCents)}</td>
-                  <td className="px-5 py-3 text-white/60">{listing.viewCount}</td>
+                  <td className="px-5 py-3 font-mono tabular-nums text-foreground/80">{formatKes(listing.priceCents)}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{listing.viewCount}</td>
                   <td className="px-5 py-3 text-muted-foreground">{listing.favoriteCount}</td>
                   <td className="px-5 py-3 text-muted-foreground">{timeAgo(listing.updatedAt)}</td>
                   <td className="px-5 py-3 text-right">

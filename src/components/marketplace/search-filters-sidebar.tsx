@@ -8,7 +8,7 @@ import { DEFAULT_CATEGORIES, KENYA_COUNTIES, PRODUCT_CONDITIONS } from "@/lib/co
 import { kesToCents, formatKes } from "@/utils";
 
 const selectClass =
-  "h-10 w-full rounded-lg border border-[#3A3A3A] bg-[#141414] px-3 text-sm font-medium text-[#F5F5F5] placeholder:text-[#8A8A8A] focus:border-[#C98A4A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C98A4A]";
+  "h-10 w-full rounded-lg border border-[#3A3A3A] bg-card px-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold";
 
 export function SearchFiltersSidebar() {
   const router = useRouter();
@@ -44,14 +44,14 @@ export function SearchFiltersSidebar() {
   );
 
   return (
-    <aside className="flex w-full flex-col gap-5 rounded-xl border border-[#2A2A2A] bg-[#101010] p-4 lg:w-64 lg:shrink-0">
+    <aside className="flex w-full flex-col gap-5 rounded-xl border border-border bg-card p-4 lg:w-64 lg:shrink-0">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-[#F5F5F5]">Filters</h2>
+        <h2 className="font-semibold text-foreground">Filters</h2>
         {hasActiveFilters && (
           <button
             type="button"
             onClick={() => router.push(pathname)}
-            className="flex items-center gap-1 text-xs font-medium text-[#B8B8B8] hover:text-white"
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             <X className="h-3 w-3" />
             Clear all
@@ -60,7 +60,7 @@ export function SearchFiltersSidebar() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="filter-category" className="text-sm font-medium text-[#E5E5E5]">
+        <label htmlFor="filter-category" className="text-sm font-medium text-foreground">
           Category
         </label>
         <select
@@ -69,9 +69,9 @@ export function SearchFiltersSidebar() {
           value={searchParams.get("category") ?? ""}
           onChange={(e) => updateParam("category", e.target.value)}
         >
-          <option className="bg-[#141414] text-[#F5F5F5]" value="">All categories</option>
+          <option className="bg-card text-foreground" value="">All categories</option>
           {DEFAULT_CATEGORIES.map((c) => (
-            <option className="bg-[#141414] text-[#F5F5F5]" key={c.slug} value={c.slug}>
+            <option className="bg-card text-foreground" key={c.slug} value={c.slug}>
               {c.name}
             </option>
           ))}
@@ -88,9 +88,9 @@ export function SearchFiltersSidebar() {
           value={searchParams.get("county") ?? ""}
           onChange={(e) => updateParam("county", e.target.value)}
         >
-          <option className="bg-[#141414] text-[#F5F5F5]" value="">All counties</option>
+          <option className="bg-card text-foreground" value="">All counties</option>
           {KENYA_COUNTIES.map((c) => (
-            <option className="bg-[#141414] text-[#F5F5F5]" key={c} value={c}>
+            <option className="bg-card text-foreground" key={c} value={c}>
               {c}
             </option>
           ))}
@@ -121,9 +121,9 @@ export function SearchFiltersSidebar() {
           value={searchParams.get("condition") ?? ""}
           onChange={(e) => updateParam("condition", e.target.value)}
         >
-          <option className="bg-[#141414] text-[#F5F5F5]" value="">Any condition</option>
+          <option className="bg-card text-foreground" value="">Any condition</option>
           {PRODUCT_CONDITIONS.map((c) => (
-            <option className="bg-[#141414] text-[#F5F5F5]" key={c.value} value={c.value}>
+            <option className="bg-card text-foreground" key={c.value} value={c.value}>
               {c.label}
             </option>
           ))}
@@ -142,7 +142,7 @@ export function SearchFiltersSidebar() {
             placeholder="Min"
             className={selectClass}
           />
-          <span className="font-medium text-[#B8B8B8]">–</span>
+          <span className="font-medium text-muted-foreground">–</span>
           <input
             type="number"
             inputMode="numeric"
@@ -154,7 +154,7 @@ export function SearchFiltersSidebar() {
           />
         </div>
         {(minPrice || maxPrice) && (
-          <p className="text-xs font-medium text-[#B8B8B8]">
+          <p className="text-xs font-medium text-muted-foreground">
             {minPrice ? formatKes(kesToCents(Number(minPrice))) : "Any"} –{" "}
             {maxPrice ? formatKes(kesToCents(Number(maxPrice))) : "Any"}
           </p>

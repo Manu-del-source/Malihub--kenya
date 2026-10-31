@@ -63,8 +63,19 @@ const prismaProxy = new Proxy(
 type SessionUser = { id: string; email: string } | null;
 let sessionUser: SessionUser = null;
 let rateLimitSuccess = true;
+let redisAvailable = true;
+let rateLimitThrows = false;
+let usageProtectionError: Error | null = null;
 
 mock.module("server-only", { namedExports: {} });
+mock.module("@/lib/redis", { namedExports: { getRedis: () => redisAvailable ? {} : null } });
+mock.module("@/lib/cloudinary-usage", {
+  namedExports: {
+    assertCloudinaryUploadsAllowed: async () => {
+      if (usageProtectionError) throw usageProtectionError;
+    },
+  },
+});
 mock.module("@/lib/prisma", { namedExports: { prisma: prismaProxy } });
 mock.module("@/lib/auth", {
   namedExports: {
@@ -77,12 +88,15 @@ mock.module("@/lib/auth", {
 mock.module("@/lib/rate-limit", {
   namedExports: {
     rateLimit: {
-      avatarUpload: async () => ({
+      avatarUpload: async () => {
+        if (rateLimitThrows) throw new Error("Redis rate-limit backend unavailable");
+        return {
         success: rateLimitSuccess,
         limit: 10,
         remaining: 9,
         reset: Date.now() + 60_000,
-      }),
+      };
+      },
     },
     formatRetryAfter: () => "1m",
   },
@@ -129,9 +143,11 @@ function request(
     origin = "http://localhost:3000",
     host = "localhost:3000",
     fieldName = "avatar",
-  }: { origin?: string | null; host?: string; fieldName?: string } = {}
+    contentLength,
+  }: { origin?: string | null; host?: string; fieldName?: string; contentLength?: string } = {}
 ): NextRequest {
   const headers = new Headers({ host });
+  if (contentLength) headers.set("content-length", contentLength);
   if (origin) headers.set("origin", origin);
   let body: FormData | undefined;
   if (file) {
@@ -162,6 +178,9 @@ beforeEach(() => {
   calls.uploadError = null;
   sessionUser = { id: USER_A, email: "a@example.com" };
   rateLimitSuccess = true;
+  redisAvailable = true;
+  rateLimitThrows = false;
+  usageProtectionError = null;
 });
 
 describe("authentication and CSRF", () => {
@@ -204,6 +223,14 @@ describe("input validation", () => {
     assert.equal(res.status, 400);
   });
 
+  it("rejects an oversized multipart request before parsing the body", async () => {
+    const res = await route.POST(
+      request(new File([JPEG_BYTES], "a.jpg"), { contentLength: String(3 * 1024 * 1024 + 200_000) })
+    );
+    assert.equal(res.status, 413);
+    assert.equal(calls.uploads.length, 0);
+  });
+
   it("rejects an oversized file with 413", async () => {
     const big = new Uint8Array(3 * 1024 * 1024 + 1);
     big[0] = 0xff;
@@ -228,6 +255,43 @@ describe("input validation", () => {
     assert.equal(res.status, 200);
     assert.equal(calls.uploads.length, 1);
     assert.equal(calls.uploads[0]!.mime, "image/webp");
+  });
+});
+
+describe("upload safeguards", () => {
+  it("fails closed when Redis is not configured", async () => {
+    redisAvailable = false;
+    const res = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+    assert.equal(res.status, 503);
+    assert.equal(calls.uploads.length, 0);
+  });
+
+  it("fails closed when the rate-limit backend throws", async () => {
+    rateLimitThrows = true;
+    const res = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+    assert.equal(res.status, 503);
+    assert.equal(calls.uploads.length, 0);
+  });
+
+  it("blocks avatars when Cloudinary usage reaches the safety threshold", async () => {
+    usageProtectionError = new Error("Cloudinary usage has reached the 85% safety threshold");
+    const res = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+    assert.equal(res.status, 503);
+    assert.equal(calls.uploads.length, 0);
+  });
+
+  it("honors the administrator emergency upload pause", async () => {
+    usageProtectionError = new Error("Cloudinary uploads are paused by the MaliHub administrator.");
+    const res = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+    assert.equal(res.status, 503);
+    assert.equal(calls.uploads.length, 0);
+  });
+
+  it("fails closed when Cloudinary usage cannot be verified", async () => {
+    usageProtectionError = new Error("Cloudinary usage API unavailable");
+    const res = await route.POST(request(new File([JPEG_BYTES], "a.jpg")));
+    assert.equal(res.status, 503);
+    assert.equal(calls.uploads.length, 0);
   });
 });
 

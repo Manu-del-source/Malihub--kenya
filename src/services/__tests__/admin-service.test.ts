@@ -209,7 +209,9 @@ describe("seller verification — only the transitions the enum supports", () =>
   it("moves a PENDING seller to VERIFIED, notifies the owner and audits it", async () => {
     const { seller, sellerUser } = marketplaceFixture();
     // Applicants remain buyers until this explicit admin approval.
-    await store.user.update({ where: { id: sellerUser.id }, data: { role: "BUYER" } });
+    const sellerUserRow = store.tables.users.get(sellerUser.id);
+    assert.ok(sellerUserRow, "seller user fixture exists");
+    sellerUserRow.role = "BUYER";
 
     const result = await service.setSellerVerificationStatus({
       sellerId: seller.id,

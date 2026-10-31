@@ -1,6 +1,7 @@
 import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
+import sharp from "sharp";
 
 /**
  * `POST /api/avatar/upload` at the route boundary.
@@ -24,8 +25,8 @@ import { NextRequest } from "next/server";
  * and the magic-byte validation all run for real.
  */
 
-const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 1, 2, 3]);
-const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+let JPEG_BYTES = new Uint8Array();
+let PNG_BYTES = new Uint8Array();
 const NOT_IMAGE_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]); // zip magic
 
 type ProfileRow = { userId: string; avatarUrl: string | null };
@@ -71,6 +72,8 @@ mock.module("@/lib/auth", {
       sessionUser ? { identity: { authUserId: "neon-1" }, user: sessionUser } : null,
   },
 });
+
+
 mock.module("@/lib/rate-limit", {
   namedExports: {
     rateLimit: {
@@ -133,7 +136,10 @@ function request(
   let body: FormData | undefined;
   if (file) {
     body = new FormData();
-    body.append(fieldName, file);
+    // Match the declared MIME to the fixture extension when a test omits it.
+    // Explicit MIME values are preserved so mismatch tests still exercise rejection.
+    const declaredType = file.type || (file.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+    body.append(fieldName, new File([file], file.name, { type: declaredType }));
   }
   return new NextRequest("http://localhost:3000/api/avatar/upload", {
     method: "POST",
@@ -144,6 +150,8 @@ function request(
 
 before(async () => {
   process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME = CLOUD;
+  JPEG_BYTES = new Uint8Array(await sharp({ create: { width: 16, height: 16, channels: 3, background: "white" } }).jpeg().toBuffer());
+  PNG_BYTES = new Uint8Array(await sharp({ create: { width: 16, height: 16, channels: 3, background: "white" } }).png().toBuffer());
   route = await import("@/app/api/avatar/upload/route");
 });
 
@@ -219,7 +227,7 @@ describe("input validation", () => {
     const res = await route.POST(request(new File([PNG_BYTES], "a.png", { type: "image/png" })));
     assert.equal(res.status, 200);
     assert.equal(calls.uploads.length, 1);
-    assert.equal(calls.uploads[0]!.mime, "image/png");
+    assert.equal(calls.uploads[0]!.mime, "image/webp");
   });
 });
 
@@ -248,7 +256,7 @@ describe("upload and profile update", () => {
 
     assert.equal(calls.uploads.length, 1);
     assert.equal(calls.uploads[0]!.userId, USER_A);
-    assert.equal(calls.uploads[0]!.mime, "image/jpeg");
+    assert.equal(calls.uploads[0]!.mime, "image/webp");
     assert.equal(profiles.get(USER_A)!.avatarUrl, body.data.url);
     assert.equal(calls.deletes.length, 0);
   });

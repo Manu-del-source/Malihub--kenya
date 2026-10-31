@@ -144,7 +144,7 @@ describe("error mapping — safe, friendly, no internals", () => {
 });
 
 describe("POST /api/orders — server-authoritative order creation", () => {
-  it("sends an empty body and reads the created orders from the response", async () => {
+  it("sends the accepted delivery fee and reads the created orders from the response", async () => {
     responder = () => ({
       status: 201,
       body: {
@@ -161,13 +161,14 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+      acceptedFeeCents: 0,
     });
 
     assert.equal(calls[0]!.url, ORDERS_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
     assert.deepEqual(
       bodyOf(calls[0]!),
-      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue" },
+      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue", acceptedDeliveryFeeCents: 0 },
       "prices, ids and totals are never sent",
     );
     assert.equal(result.ok, true);
@@ -382,7 +383,7 @@ describe("duplicate safety and multi-seller sequencing", () => {
     };
 
     const once = createSerializedTask(() =>
-      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue" }),
+      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0 }),
     );
     const [first, second] = await Promise.all([once(), once()]);
 

@@ -8,6 +8,8 @@ import {
   uploadAvatarImage,
 } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
+import { getRedis } from "@/lib/redis";
+import { assertCloudinaryUploadsAllowed } from "@/lib/cloudinary-usage";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { ImageValidationError, sanitizeImageBuffer } from "@/lib/validations/sanitize-image";
 
@@ -20,8 +22,10 @@ import { ImageValidationError, sanitizeImageBuffer } from "@/lib/validations/san
  *  - fail-closed same-origin check (the repo's CSRF pattern, `src/lib/csrf.ts`);
  *  - identity is the verified Neon Auth session — the body carries no user id,
  *    so a client cannot upload into someone else's folder;
- *  - per-user rate limit (10/hour — provider spend bound; fail-open without
- *    Redis like every other limiter in `src/lib/rate-limit.ts`);
+ *  - Redis is mandatory for this endpoint; missing Redis or a rate-limit
+ *    backend error blocks the upload instead of silently disabling the quota;
+ *  - per-user rate limit (10/hour) plus the shared Cloudinary usage threshold
+ *    and emergency pause guard used by product/chat image uploads;
  *  - the file is validated by its OWN BYTES (magic bytes, not Content-Type):
  *    JPEG/PNG/WebP only, ≤ 3 MB (the old bucket's limit, kept for UX parity);
  *  - the upload is an authenticated Cloudinary API call with a
@@ -39,6 +43,7 @@ import { ImageValidationError, sanitizeImageBuffer } from "@/lib/validations/san
  */
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3 MB — matches the old bucket + the UI copy
+const MAX_MULTIPART_BYTES = MAX_AVATAR_BYTES + 128 * 1024; // file plus multipart framing
 
 function notConfigured(): NextResponse {
   return NextResponse.json(
@@ -61,7 +66,32 @@ export async function POST(request: NextRequest) {
   }
   const userId = user.id;
 
-  const limit = await rateLimit.avatarUpload(userId);
+  // Avatar uploads must not bypass spend controls when Redis is unavailable.
+  if (!getRedis()) {
+    return NextResponse.json(
+      { success: false, error: "Avatar uploads are unavailable while upload protection is offline." },
+      { status: 503 }
+    );
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_MULTIPART_BYTES) {
+    return NextResponse.json(
+      { success: false, error: "Avatar upload request is too large." },
+      { status: 413 }
+    );
+  }
+
+  let limit;
+  try {
+    limit = await rateLimit.avatarUpload(userId);
+  } catch (error) {
+    logServerError("[avatar] rate-limit check failed", error);
+    return NextResponse.json(
+      { success: false, error: "Avatar uploads are temporarily unavailable because upload protection could not be verified." },
+      { status: 503 }
+    );
+  }
   if (!limit.success) {
     return NextResponse.json(
       {
@@ -73,6 +103,23 @@ export async function POST(request: NextRequest) {
         status: 429,
         headers: { "Retry-After": String(Math.ceil((limit.reset - Date.now()) / 1000)) },
       }
+    );
+  }
+
+  try {
+    await assertCloudinaryUploadsAllowed();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const blocked = message.includes("85%") || message.includes("paused by the MaliHub administrator");
+    logServerError("[avatar] Cloudinary usage protection blocked or unavailable", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: blocked
+          ? "Avatar uploads are temporarily paused to protect MaliHub's Cloudinary allowance."
+          : "Avatar uploads are temporarily unavailable because usage protection could not be verified.",
+      },
+      { status: 503 }
     );
   }
 

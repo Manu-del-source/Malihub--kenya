@@ -144,7 +144,7 @@ async function remove(client) {
     DELETE FROM public.audit_logs
     WHERE target_id IN (${appUsers.concat(sellers).map((id) => `'${id}'`).join(", ")})
        OR lower(actor_email) IN (${emailList})
-       OR actor_id IN (${authUserList})
+       OR actor_id IN (${authUserList}, ${appUserList})
   `);
 
   // Order deletion cascades to order_items, payments, shipment/review and other

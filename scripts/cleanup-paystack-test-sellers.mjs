@@ -99,7 +99,7 @@ const blockers = [
   ["Neon Auth organization memberships", `SELECT count(*) FROM neon_auth.member WHERE "userId" IN (${authUserList})`],
 ];
 
-async function inspect(client) {
+async function inspect(client, { allowAbsent = false } = {}) {
   const database = await q(client, scope[0][1]);
   const dbName = database[0]?.value;
   if (dbName !== EXPECTED_DATABASE) {
@@ -114,14 +114,11 @@ async function inspect(client) {
     if (result.count !== 0) blocked.push(result);
   }
 
-  if (results.find((item) => item.label === "Application users")?.count !== 2) {
-    throw new Error("Identity guard failed: expected exactly two matching application users.");
-  }
-  if (results.find((item) => item.label === "Seller profiles")?.count !== 2) {
-    throw new Error("Identity guard failed: expected exactly two seller profiles linked to those users.");
-  }
-  if (results.find((item) => item.label === "Neon Auth users")?.count !== 2) {
-    throw new Error("Identity guard failed: expected exactly two matching Neon Auth users.");
+  const expectedIdentityCount = allowAbsent ? 0 : 2;
+  for (const label of ["Application users", "Seller profiles", "Neon Auth users"]) {
+    if (results.find((item) => item.label === label)?.count !== expectedIdentityCount) {
+      throw new Error(`Identity guard failed: expected ${expectedIdentityCount} ${label.toLowerCase()} after ${allowAbsent ? "cleanup" : "preflight"}.`);
+    }
   }
   if (blocked.length) {
     throw new Error("Safety stop: unexpected dependent financial, buyer, supplier, support, or organization records exist:\n" +
@@ -200,7 +197,7 @@ try {
     console.log("\nCleanup transaction committed. Pre-delete counts:");
     for (const item of deleted) console.log(`- ${item.label}: ${item.count}`);
 
-    const remaining = await inspect(prisma);
+    const remaining = await inspect(prisma, { allowAbsent: true });
     const nonZero = remaining.filter((item) => item.count !== 0);
     if (nonZero.length) {
       console.error("Post-cleanup verification failed:", nonZero);

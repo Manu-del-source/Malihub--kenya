@@ -143,9 +143,11 @@ function request(
     origin = "http://localhost:3000",
     host = "localhost:3000",
     fieldName = "avatar",
-  }: { origin?: string | null; host?: string; fieldName?: string } = {}
+    contentLength,
+  }: { origin?: string | null; host?: string; fieldName?: string; contentLength?: string } = {}
 ): NextRequest {
   const headers = new Headers({ host });
+  if (contentLength) headers.set("content-length", contentLength);
   if (origin) headers.set("origin", origin);
   let body: FormData | undefined;
   if (file) {
@@ -219,6 +221,14 @@ describe("input validation", () => {
   it("rejects an empty file", async () => {
     const res = await route.POST(request(new File([new Uint8Array(0)], "a.jpg")));
     assert.equal(res.status, 400);
+  });
+
+  it("rejects an oversized multipart request before parsing the body", async () => {
+    const res = await route.POST(
+      request(new File([JPEG_BYTES], "a.jpg"), { contentLength: String(3 * 1024 * 1024 + 200_000) })
+    );
+    assert.equal(res.status, 413);
+    assert.equal(calls.uploads.length, 0);
   });
 
   it("rejects an oversized file with 413", async () => {

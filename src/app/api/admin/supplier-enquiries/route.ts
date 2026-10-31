@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { Prisma, SupplierLeadStatus } from "@prisma/client";
-import { verifySameOrigin } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { logSafeError, requireAdminActor } from "@/lib/dropshipping/http";
 

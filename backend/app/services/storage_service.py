@@ -12,10 +12,12 @@ application controls. See ARCHITECTURE.md §10a for the one legacy exception
 (profile avatars uploaded by the Phase 4 onboarding flow) and why it isn't
 extended.
 
-Phase 8 status: URL derivation and ownership validation work and are tested;
-byte transfer is a 501 stub, because nothing in the application currently
-uploads server-side — the browser uploads directly to Cloudinary through
-`next-cloudinary`'s unsigned widget. See `providers/storage/cloudinary.py`.
+Current status: URL derivation and ownership validation work and are tested.
+FastAPI byte-transfer operations remain 501 stubs. The active product, chat
+and avatar upload flows are implemented by authenticated Next.js routes, which
+sanitize images before using the server-side Cloudinary SDK. This FastAPI
+adapter is not the active upload path. See `providers/storage/cloudinary.py`
+and the repository's `docs/security/CLOUDINARY_UPLOAD_GUARDRAILS.md`.
 """
 
 from __future__ import annotations

@@ -71,6 +71,22 @@ mock.module("@/lib/auth", {
       sessionUser ? { identity: { authUserId: "neon-1" }, user: sessionUser } : null,
   },
 });
+class TestImageValidationError extends Error {}
+mock.module("@/lib/validations/sanitize-image", {
+  namedExports: {
+    ImageValidationError: TestImageValidationError,
+    sanitizeImageBuffer: async (buffer: Buffer, declaredMime: string) => {
+      const jpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      const png = buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      const webp = buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP";
+      if (!(jpeg && declaredMime === "image/jpeg") && !(png && declaredMime === "image/png") && !(webp && declaredMime === "image/webp")) {
+        throw new TestImageValidationError("Invalid image input.");
+      }
+      return { buffer: Buffer.from("clean-webp"), mimeType: "image/webp", width: 10, height: 10, originalKind: png ? "png" : webp ? "webp" : "jpeg" };
+    },
+  },
+});
+
 mock.module("@/lib/rate-limit", {
   namedExports: {
     rateLimit: {
@@ -219,7 +235,7 @@ describe("input validation", () => {
     const res = await route.POST(request(new File([PNG_BYTES], "a.png", { type: "image/png" })));
     assert.equal(res.status, 200);
     assert.equal(calls.uploads.length, 1);
-    assert.equal(calls.uploads[0]!.mime, "image/png");
+    assert.equal(calls.uploads[0]!.mime, "image/webp");
   });
 });
 

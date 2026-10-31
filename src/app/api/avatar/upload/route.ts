@@ -9,7 +9,7 @@ import {
 } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
-import { classifyImageMagic, mimeTypeFor } from "@/lib/validations/image-file";
+import { ImageValidationError, sanitizeImageBuffer } from "@/lib/validations/sanitize-image";
 
 /**
  * `POST /api/avatar/upload` — server-side, authenticated avatar upload.
@@ -101,12 +101,20 @@ export async function POST(request: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const kind = classifyImageMagic(buffer);
-  if (!kind) {
-    // Content-Type is never trusted: a renamed text file with a forged
-    // header fails the magic-byte check and stops here.
+  let sanitized;
+  try {
+    sanitized = await sanitizeImageBuffer(buffer, file.type, {
+      maxBytes: MAX_AVATAR_BYTES,
+      maxDimension: 2_000,
+      maxPixels: 4_000_000,
+    });
+  } catch (error) {
+    if (error instanceof ImageValidationError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 415 });
+    }
+    logServerError("[avatar] image sanitization failed", error);
     return NextResponse.json(
-      { success: false, error: "Please choose a JPEG, PNG, or WebP image." },
+      { success: false, error: "This image is invalid or could not be safely processed." },
       { status: 415 }
     );
   }
@@ -128,7 +136,7 @@ export async function POST(request: NextRequest) {
 
   let uploaded;
   try {
-    uploaded = await uploadAvatarImage(buffer, mimeTypeFor(kind), userId);
+    uploaded = await uploadAvatarImage(sanitized.buffer, sanitized.mimeType, userId);
   } catch (error) {
     logServerError("[avatar] cloudinary upload failed", error);
     if (String(error).includes("not configured")) return notConfigured();

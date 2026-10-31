@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { ArrowRight, BadgeCheck, ChartNoAxesCombined, PackageCheck, ShieldCheck, Store } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, PackageCheck, ShieldCheck, Store } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { StartSellingButton } from "@/components/shell/buyer/start-selling-button";
@@ -11,10 +12,10 @@ export const metadata = { title: "Seller Centre — MaliHub" };
 
 export default async function SellerCentrePage() {
   const { user } = await requireUser();
-  const seller = await prisma.seller.findUnique({
+  const [seller, profile] = await Promise.all([prisma.seller.findUnique({
     where: { userId: user.id },
     select: { id: true },
-  });
+  }), prisma.profile.findUnique({ where: { userId: user.id }, select: { onboarded: true } })]);
 
   // Existing applicants and approved sellers continue in their dedicated workspace.
   if (seller) redirect("/seller");
@@ -34,7 +35,7 @@ export default async function SellerCentrePage() {
               Open your shop, reach buyers across Kenya and manage your products and orders from one dedicated Seller Centre.
             </p>
             <div className="mt-7">
-              <StartSellingButton />
+              {profile?.onboarded ? <StartSellingButton /> : <Link href="/complete-profile" className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90">Complete your account first <ArrowRight className="h-4 w-4" aria-hidden /></Link>}
               <p className="mt-3 text-xs text-muted-foreground">
                 Applications are reviewed by MaliHub before product publishing is enabled.
               </p>
@@ -61,9 +62,9 @@ export default async function SellerCentrePage() {
       </section>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
         <p>Already have a seller profile? Your Seller Centre is ready.</p>
-        <a href="/account" className="inline-flex items-center gap-2 text-primary-300 hover:text-foreground">
+        <Link href="/account" className="inline-flex items-center gap-2 text-primary-300 hover:text-foreground">
           Return to your account <ArrowRight className="h-4 w-4" aria-hidden />
-        </a>
+        </Link>
       </div>
     </Container>
   );

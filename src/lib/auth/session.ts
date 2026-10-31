@@ -7,6 +7,7 @@ import { BUYER_DASHBOARD_PATH, LOGIN_PATH } from "@/lib/auth/config";
 import { authFailure, isAuthUnavailable } from "@/lib/auth/errors";
 import { readAccessForSession } from "@/lib/auth/identity";
 import { readAuthSession } from "@/lib/auth/neon";
+import { enforceSessionIdleTimeout } from "@/lib/auth/session-activity";
 import {
   isAdministratorRole,
   type ApplicationAccess,
@@ -85,6 +86,15 @@ export const getAuthContext = cache(async (): Promise<AuthContext> => {
   }
 
   try {
+    const sessionAllowed = await enforceSessionIdleTimeout(identity);
+    if (!sessionAllowed) {
+      return {
+        identity: null,
+        user: null,
+        failure: authFailure("unknown", "Your session has expired. Please sign in again."),
+      };
+    }
+
     const access = await readAccessForSession(identity);
 
     if (!access) {

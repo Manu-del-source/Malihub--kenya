@@ -1,7 +1,7 @@
 # MaliHub Kenya
 
 A premium Kenyan marketplace — Next.js 15, Neon Managed Better Auth, Prisma
-on independent PostgreSQL, and a FastAPI backend for payments.
+on independent PostgreSQL, and a FastAPI backend for chat realtime and supporting APIs.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design and
 build-phase checklist.

@@ -42,10 +42,7 @@ function buildNav({
       { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` },
     );
   } else {
-    primary.push(
-      { label: "Seller Centre", href: "/seller-center" },
-      { label: "My orders", href: "/buyer/orders" }
-    );
+    primary.push({ label: "My orders", href: "/buyer/orders" });
   }
 
   const account: NavItem[] = [

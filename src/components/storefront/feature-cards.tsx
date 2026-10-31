@@ -16,10 +16,10 @@ export function FeatureCards({ products }: { products: Product[] }) {
         {product?.imageUrl && <Image src={product.imageUrl} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="-z-20 object-cover transition duration-500 group-hover:scale-105" />}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/90 via-black/65 to-black/15" />
         <div className="flex min-h-[230px] max-w-[88%] flex-col items-start justify-end p-6">
-          <span className="rounded bg-gold px-2 py-1 text-[10px] font-bold tracking-wide text-[#17130b]">{item.label}</span>
-          <h3 className="mt-4 font-display text-2xl text-foreground">{product ? product.title : item.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-foreground/80">{product ? `Explore ${product.categoryName.toLowerCase()} listings from MaliHub sellers.` : item.copy}</p>
-          <Link href={product ? `/products/${product.slug}` : item.href} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">Explore <ArrowUpRight size={16} /></Link>
+          <span className="rounded bg-gold px-2 py-1 text-[10px] font-bold tracking-wide text-background">{item.label}</span>
+          <h3 className="mt-4 font-display text-2xl text-white">{product ? product.title : item.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-white/80">{product ? `Explore ${product.categoryName.toLowerCase()} listings from MaliHub sellers.` : item.copy}</p>
+          <Link href={product ? `/products/${product.slug}` : item.href} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#e6c98b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e6c98b]">Explore <ArrowUpRight size={16} /></Link>
         </div>
       </article>;
     })}

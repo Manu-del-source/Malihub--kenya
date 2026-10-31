@@ -534,14 +534,14 @@ export function SupplierCatalogView({
 
                   {/* Supplier Region Badge */}
                   <div className="absolute left-2.5 top-2.5">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-md">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-md keep-tone">
                       {item.supplier.region === "KENYA" ? (
                         <>
-                          <MapPin className="h-3 w-3 text-primary" aria-hidden /> Kenya
+                          <MapPin className="h-3 w-3 text-[#FFA555]" aria-hidden /> Kenya
                         </>
                       ) : (
                         <>
-                          <Globe className="h-3 w-3 text-cyan-400" aria-hidden /> International
+                          <Globe className="keep-tone h-3 w-3 text-cyan-400" aria-hidden /> International
                         </>
                       )}
                     </span>
@@ -549,7 +549,7 @@ export function SupplierCatalogView({
 
                   {item.importedListing && (
                     <div className="absolute right-2.5 top-2.5">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300 backdrop-blur-md">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300 backdrop-blur-md keep-tone">
                         <Check className="h-3 w-3" aria-hidden /> Imported
                       </span>
                     </div>

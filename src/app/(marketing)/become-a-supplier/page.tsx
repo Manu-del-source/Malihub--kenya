@@ -35,7 +35,7 @@ export default function BecomeSupplierPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden /> Back to MaliHub
         </Link>
 
-        <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-[radial-gradient(ellipse_at_top_right,rgba(184,147,74,0.16),transparent_48%),#10100f] px-6 py-12 sm:px-10 sm:py-16 lg:px-16">
+        <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-[radial-gradient(ellipse_at_top_right,rgba(184,147,74,0.16),transparent_48%),hsl(var(--card))] px-6 py-12 sm:px-10 sm:py-16 lg:px-16">
           <div className="max-w-3xl">
             <Badge variant="primary">MaliHub supplier partnerships</Badge>
             <h1 className="mt-6 text-balance font-display text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">

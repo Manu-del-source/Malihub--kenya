@@ -23,7 +23,7 @@ export function HeroSection() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
-          <div className="relative overflow-hidden rounded-2xl border border-gold/25 bg-[linear-gradient(115deg,#1c1710_0%,#11100e_54%,#090909_100%)] p-5 sm:p-8 lg:min-h-[270px] lg:p-10">
+          <div className="relative overflow-hidden rounded-2xl border border-gold/25 bg-[linear-gradient(115deg,hsl(var(--card))_0%,hsl(var(--background))_100%)] p-5 sm:p-8 lg:min-h-[270px] lg:p-10">
             <div className="absolute -right-12 -top-24 h-64 w-64 rounded-full border border-gold/10" aria-hidden />
             <div className="absolute -right-4 -top-16 h-48 w-48 rounded-full border border-gold/10" aria-hidden />
             <div className="relative max-w-2xl">
@@ -35,7 +35,7 @@ export function HeroSection() {
 
           <div className="grid grid-cols-2 gap-3">
             {quickCategories.map(({ label, slug, icon: Icon }) => (
-              <Link key={slug} href={`/categories/${slug}`} className="group flex min-h-28 flex-col justify-between rounded-xl border border-foreground/10 bg-[#121212] p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-gold/50 hover:bg-card sm:min-h-32 sm:p-4">
+              <Link key={slug} href={`/categories/${slug}`} className="group flex min-h-28 flex-col justify-between rounded-xl border border-foreground/10 bg-card p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-gold/50 hover:bg-card sm:min-h-32 sm:p-4">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold"><Icon className="h-4.5 w-4.5" aria-hidden /></span>
                 <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">{label}<ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-gold" aria-hidden /></span>
               </Link>

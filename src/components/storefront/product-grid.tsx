@@ -13,11 +13,11 @@ export function ProductGrid({ products }: { products: Product[] }) {
     </div>
     {products.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {products.map((product) => <article key={product.id} className="group relative overflow-hidden rounded-2xl border border-foreground/[0.08] bg-card transition duration-300 hover:-translate-y-1 hover:border-gold/40 hover:shadow-[0_12px_40px_rgba(184,147,74,0.08)]">
-        <Link href={`/products/${product.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e6c98b]" aria-label={`View ${product.title}`}>
+        <Link href={`/products/${product.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`View ${product.title}`}>
           <div className="relative aspect-square overflow-hidden bg-muted">
             {product.imageUrl ? <Image src={product.imageUrl} alt={product.title} fill sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 240px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Image coming soon</div>}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-            {product.sellerVerified && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-[10px] font-medium text-gold"><BadgeCheck size={12} /> Verified</span>}
+            {product.sellerVerified && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-1 text-[10px] font-medium text-[#e6c98b] keep-tone"><BadgeCheck size={12} /> Verified</span>}
           </div>
           <div className="space-y-2 p-3 sm:p-4">
             <div className="flex items-center gap-1.5 text-xs text-gold">{product.ratingCount > 0 ? <><Star size={12} fill="currentColor" /><span>{product.rating.toFixed(1)}</span><span className="text-muted-foreground">({product.ratingCount})</span></> : <span className="text-muted-foreground">New listing</span>}</div>

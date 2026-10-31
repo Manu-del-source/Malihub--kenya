@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const inputClass = "mt-2 w-full rounded-xl border border-foreground/10 bg-black/30 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/60";
+const inputClass = "mt-2 w-full rounded-xl border border-foreground/10 bg-muted/50 px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/60";
 const labelClass = "block text-sm font-medium text-foreground/80";
 
 export function SupplierEnquiryForm() {

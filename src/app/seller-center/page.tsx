@@ -48,17 +48,17 @@ export default function SellerCentrePage() {
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-2xl border border-foreground/10 bg-black/30 p-5">
+              <div className="rounded-2xl border border-foreground/10 bg-muted/50 p-5">
                 <Store className="h-5 w-5 text-primary-300" aria-hidden />
                 <h2 className="mt-3 font-semibold text-foreground">Your own shop</h2>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Create a business profile buyers can recognise and trust.</p>
               </div>
-              <div className="rounded-2xl border border-foreground/10 bg-black/30 p-5">
+              <div className="rounded-2xl border border-foreground/10 bg-muted/50 p-5">
                 <PackageCheck className="h-5 w-5 text-primary-300" aria-hidden />
                 <h2 className="mt-3 font-semibold text-foreground">Manage products and orders</h2>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">Keep listings, stock and customer orders organised.</p>
               </div>
-              <div className="rounded-2xl border border-foreground/10 bg-black/30 p-5 sm:col-span-2 lg:col-span-1">
+              <div className="rounded-2xl border border-foreground/10 bg-muted/50 p-5 sm:col-span-2 lg:col-span-1">
                 <ShieldCheck className="h-5 w-5 text-primary-300" aria-hidden />
                 <h2 className="mt-3 font-semibold text-foreground">Reviewed applications</h2>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">MaliHub reviews business profiles before sellers can publish listings.</p>

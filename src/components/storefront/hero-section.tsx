@@ -16,7 +16,7 @@ export function HeroSection({ featuredImage }: { featuredImage: string | null })
           <Link href="/marketplace" className="mt-7 inline-flex min-h-12 items-center gap-3 rounded-xl bg-primary hover:bg-primary-400 px-6 text-sm font-semibold text-primary-foreground  transition hover:-translate-y-0.5  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">Shop Now <ArrowRight size={17} /></Link>
         </div>
         <div className="relative min-h-[250px] overflow-hidden md:min-h-[440px]">
-          {featuredImage ? <Image src={featuredImage} alt="Featured listing available on MaliHub" fill priority sizes="(max-width: 768px) 100vw, 52vw" className="object-cover object-center" /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_65%_40%,rgba(184,147,74,.18),transparent_48%),linear-gradient(145deg,#171614,#0a0a0a)]" />}
+          {featuredImage ? <Image src={featuredImage} alt="Featured listing available on MaliHub" fill priority sizes="(max-width: 768px) 100vw, 52vw" className="object-cover object-center" /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_65%_40%,rgba(184,147,74,.18),transparent_48%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))]" />}
           <div className="absolute inset-0 bg-gradient-to-r from-card via-black/10 to-black/25 md:bg-gradient-to-r md:from-card/55 md:via-transparent md:to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-card/60 to-transparent" />
         </div>

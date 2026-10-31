@@ -10,14 +10,14 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-[#0a0a09] text-foreground">
+    <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-background text-foreground">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_50%_12%,rgba(200,135,69,0.16),transparent_52%)]"
       />
 
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-        <Link href="/" aria-label="MaliHub homepage" className="group inline-flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e4b47b]">
+        <Link href="/" aria-label="MaliHub homepage" className="group inline-flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
           <span className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-semibold text-foreground">M</span>
           <span className="text-lg font-semibold tracking-tight">Mali<span className="copper-text">Hub</span></span>
         </Link>
@@ -48,7 +48,7 @@ export default function NotFound() {
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
           <Link
             href="/"
-            className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+            className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-background transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
           >
             Back to MaliHub
             <ArrowUpRight aria-hidden="true" size={17} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />

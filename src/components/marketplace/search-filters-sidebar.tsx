@@ -8,7 +8,7 @@ import { DEFAULT_CATEGORIES, KENYA_COUNTIES, PRODUCT_CONDITIONS } from "@/lib/co
 import { kesToCents, formatKes } from "@/utils";
 
 const selectClass =
-  "h-10 w-full rounded-lg border border-[#3A3A3A] bg-card px-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold";
+  "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold";
 
 export function SearchFiltersSidebar() {
   const router = useRouter();

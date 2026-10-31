@@ -271,10 +271,10 @@
 /* Light theme: pale status shades (…-300/400) are unreadable on light surfaces,
    so remap them to darker equivalents with ≥4.5:1 contrast. */
 @media (prefers-color-scheme: light) {
-  :root .text-amber-100, :root .text-amber-200, :root .text-amber-300, :root .text-amber-400, :root .text-amber-500 { color: hsl(30 90% 26%); }
-  :root .text-red-100, :root .text-red-200, :root .text-red-300, :root .text-red-400 { color: hsl(6 70% 38%); }
-  :root .text-emerald-100, :root .text-emerald-200, :root .text-emerald-300, :root .text-emerald-400, :root .text-emerald-500 { color: hsl(150 60% 22%); }
-  :root .text-cyan-300, :root .text-cyan-400 { color: hsl(24 90% 34%); }
-  :root .text-orange-300, :root .text-orange-400, :root .text-orange-500 { color: hsl(22 88% 30%); }
+  :root .text-amber-100:not(.keep-tone), :root .text-amber-200:not(.keep-tone), :root .text-amber-300:not(.keep-tone), :root .text-amber-400:not(.keep-tone), :root .text-amber-500:not(.keep-tone) { color: hsl(30 90% 26%); }
+  :root .text-red-100:not(.keep-tone), :root .text-red-200:not(.keep-tone), :root .text-red-300:not(.keep-tone), :root .text-red-400:not(.keep-tone) { color: hsl(6 70% 38%); }
+  :root .text-emerald-100:not(.keep-tone), :root .text-emerald-200:not(.keep-tone), :root .text-emerald-300:not(.keep-tone), :root .text-emerald-400:not(.keep-tone), :root .text-emerald-500:not(.keep-tone) { color: hsl(150 60% 22%); }
+  :root .text-cyan-300:not(.keep-tone), :root .text-cyan-400:not(.keep-tone) { color: hsl(24 90% 34%); }
+  :root .text-orange-300:not(.keep-tone), :root .text-orange-400:not(.keep-tone), :root .text-orange-500:not(.keep-tone) { color: hsl(22 88% 30%); }
   :root .hover\:text-red-300:hover { color: hsl(6 70% 38%); }
 }

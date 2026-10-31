@@ -12,7 +12,7 @@ type Lead = {
 };
 
 const statuses = ["NEW", "CONTACTED", "QUALIFIED", "NEGOTIATING", "VERIFICATION_PENDING", "ONBOARDED", "DECLINED"];
-const fieldClass = "mt-1 w-full rounded-lg border border-foreground/10 bg-black/30 px-3 py-2 text-sm text-foreground";
+const fieldClass = "mt-1 w-full rounded-lg border border-foreground/10 bg-muted/50 px-3 py-2 text-sm text-foreground";
 
 export function SupplierEnquiryManager({ lead }: { lead: Lead }) {
   const [status, setStatus] = useState(lead.status);

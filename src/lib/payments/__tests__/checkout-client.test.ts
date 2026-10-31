@@ -207,6 +207,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     const result = await createCheckoutOrders({
       county: "Nairobi",
       address: "Moi Avenue",
+      acceptedFeeCents: 0,
     });
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.message, /reach the server/i);

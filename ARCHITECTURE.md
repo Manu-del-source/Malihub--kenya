@@ -328,11 +328,25 @@ Full schema: `prisma/schema.prisma`. Key decisions:
   `DRAFT → ACTIVE` — there's no moderation UI yet for anything to wait on,
   so gating publish behind a review state nothing processes would just be
   a dead end for sellers.
-- **Avatar photos: Cloudinary, server-side** (Phase 2 — `POST /api/avatar/upload`,
-  authenticated, magic-byte checked; pre-migration Supabase URLs still render).
-  **Listing photos: Cloudinary** (`next-cloudinary`'s unsigned upload widget,
-  `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`) — per the original stack choice, now
-  actually wired up.
+- **All new user image uploads are server-mediated and sanitized** (PR #92).
+  Product photos and chat attachments use `POST /api/uploads/images` with a
+  `purpose` of `product` or `message`; profile avatars use
+  `POST /api/avatar/upload`. The browser never uploads directly to Cloudinary
+  and no unsigned upload preset or browser signing key is used.
+- Both routes require an authenticated, same-origin request. Product photos
+  additionally require a verified seller. Accepted source formats are JPEG,
+  PNG and WebP; the server checks magic bytes against the declared MIME type,
+  decodes with Sharp, rejects malformed, animated/multi-frame and oversized
+  images, applies orientation, and re-encodes pixels as WebP before storage.
+  Cloudinary credentials remain server-only and public IDs/folders are selected
+  by the server. The legacy `POST /api/cloudinary/sign` endpoint returns 410.
+- Product/chat uploads require Redis and Cloudinary usage verification and
+  fail closed if either protection is unavailable. Avatar uploads have a
+  separate 10-per-hour rate limit that currently fails open without Redis;
+  the avatar route does not yet apply the 70%/85% Cloudinary usage guard or
+  the `CLOUDINARY_UPLOADS_PAUSED` switch. See
+  `docs/security/CLOUDINARY_UPLOAD_GUARDRAILS.md` for exact limits and
+  rollout caveats. Pre-migration Supabase avatar URLs remain readable.
 
 ## 6b. Communication & transactions implementation notes (Phase 6, in progress)
 

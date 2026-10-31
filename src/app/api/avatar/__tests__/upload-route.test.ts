@@ -264,7 +264,7 @@ describe("upload and profile update", () => {
 
     assert.equal(calls.uploads.length, 1);
     assert.equal(calls.uploads[0]!.userId, USER_A);
-    assert.equal(calls.uploads[0]!.mime, "image/jpeg");
+    assert.equal(calls.uploads[0]!.mime, "image/webp");
     assert.equal(profiles.get(USER_A)!.avatarUrl, body.data.url);
     assert.equal(calls.deletes.length, 0);
   });

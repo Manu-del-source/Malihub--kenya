@@ -50,7 +50,7 @@ export async function submitSellerApplicationAction(
     if (!seller) {
       return {
         success: false,
-        error: "Start your seller profile from Account before submitting an application.",
+        error: "Open Seller Centre to start your seller profile before submitting an application.",
       };
     }
 

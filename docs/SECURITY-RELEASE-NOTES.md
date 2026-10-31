@@ -10,17 +10,14 @@ memory by producing many validation errors:
 | --- | --- | --- |
 | `zod@3.24.1` | Used by application schemas. Listing images and supplier county lists reject oversized arrays **before** validating their elements. This does not limit the size of the HTTP body itself or prove that every possible Zod input is protected. | Upgrade the application and its Zod 3 consumers to a patched release after compatibility testing. Enforce a request-body size limit at the ingress in the meantime. |
 
-The two Cloudinary entries previously inherited the same Zod issue through
-`@cloudinary-util/url-loader@5.10.4`. A narrowly scoped override selects
-`6.3.2` only for `next-cloudinary@6.16.0`; the newer loader no longer depends
-on Zod. This is outside the loader range declared by `next-cloudinary`, and the
-loader's non-widget APIs changed. MaliHub currently uses only `CldUploadWidget`.
-The widget option, event and signature callbacks were compared across versions,
-and regression tests exercise both app upload components with a simulated SDK.
-Real listing and chat uploads must still be tested with the staging preset. Do
-not adopt other loader APIs without reviewing compatibility; remove the override
-when a vendor-supported compatible upgrade is available. `next-cloudinary@7`
-requires Next 16 and is not a compatible patch for this Next 15 app.
+The Cloudinary URL-loader dependency previously inherited the Zod advisory
+through `@cloudinary-util/url-loader@5.10.4`. A scoped override remains in
+`package.json` for `next-cloudinary@6.16.0`. The active product and chat
+upload components no longer use `CldUploadWidget`; they call MaliHub's
+authenticated server upload helper instead. The `next-cloudinary` package and
+override remain in the dependency manifest and should be removed only after a
+separate dependency-use audit. Do not treat the old widget compatibility test
+as proof of a live widget upload path.
 
 The Neon Auth SDK's pinned Zod 4 dependency is overridden to `4.6.7` and is no
 longer reported by the advisory. The mocked-upstream SDK auth regression tests
@@ -30,13 +27,27 @@ still be verified before release. `npm audit fix --force` is not a safe fix.
 
 ## Configuration checks before release
 
-- In the Cloudinary Console, inspect the unsigned preset named by
-  `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`. Enforce image-only allowed formats,
-  an agreed maximum file size, non-overwrite/folder restrictions, and abuse
-  limits or monitoring **on the preset/account**, not only in the widget.
-  Confirm listing and chat uploads still work. The preset is public by design;
-  direct requests bypass browser controls. The actual account configuration
-  was not accessible during this review.
+- Configure the Next.js deployment with `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`,
+  `CLOUDINARY_API_KEY`, and server-only `CLOUDINARY_API_SECRET`. Product/chat
+  uploads also require `UPSTASH_REDIS_REST_URL` and
+  `UPSTASH_REDIS_REST_TOKEN` because their rate limits and Cloudinary usage
+  guard fail closed without Redis. Set `CLOUDINARY_UPLOADS_PAUSED=false`
+  during normal operation. No unsigned preset or browser-side Cloudinary API
+  key is required.
+- After staging smoke tests, disable/delete obsolete unsigned presets only
+  after confirming no other application or legacy client depends on them.
+  The current Next.js product/chat/avatar routes do not use those presets.
+- Test product, chat and avatar uploads separately. Confirm unauthenticated
+  and cross-origin requests are rejected; renamed, MIME-mismatched, malformed,
+  animated and oversized images are rejected; accepted images are stored as
+  WebP; product uploads are restricted to verified sellers; and configured
+  per-user limits return 429. Verify the 70% warning and 85% product/chat
+  upload block with a safe staging setup.
+- **Known residual:** the avatar route has a 10/hour limiter that fails open
+  when Redis is unavailable, and it does not currently call the Cloudinary
+  usage guard or honor `CLOUDINARY_UPLOADS_PAUSED`. Do not claim the global
+  usage threshold or emergency pause protects avatar uploads until that route
+  is updated. See `docs/security/CLOUDINARY_UPLOAD_GUARDRAILS.md`.
 - Ensure the CDN, load balancer, reverse proxy, and APM omit or redact the
   **entire query string** for `/api/v1/chat/ws` before logging or tracing it.
   Uvicorn filters ticket values, including encoded parameter names, but cannot

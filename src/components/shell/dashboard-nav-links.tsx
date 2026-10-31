@@ -20,6 +20,7 @@ function NavIcon({ label }: { label: string }) {
   const className = "h-4 w-4 shrink-0";
   switch (label) {
     case "Marketplace":
+    case "Seller Centre":
       return <Store className={className} aria-hidden />;
     case "Wishlist":
       return <Heart className={className} aria-hidden />;

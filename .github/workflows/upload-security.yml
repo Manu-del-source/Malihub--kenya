@@ -1,0 +1,35 @@
+name: Upload security checks
+
+on:
+  pull_request:
+    paths:
+      - "src/app/api/uploads/**"
+      - "src/app/api/avatar/**"
+      - "src/components/marketplace/image-upload-grid.tsx"
+      - "src/components/messaging/message-input.tsx"
+      - "src/lib/client-image-upload.ts"
+      - "src/lib/cloudinary.ts"
+      - "src/lib/validations/**"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/cloudinary-widget-compat.test.mjs"
+      - ".github/workflows/upload-security.yml"
+  push:
+    branches:
+      - main
+      - security/server-side-image-sanitization
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm test
+      - run: npm run lint
+      - run: npm run type-check

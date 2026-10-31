@@ -136,7 +136,10 @@ function request(
   let body: FormData | undefined;
   if (file) {
     body = new FormData();
-    body.append(fieldName, file);
+    // Match the declared MIME to the fixture extension when a test omits it.
+    // Explicit MIME values are preserved so mismatch tests still exercise rejection.
+    const declaredType = file.type || (file.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+    body.append(fieldName, new File([file], file.name, { type: declaredType }));
   }
   return new NextRequest("http://localhost:3000/api/avatar/upload", {
     method: "POST",

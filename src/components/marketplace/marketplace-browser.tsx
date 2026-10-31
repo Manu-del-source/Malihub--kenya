@@ -102,7 +102,7 @@ export async function MarketplaceBrowser({
       <div className="mb-4 flex items-end justify-between gap-3 border-b border-white/10 pb-3 sm:mb-5 sm:pb-4">
         <div className="min-w-0">
           <h2 className="font-display text-lg font-semibold tracking-tight sm:text-2xl">
-            {flatParams.q ? "Search results" : activeCategory ? "Explore this category" : "Browse all listings"}
+            {heading ?? (flatParams.q ? "Search results" : activeCategory ? "Explore this category" : "Browse all listings")}
           </h2>
           <p className="mt-1 text-xs text-white/55 sm:text-sm">
             {result.items.length > 0 ? "Fresh finds from sellers around Kenya" : "No listings found for these filters"}

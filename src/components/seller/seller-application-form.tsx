@@ -56,11 +56,11 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
 
   if (application.verificationStatus === "VERIFIED") {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden />
         <div>
           <p className="font-semibold">Your seller account is verified</p>
-          <p className="mt-1 text-sm">You can manage your products from the seller dashboard.</p>
+          <p className="mt-1 text-sm text-emerald-100/80">You can manage your products from the seller dashboard.</p>
           <Button className="mt-3" onClick={() => router.push("/seller")}>Go to seller dashboard</Button>
         </div>
       </div>
@@ -70,16 +70,16 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
       {application.verificationStatus === "PENDING" && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
-          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden />
           <div>
             <p className="font-semibold">Application submitted for review</p>
-            <p className="mt-1 text-sm">You can update the details below and resubmit. Each submission returns the application to the review queue.</p>
+            <p className="mt-1 text-sm text-amber-100/80">You can update the details below and resubmit. Each submission returns the application to the review queue.</p>
           </div>
         </div>
       )}
       {application.verificationStatus === "REJECTED" && (
-        <div role="status" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <div role="status" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-red-100">
           Your previous application was not approved. Correct your details and submit it again for review.
         </div>
       )}
@@ -95,7 +95,7 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
           maxLength={1200}
           placeholder="What do you sell? What makes your shop trustworthy? Mention your products and services."
           className={cn(
-            "w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "w-full rounded-xl border border-border bg-card/70 px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring",
             errors.description && "border-destructive"
           )}
           {...register("description")}
@@ -108,7 +108,7 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
           <select
             id="county"
             className={cn(
-              "h-11 w-full rounded-xl border border-border bg-background/60 px-4 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "h-11 w-full rounded-xl border border-border bg-card/70 px-4 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               errors.county && "border-destructive"
             )}
             {...register("county")}
@@ -127,7 +127,7 @@ export function SellerApplicationForm({ application }: { application: ExistingAp
         <p className="text-xs text-muted-foreground">Only submit details you are comfortable sharing with MaliHub for seller review.</p>
       </FormField>
 
-      <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+      <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">
         Submitting sends your business profile to MaliHub for review. Do not upload ID cards or share identity-document links here; secure document verification will be added through private storage.
       </div>
 

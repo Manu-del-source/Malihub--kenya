@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCartSummary } from "@/services/cart-service";
-import { StartSellingButton } from "@/components/shell/buyer/start-selling-button";
 
 /**
  * Shared profile / account area — one screen both roles land on.
@@ -148,29 +147,6 @@ export default async function AccountPage() {
             </dl>
           </section>
 
-          {/* ── Seller setup ────────────────────────────────────────── */}
-          {!seller && (
-            <section className="rounded-2xl border border-border bg-card p-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="font-display text-lg font-medium">Apply to become a MaliHub seller</h2>
-                  <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                    Seller applications are reviewed by the MaliHub team. Seller permissions and product publishing are enabled only after approval.
-                  </p>
-                </div>
-                {profile?.onboarded ? (
-                  <StartSellingButton />
-                ) : (
-                  <Link
-                    href="/complete-profile"
-                    className="text-sm text-primary-400 hover:underline"
-                  >
-                    Finish your profile first →
-                  </Link>
-                )}
-              </div>
-            </section>
-          )}
 
           {seller && (
             <section className="rounded-2xl border border-border bg-card p-6">

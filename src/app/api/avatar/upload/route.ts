@@ -106,23 +106,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  try {
-    await assertCloudinaryUploadsAllowed();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    const blocked = message.includes("85%") || message.includes("paused by the MaliHub administrator");
-    logServerError("[avatar] Cloudinary usage protection blocked or unavailable", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: blocked
-          ? "Avatar uploads are temporarily paused to protect MaliHub's Cloudinary allowance."
-          : "Avatar uploads are temporarily unavailable because usage protection could not be verified.",
-      },
-      { status: 503 }
-    );
-  }
-
   let form: FormData;
   try {
     form = await request.formData();
@@ -144,6 +127,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: "Image must be under 3MB." },
       { status: 413 }
+    );
+  }
+
+  try {
+    await assertCloudinaryUploadsAllowed();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const blocked = message.includes("85%") || message.includes("paused by the MaliHub administrator");
+    logServerError("[avatar] Cloudinary usage protection blocked or unavailable", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: blocked
+          ? "Avatar uploads are temporarily paused to protect MaliHub's Cloudinary allowance."
+          : "Avatar uploads are temporarily unavailable because usage protection could not be verified.",
+      },
+      { status: 503 }
     );
   }
 

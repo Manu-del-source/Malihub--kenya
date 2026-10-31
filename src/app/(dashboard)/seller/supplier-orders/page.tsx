@@ -57,13 +57,13 @@ export default async function SellerSupplierOrdersPage() {
   })) as unknown as SupplierFulfilmentBoardItem[];
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
       <div className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Dropshipping operations
         </p>
         <h1 className="mt-2 font-display text-3xl font-medium">Supplier orders</h1>
-        <p className="mt-1 max-w-3xl text-sm text-white/60">
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
           Confirm availability and final supplier cost, record the manual purchase, and add courier
           tracking. Supplier stock here is a last-known snapshot, not a live reservation.
         </p>

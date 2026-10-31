@@ -155,7 +155,7 @@ export function AdminListingModerationPanel({
               <p className="text-sm font-medium">Remove “{title}” from the marketplace?</p>
               <p className="mt-1 text-xs text-muted-foreground">It will no longer be listed publicly. Order and review history will be preserved.</p>
               <div className="mt-3 flex gap-2">
-                <Button size="sm" disabled={isPending} onClick={removeListing} className="bg-destructive text-white hover:bg-destructive/90">
+                <Button size="sm" disabled={isPending} onClick={removeListing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   {isPending ? "Removing…" : "Confirm delete"}
                 </Button>
                 <Button size="sm" variant="outline" disabled={isPending} onClick={() => setConfirmDelete(false)}>Cancel</Button>

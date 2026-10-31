@@ -95,19 +95,19 @@ export default async function SellerSuppliersPage() {
   const categoryOptions: CategoryOption[] = categories;
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-white sm:py-12">
+    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#FF8C42]/10 text-[#FF8C42]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Boxes className="h-4 w-4" aria-hidden />
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Dropshipping Sourcing
             </span>
           </div>
           <h1 className="mt-2 font-display text-3xl font-medium">Supplier Catalog</h1>
-          <p className="mt-1 text-sm text-white/60">
+          <p className="mt-1 text-sm text-muted-foreground">
             Source high-demand products from approved Kenyan and international suppliers into your inventory.
           </p>
         </div>

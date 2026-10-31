@@ -58,15 +58,15 @@ export function SupplierReturnForm({ fulfilmentId }: { fulfilmentId: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-white/10 bg-[#151515] p-4 text-sm text-white">
+    <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-foreground/10 bg-card p-4 text-sm text-foreground">
       <p className="font-medium">Report a delivery, return or cancellation issue</p>
-      <p className="text-xs text-white/60">
+      <p className="text-xs text-muted-foreground">
         Your request opens a buyer-protection review. It does not automatically refund your payment or guarantee a replacement.
       </p>
       <select
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="h-10 w-full rounded-lg border border-white/10 bg-[#1A1A1A] px-3 text-sm"
+        className="h-10 w-full rounded-lg border border-foreground/10 bg-muted px-3 text-sm"
       >
         {REASONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -81,7 +81,7 @@ export function SupplierReturnForm({ fulfilmentId }: { fulfilmentId: string }) {
         maxLength={2000}
         required
         placeholder="Describe the issue (at least 8 characters)"
-        className="min-h-20 w-full rounded-lg border border-white/10 bg-[#1A1A1A] p-3 text-sm"
+        className="min-h-20 w-full rounded-lg border border-foreground/10 bg-muted p-3 text-sm"
       />
       <Input
         type="text"
@@ -89,7 +89,7 @@ export function SupplierReturnForm({ fulfilmentId }: { fulfilmentId: string }) {
         onChange={(e) => setEvidenceNote(e.target.value)}
         maxLength={2000}
         placeholder="Evidence note or reference (optional)"
-        className="h-10 border-white/10 bg-[#1A1A1A] text-sm"
+        className="h-10 border-foreground/10 bg-muted text-sm"
       />
       {message && <p className="text-xs text-amber-200">{message}</p>}
       <Button type="submit" size="sm" disabled={busy}>

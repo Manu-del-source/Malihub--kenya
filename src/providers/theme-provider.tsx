@@ -5,43 +5,40 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 type Theme = "light" | "dark";
 
 type ThemeContextValue = {
+  /** Resolved theme currently shown (always follows the device setting). */
   theme: Theme;
-  setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = "malihub-theme";
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
+}
 
+/**
+ * MaliHub follows the device's light/dark setting. The colour tokens switch via
+ * CSS (`prefers-color-scheme`) so there is no flash; this provider only keeps
+ * the `dark` class and `color-scheme` in sync for `dark:` utilities and native
+ * controls, and updates live when the device setting changes.
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // MaliHub's public design is intentionally dark black-and-copper. Ignore
-  // OS preference and stale saved light-mode values to prevent white pages.
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    setThemeState("dark");
+    const query = window.matchMedia("(prefers-color-scheme: light)");
+    const sync = () => {
+      const next: Theme = query.matches ? "light" : "dark";
+      setTheme(next);
+      applyTheme(next);
+    };
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
   }, []);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.style.colorScheme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
-    // Mirror to a cookie too, so the *next* server render can pick the
-    // right class before hydration (see the inline script in layout.tsx).
-    document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
-  }, [theme]);
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      setTheme: setThemeState,
-      toggleTheme: () => setThemeState((t) => (t === "dark" ? "light" : "dark")),
-    }),
-    [theme]
-  );
-
+  const value = useMemo<ThemeContextValue>(() => ({ theme }), [theme]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

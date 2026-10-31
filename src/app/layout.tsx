@@ -92,7 +92,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0A0A0A" },
+    { media: "(prefers-color-scheme: light)", color: "#F2EFEA" },
     { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
   ],
   width: "device-width",
@@ -125,9 +125,9 @@ export default function RootLayout({
             __html: `
               (function () {
                 try {
-                  var theme = 'dark';
-                  document.documentElement.classList.add('dark');
-                  document.documentElement.style.colorScheme = 'dark';
+                  var light = window.matchMedia('(prefers-color-scheme: light)').matches;
+                  document.documentElement.classList.toggle('dark', !light);
+                  document.documentElement.style.colorScheme = light ? 'light' : 'dark';
                 } catch (e) {}
               })();
             `,

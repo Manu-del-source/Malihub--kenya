@@ -8,7 +8,7 @@ const items = [
 ];
 
 export function TrustBar() {
-  return <section aria-label="MaliHub marketplace features" className="grid grid-cols-2 gap-5 border-y border-white/[0.08] py-7 lg:grid-cols-4">
-    {items.map(({ icon: Icon, title, copy }) => <div key={title} className="flex items-start gap-3"><Icon className="mt-1 shrink-0 text-[#d8b775]" size={22} /><div><h3 className="text-sm font-medium text-white">{title}</h3><p className="mt-1 text-xs leading-5 text-neutral-500">{copy}</p></div></div>)}
+  return <section aria-label="MaliHub marketplace features" className="grid grid-cols-2 gap-5 border-y border-foreground/[0.08] py-7 lg:grid-cols-4">
+    {items.map(({ icon: Icon, title, copy }) => <div key={title} className="flex items-start gap-3"><Icon className="mt-1 shrink-0 text-gold" size={22} /><div><h3 className="text-sm font-medium text-foreground">{title}</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">{copy}</p></div></div>)}
   </section>;
 }

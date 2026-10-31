@@ -41,7 +41,7 @@ export function ListingRowActions({ productId, status }: { productId: string; st
           <p className="text-sm font-medium text-foreground">Delete this listing?</p>
           <p className="mt-1 text-xs text-muted-foreground">It will be removed from the marketplace. Order history will be kept.</p>
           <div className="mt-3 flex gap-2">
-            <button type="button" disabled={isPending} onClick={() => run(() => deleteListingAction(productId), "Listing deleted.")} className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Confirm delete</button>
+            <button type="button" disabled={isPending} onClick={() => run(() => deleteListingAction(productId), "Listing deleted.")} className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Confirm delete</button>
             <button type="button" disabled={isPending} onClick={() => setConfirmDelete(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground disabled:opacity-50">Cancel</button>
           </div>
         </div>

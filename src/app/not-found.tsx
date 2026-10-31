@@ -10,20 +10,20 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-[#0a0a09] text-[#f3f0eb]">
+    <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-background text-foreground">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_50%_12%,rgba(200,135,69,0.16),transparent_52%)]"
       />
 
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-        <Link href="/" aria-label="MaliHub homepage" className="group inline-flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e4b47b]">
-          <span className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-semibold text-[#17110b]">M</span>
+        <Link href="/" aria-label="MaliHub homepage" className="group inline-flex items-center gap-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
+          <span className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-semibold text-foreground">M</span>
           <span className="text-lg font-semibold tracking-tight">Mali<span className="copper-text">Hub</span></span>
         </Link>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-white/85 transition hover:border-[#c88745]/50 hover:bg-[#c88745]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e4b47b]"
+          className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.04] px-4 py-2.5 text-sm font-medium text-foreground/80 transition hover:border-gold/50 hover:bg-gold/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
         >
           <Store aria-hidden="true" size={16} />
           Visit marketplace
@@ -32,37 +32,37 @@ export default function NotFound() {
 
       <section className="relative flex flex-1 flex-col items-center justify-center px-5 pb-16 pt-8 text-center sm:pb-20">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 -z-10 -translate-y-1/2 select-none overflow-hidden">
-          <span className="block text-center text-[clamp(15rem,43vw,38rem)] font-semibold leading-[0.72] tracking-[-0.09em] text-white/[0.025]">404</span>
+          <span className="block text-center text-[clamp(15rem,43vw,38rem)] font-semibold leading-[0.72] tracking-[-0.09em] text-foreground/[0.025]">404</span>
         </div>
 
-        <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c88745]/25 bg-[#c88745]/10 text-[#e4b47b] shadow-[0_0_60px_rgba(200,135,69,0.12)]">
+        <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/25 bg-gold/10 text-gold shadow-[0_0_60px_rgba(200,135,69,0.12)]">
           <span aria-hidden="true" className="text-3xl leading-none">✳</span>
         </div>
-        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-[#d5a36b]">Wrong turn</p>
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-gold">Wrong turn</p>
         <h1 className="max-w-3xl text-balance font-display text-4xl font-medium tracking-tight sm:text-6xl lg:text-7xl">
           This page is <span className="copper-text">off the map.</span>
         </h1>
-        <p className="mt-5 max-w-md text-base leading-7 text-white/60 sm:text-lg">
+        <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground sm:text-lg">
           The page you’re looking for may have moved or no longer exists. There are plenty more finds waiting on MaliHub.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
           <Link
             href="/"
-            className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#d49a5b] px-6 py-3 text-sm font-semibold text-[#17110b] transition hover:bg-[#e4b47b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e4b47b]"
+            className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-semibold text-background transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
           >
             Back to MaliHub
             <ArrowUpRight aria-hidden="true" size={17} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
           <Link
             href="/"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-white/70 transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e4b47b]"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-foreground/80 transition hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
           >
             <ArrowLeft aria-hidden="true" size={16} />
             Explore the homepage
           </Link>
         </div>
 
-        <div aria-hidden="true" className="relative mt-14 w-full max-w-5xl overflow-hidden rounded-3xl border border-white/[0.07] bg-[#11110f] sm:mt-20">
+        <div aria-hidden="true" className="relative mt-14 w-full max-w-5xl overflow-hidden rounded-3xl border border-foreground/[0.07] bg-card sm:mt-20">
           <svg viewBox="0 0 1200 270" role="presentation" className="block h-40 w-full sm:h-56 lg:h-64" preserveAspectRatio="xMidYMid slice">
             <defs>
               <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -94,13 +94,13 @@ export default function NotFound() {
               <circle cx="740" cy="240" r="2" /><circle cx="950" cy="230" r="1.5" /><circle cx="1035" cy="246" r="2" />
             </g>
           </svg>
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0a0a09]/75 to-transparent" />
-          <p className="absolute bottom-4 left-5 text-left text-[10px] font-medium uppercase tracking-[0.22em] text-white/50 sm:left-7 sm:text-xs">Your next great find is closer than you think</p>
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/75 to-transparent" />
+          <p className="absolute bottom-4 left-5 text-left text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground sm:left-7 sm:text-xs">Your next great find is closer than you think</p>
         </div>
       </section>
 
-      <footer className="border-t border-white/[0.08] bg-[#080808]/80">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+      <footer className="border-t border-foreground/[0.08] bg-background/80">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
           <span>© {new Date().getFullYear()} MaliHub Kenya</span>
           <span>Buy and sell across Kenya, all in one place.</span>
         </div>

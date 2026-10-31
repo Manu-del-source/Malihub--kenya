@@ -61,10 +61,10 @@ export default async function EditListingPage({
                   Supplier-sourced draft listing ({product.supplierProduct.supplier.name})
                 </h2>
               </div>
-              <p className="mt-1 text-white/70">
+              <p className="mt-1 text-foreground/80">
                 This listing was imported from an approved supplier. Before publishing to the marketplace:
               </p>
-              <ul className="mt-2 list-disc pl-5 space-y-1 text-xs text-white/60">
+              <ul className="mt-2 list-disc pl-5 space-y-1 text-xs text-muted-foreground">
                 <li>Upload verified product images through the image upload grid below.</li>
                 <li>Confirm real-time product availability and delivery timelines with the supplier.</li>
                 <li>Verify title, description, category, and intended retail price.</li>

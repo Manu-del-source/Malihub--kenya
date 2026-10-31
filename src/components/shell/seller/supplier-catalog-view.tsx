@@ -360,14 +360,14 @@ export function SupplierCatalogView({
           <div className="flex items-start gap-3">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
             <div>
-              <h2 className="font-semibold text-white">Seller verification required to import products</h2>
-              <p className="mt-1 text-sm text-white/70">
+              <h2 className="font-semibold text-foreground">Seller verification required to import products</h2>
+              <p className="mt-1 text-sm text-foreground/80">
                 You can browse approved supplier catalogs below. To import items into your inventory as draft listings,
                 your seller account must be approved by MaliHub moderation.
               </p>
               <Link
                 href="/seller/onboarding"
-                className="mt-3 inline-flex text-sm font-semibold text-[#FF8C42] underline underline-offset-4 hover:text-white"
+                className="mt-3 inline-flex text-sm font-semibold text-primary underline underline-offset-4 hover:text-foreground"
               >
                 Complete seller application →
               </Link>
@@ -377,20 +377,20 @@ export function SupplierCatalogView({
       )}
 
       {/* ── Sourcing Rules / Guidelines Banner ────────────────────────────── */}
-      <div className="mb-8 rounded-2xl border border-white/10 bg-[#141414] p-5">
+      <div className="mb-8 rounded-2xl border border-foreground/10 bg-card p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#FF8C42]" aria-hidden />
+            <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
             <div className="text-sm">
-              <p className="font-medium text-white">How MaliHub Dropshipping Sourcing Works</p>
-              <p className="mt-0.5 text-white/60">
+              <p className="font-medium text-foreground">How MaliHub Dropshipping Sourcing Works</p>
+              <p className="mt-0.5 text-muted-foreground">
                 1. Browse vetted suppliers. 2. Set your retail price in KES. 3. Import as a Draft. 4. Verify supplier availability and upload photos in the listing editor before publishing.
               </p>
             </div>
           </div>
           <Link
             href="/seller/listings"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 transition hover:border-[#FF8C42]/40 hover:text-white"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/5 px-4 py-1.5 text-xs font-medium text-foreground/80 transition hover:border-primary/40 hover:text-foreground"
           >
             <Package className="h-3.5 w-3.5" aria-hidden />
             View my listings
@@ -401,7 +401,7 @@ export function SupplierCatalogView({
       {/* ── Search & Filter Controls ──────────────────────────────────────── */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" aria-hidden />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
             type="search"
             placeholder="Search supplier products, descriptions, SKUs..."
@@ -410,13 +410,13 @@ export function SupplierCatalogView({
               setSearchQuery(e.target.value);
               setPagination((prev) => ({ ...prev, page: 1 }));
             }}
-            className="h-11 w-full rounded-full border border-white/10 bg-[#1A1A1A] pl-10 pr-4 text-sm text-white placeholder:text-white/40 outline-none transition focus:border-[#FF8C42]/60 focus:ring-2 focus:ring-[#FF8C42]/15"
+            className="h-11 w-full rounded-full border border-foreground/10 bg-muted pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
           />
         </div>
 
         {/* Region Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0" aria-label="Filter by region">
-          <span className="hidden items-center gap-1.5 text-xs text-white/50 sm:flex">
+          <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
             <Filter className="h-3.5 w-3.5" aria-hidden /> Region:
           </span>
           {(
@@ -436,8 +436,8 @@ export function SupplierCatalogView({
               className={[
                 "shrink-0 rounded-full px-4 py-2 text-xs font-medium transition",
                 activeRegion === tab.id
-                  ? "bg-[#FF8C42] font-semibold text-black"
-                  : "border border-white/10 bg-[#141414] text-white/70 hover:border-white/20 hover:text-white",
+                  ? "bg-primary font-semibold text-primary-foreground"
+                  : "border border-foreground/10 bg-card text-foreground/80 hover:border-foreground/20 hover:text-foreground",
               ].join(" ")}
             >
               {tab.label}
@@ -466,21 +466,21 @@ export function SupplierCatalogView({
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-white/10 bg-[#141414] p-4">
-              <div className="aspect-square w-full rounded-xl bg-white/5" />
-              <div className="mt-4 h-4 w-3/4 rounded bg-white/5" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-white/5" />
-              <div className="mt-4 h-9 w-full rounded-full bg-white/5" />
+            <div key={i} className="animate-pulse rounded-2xl border border-foreground/10 bg-card p-4">
+              <div className="aspect-square w-full rounded-xl bg-foreground/5" />
+              <div className="mt-4 h-4 w-3/4 rounded bg-foreground/5" />
+              <div className="mt-2 h-3 w-1/2 rounded bg-foreground/5" />
+              <div className="mt-4 h-9 w-full rounded-full bg-foreground/5" />
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-[#141414] py-20 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[#FF8C42]">
+        <div className="rounded-2xl border border-dashed border-foreground/10 bg-card py-20 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/5 text-primary">
             <Boxes className="h-6 w-6" aria-hidden />
           </div>
-          <h2 className="mt-5 text-lg font-semibold text-white">No supplier products found</h2>
-          <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-white/60">
+          <h2 className="mt-5 text-lg font-semibold text-foreground">No supplier products found</h2>
+          <p className="mx-auto mt-2 max-w-md px-5 text-sm leading-6 text-muted-foreground">
             {searchQuery
               ? `No products matched "${searchQuery}". Try refining your search terms.`
               : "No active supplier products are currently available in this category."}
@@ -504,12 +504,12 @@ export function SupplierCatalogView({
           {items.map((item) => (
             <div
               key={item.id}
-              className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#141414] p-4 transition hover:border-[#FF8C42]/40"
+              className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-foreground/10 bg-card p-4 transition hover:border-primary/40"
             >
               <div>
                 {/* Product Image preview */}
                 <div
-                  className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border border-white/5 bg-[#1A1A1A]"
+                  className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border border-foreground/5 bg-muted"
                   onClick={() => setDetailItem(item)}
                   role="button"
                   tabIndex={0}
@@ -527,21 +527,21 @@ export function SupplierCatalogView({
                       className="object-cover transition duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-white/20">
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                       <Package className="h-12 w-12" aria-hidden />
                     </div>
                   )}
 
                   {/* Supplier Region Badge */}
                   <div className="absolute left-2.5 top-2.5">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-md">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-md keep-tone">
                       {item.supplier.region === "KENYA" ? (
                         <>
-                          <MapPin className="h-3 w-3 text-[#FF8C42]" aria-hidden /> Kenya
+                          <MapPin className="h-3 w-3 text-[#FFA555]" aria-hidden /> Kenya
                         </>
                       ) : (
                         <>
-                          <Globe className="h-3 w-3 text-cyan-400" aria-hidden /> International
+                          <Globe className="keep-tone h-3 w-3 text-cyan-400" aria-hidden /> International
                         </>
                       )}
                     </span>
@@ -549,7 +549,7 @@ export function SupplierCatalogView({
 
                   {item.importedListing && (
                     <div className="absolute right-2.5 top-2.5">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300 backdrop-blur-md">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[11px] font-medium text-emerald-300 backdrop-blur-md keep-tone">
                         <Check className="h-3 w-3" aria-hidden /> Imported
                       </span>
                     </div>
@@ -558,22 +558,22 @@ export function SupplierCatalogView({
 
                 {/* Content */}
                 <div className="mt-3.5">
-                  <p className="text-xs font-medium text-white/50">{item.supplier.name}</p>
+                  <p className="text-xs font-medium text-muted-foreground">{item.supplier.name}</p>
                   <h3
-                    className="mt-1 line-clamp-2 cursor-pointer font-medium text-white transition group-hover:text-[#FF8C42]"
+                    className="mt-1 line-clamp-2 cursor-pointer font-medium text-foreground transition group-hover:text-primary"
                     onClick={() => setDetailItem(item)}
                   >
                     {item.title}
                   </h3>
                   {item.description && (
-                    <p className="mt-1.5 line-clamp-2 text-xs text-white/60">{item.description}</p>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
                   )}
                 </div>
               </div>
 
               {/* Bottom metadata and action */}
-              <div className="mt-4 border-t border-white/5 pt-3">
-                <div className="mb-3 flex items-center justify-between text-xs text-white/50">
+              <div className="mt-4 border-t border-foreground/5 pt-3">
+                <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span className={item.availability?.isStale ? "text-amber-300" : undefined}>
                     {item.availability
                       ? `${item.availability.label}${
@@ -599,7 +599,7 @@ export function SupplierCatalogView({
                 ) : (
                   <Button
                     size="sm"
-                    className="w-full rounded-full bg-[#FF8C42] text-xs font-bold text-black transition hover:bg-[#ff9b5c]"
+                    className="w-full rounded-full bg-primary text-xs font-bold text-primary-foreground transition hover:bg-primary-400"
                     onClick={() => handleOpenImport(item)}
                   >
                     <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -614,10 +614,10 @@ export function SupplierCatalogView({
 
       {/* ── Pagination ───────────────────────────────────────────────────── */}
       {pagination.totalPages > 1 && (
-        <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6">
-          <p className="text-xs text-white/50">
-            Showing page <span className="font-medium text-white">{pagination.page}</span> of{" "}
-            <span className="font-medium text-white">{pagination.totalPages}</span> ({pagination.total} total items)
+        <div className="mt-10 flex items-center justify-between border-t border-foreground/10 pt-6">
+          <p className="text-xs text-muted-foreground">
+            Showing page <span className="font-medium text-foreground">{pagination.page}</span> of{" "}
+            <span className="font-medium text-foreground">{pagination.totalPages}</span> ({pagination.total} total items)
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -648,21 +648,21 @@ export function SupplierCatalogView({
       {/* ── Product Detail Modal ──────────────────────────────────────────── */}
       {detailItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#141414] p-6 text-white sm:p-8">
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-foreground/10 bg-card p-6 text-foreground sm:p-8">
             <button
               type="button"
               onClick={() => setDetailItem(null)}
-              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
               aria-label="Close dialog"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A]">
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-foreground/10 bg-muted">
               {detailItem.imageUrl ? (
                 <Image src={detailItem.imageUrl} alt={detailItem.title} fill className="object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-white/20">
+                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                   <Package className="h-12 w-12" />
                 </div>
               )}
@@ -673,30 +673,30 @@ export function SupplierCatalogView({
                 <Badge variant={detailItem.supplier.region === "KENYA" ? "verified" : "default"}>
                   {detailItem.supplier.region === "KENYA" ? "Kenya Supplier" : "International Supplier"}
                 </Badge>
-                <span className="text-xs text-white/50">{detailItem.supplier.name}</span>
+                <span className="text-xs text-muted-foreground">{detailItem.supplier.name}</span>
               </div>
 
               <h2 className="mt-2 font-display text-xl font-medium">{detailItem.title}</h2>
 
               {detailItem.description && (
                 <div className="mt-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Product Description
                   </h4>
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
                     {detailItem.description}
                   </p>
                 </div>
               )}
 
-              <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-white/5 bg-[#1A1A1A] p-4 text-xs">
+              <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-foreground/5 bg-muted p-4 text-xs">
                 <div>
-                  <span className="text-white/50">SKU:</span>
-                  <p className="font-mono font-medium text-white">{detailItem.sku || "N/A"}</p>
+                  <span className="text-muted-foreground">SKU:</span>
+                  <p className="font-mono font-medium text-foreground">{detailItem.sku || "N/A"}</p>
                 </div>
                 <div>
-                  <span className="text-white/50">Available Units:</span>
-                  <p className="font-medium text-white">
+                  <span className="text-muted-foreground">Available Units:</span>
+                  <p className="font-medium text-foreground">
                     {detailItem.availableQuantity !== null
                       ? detailItem.availableQuantity.toLocaleString()
                       : "Available on order"}
@@ -704,7 +704,7 @@ export function SupplierCatalogView({
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-white/70">
+              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-foreground/80">
                 <p className="font-medium text-amber-200">
                   {detailItem.availability?.label ?? "Stock not verified"}
                 </p>
@@ -723,14 +723,14 @@ export function SupplierCatalogView({
                   Close
                 </Button>
                 {detailItem.importedListing ? (
-                  <Button asChild className="rounded-full bg-emerald-500 text-black hover:bg-emerald-400">
+                  <Button asChild className="rounded-full bg-emerald-500 text-primary-foreground hover:bg-emerald-400">
                     <Link href={`/seller/listings/${detailItem.importedListing.id}/edit`}>
                       Edit Draft Listing
                     </Link>
                   </Button>
                 ) : (
                   <Button
-                    className="rounded-full bg-[#FF8C42] font-bold text-black hover:bg-[#ff9b5c]"
+                    className="rounded-full bg-primary font-bold text-primary-foreground hover:bg-primary-400"
                     onClick={() => {
                       const item = detailItem;
                       setDetailItem(null);
@@ -749,7 +749,7 @@ export function SupplierCatalogView({
       {/* ── Import Form Modal / Dialog ────────────────────────────────────── */}
       {importingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#141414] p-6 text-white sm:p-8">
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-foreground/10 bg-card p-6 text-foreground sm:p-8">
             <button
               type="button"
               onClick={() => {
@@ -757,7 +757,7 @@ export function SupplierCatalogView({
                 setImportedSuccess(null);
                 setExistingDraftInfo(null);
               }}
-              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
               aria-label="Close dialog"
             >
               <X className="h-4 w-4" />
@@ -769,19 +769,19 @@ export function SupplierCatalogView({
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
                   <CheckCircle2 className="h-7 w-7" aria-hidden />
                 </div>
-                <h3 className="mt-4 font-display text-2xl font-medium text-white">Imported as Draft</h3>
-                <p className="mx-auto mt-2 max-w-sm text-sm text-white/70">
+                <h3 className="mt-4 font-display text-2xl font-medium text-foreground">Imported as Draft</h3>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-foreground/80">
                   &quot;{importedSuccess.title}&quot; has been created in your inventory.
                 </p>
 
-                <div className="my-6 rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 text-left text-xs">
+                <div className="my-6 rounded-2xl border border-foreground/10 bg-muted p-4 text-left text-xs">
                   <div className="flex justify-between py-1">
-                    <span className="text-white/50">Status:</span>
+                    <span className="text-muted-foreground">Status:</span>
                     <Badge variant="default">{importedSuccess.status}</Badge>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-white/50">Retail Price:</span>
-                    <span className="font-mono font-medium text-white">
+                    <span className="text-muted-foreground">Retail Price:</span>
+                    <span className="font-mono font-medium text-foreground">
                       {formatKes(importedSuccess.priceCents)}
                     </span>
                   </div>
@@ -803,7 +803,7 @@ export function SupplierCatalogView({
                   >
                     Continue browsing
                   </Button>
-                  <Button asChild className="rounded-full bg-[#FF8C42] font-bold text-black hover:bg-[#ff9b5c]">
+                  <Button asChild className="rounded-full bg-primary font-bold text-primary-foreground hover:bg-primary-400">
                     <Link href={`/seller/listings/${importedSuccess.id}/edit`}>
                       Edit draft listing
                     </Link>
@@ -815,8 +815,8 @@ export function SupplierCatalogView({
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400">
                   <Info className="h-7 w-7" aria-hidden />
                 </div>
-                <h3 className="mt-4 font-display text-xl font-medium text-white">Already in Inventory</h3>
-                <p className="mx-auto mt-2 max-w-sm text-sm text-white/70">
+                <h3 className="mt-4 font-display text-xl font-medium text-foreground">Already in Inventory</h3>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-foreground/80">
                   You have already imported this product. You can review or edit your listing draft directly.
                 </p>
 
@@ -830,7 +830,7 @@ export function SupplierCatalogView({
                   >
                     Close
                   </Button>
-                  <Button asChild className="rounded-full bg-[#FF8C42] font-bold text-black hover:bg-[#ff9b5c]">
+                  <Button asChild className="rounded-full bg-primary font-bold text-primary-foreground hover:bg-primary-400">
                     <Link href={`/seller/listings/${existingDraftInfo.id}/edit`}>
                       Open draft listing
                     </Link>
@@ -841,10 +841,10 @@ export function SupplierCatalogView({
               <div>
                 <div className="mb-5">
                   <Badge variant="verified">{importingItem.supplier.name}</Badge>
-                  <h3 className="mt-2 font-display text-xl font-medium text-white">
+                  <h3 className="mt-2 font-display text-xl font-medium text-foreground">
                     Import to your inventory
                   </h3>
-                  <p className="mt-1 line-clamp-1 text-sm text-white/60">{importingItem.title}</p>
+                  <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{importingItem.title}</p>
                 </div>
 
                 {importError && (
@@ -856,11 +856,11 @@ export function SupplierCatalogView({
 
                 {!sellerVerified ? (
                   <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-center text-sm">
-                    <p className="font-semibold text-white">Verification required</p>
-                    <p className="mt-1 text-white/70">
+                    <p className="font-semibold text-foreground">Verification required</p>
+                    <p className="mt-1 text-foreground/80">
                       Your seller account must be approved before importing supplier products into inventory.
                     </p>
-                    <Button asChild className="mt-4 rounded-full bg-[#FF8C42] text-black">
+                    <Button asChild className="mt-4 rounded-full bg-primary text-primary-foreground">
                       <Link href="/seller/onboarding">Complete verification</Link>
                     </Button>
                   </div>
@@ -868,7 +868,7 @@ export function SupplierCatalogView({
                   <form onSubmit={handleSubmitImport} className="space-y-4">
                     {/* Category Selection */}
                     <div>
-                      <label className="block text-xs font-medium text-white/70">
+                      <label className="block text-xs font-medium text-foreground/80">
                         Category <span className="text-red-400">*</span>
                       </label>
                       <select
@@ -876,10 +876,10 @@ export function SupplierCatalogView({
                         onChange={(e) =>
                           setImportForm((prev) => ({ ...prev, categorySlug: e.target.value }))
                         }
-                        className="mt-1.5 h-11 w-full rounded-xl border border-white/10 bg-[#1A1A1A] px-3.5 text-sm text-white outline-none focus:border-[#FF8C42]/60 focus:ring-1 focus:ring-[#FF8C42]"
+                        className="mt-1.5 h-11 w-full rounded-xl border border-foreground/10 bg-muted px-3.5 text-sm text-foreground outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary"
                       >
                         {categories.map((c) => (
-                          <option key={c.slug} value={c.slug} className="bg-[#1A1A1A] text-white">
+                          <option key={c.slug} value={c.slug} className="bg-muted text-foreground">
                             {c.name}
                           </option>
                         ))}
@@ -891,11 +891,11 @@ export function SupplierCatalogView({
 
                     {/* Retail Price in KES */}
                     <div>
-                      <label className="block text-xs font-medium text-white/70">
+                      <label className="block text-xs font-medium text-foreground/80">
                         Your intended retail price (KES) <span className="text-red-400">*</span>
                       </label>
                       <div className="relative mt-1.5">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
                           KSh
                         </span>
                         <Input
@@ -907,11 +907,11 @@ export function SupplierCatalogView({
                           onChange={(e) =>
                             setImportForm((prev) => ({ ...prev, priceKes: e.target.value }))
                           }
-                          className="h-11 rounded-xl border-white/10 bg-[#1A1A1A] pl-12 text-sm text-white"
+                          className="h-11 rounded-xl border-foreground/10 bg-muted pl-12 text-sm text-foreground"
                           required
                         />
                       </div>
-                      <p className="mt-1 text-[11px] text-white/50">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         Enter your target retail price including your margin.
                       </p>
                       {importFieldErrors.priceCents && (
@@ -920,7 +920,7 @@ export function SupplierCatalogView({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-white/70">
+                      <label className="block text-xs font-medium text-foreground/80">
                         Your own fulfilment cost in KES (optional)
                       </label>
                       <Input
@@ -932,25 +932,25 @@ export function SupplierCatalogView({
                         onChange={(e) =>
                           setImportForm((prev) => ({ ...prev, sellerFulfilmentCostKes: e.target.value }))
                         }
-                        className="mt-1.5 h-11 rounded-xl border-white/10 bg-[#1A1A1A] text-sm text-white"
+                        className="mt-1.5 h-11 rounded-xl border-foreground/10 bg-muted text-sm text-foreground"
                       />
-                      <p className="mt-1 text-[11px] text-white/50">
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         Enter only costs you actually pay. Unknown platform, tax and payment fees are not invented.
                       </p>
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-[#111]/80 p-3.5 text-xs" aria-live="polite">
+                    <div className="rounded-xl border border-foreground/10 bg-card/80 p-3.5 text-xs" aria-live="polite">
                       {pricingPreview ? (
                         <>
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-white/60">Estimated gross profit</span>
-                            <span className="font-mono text-sm font-semibold text-white">
+                            <span className="text-muted-foreground">Estimated gross profit</span>
+                            <span className="font-mono text-sm font-semibold text-foreground">
                               {formatKes(pricingPreview.estimatedGrossProfitCents)}
                             </span>
                           </div>
                           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-white/60">Estimated margin</span>
-                            <span className="font-mono text-sm text-white">
+                            <span className="text-muted-foreground">Estimated margin</span>
+                            <span className="font-mono text-sm text-foreground">
                               {(pricingPreview.marginBps / 100).toFixed(2)}%
                             </span>
                           </div>
@@ -960,13 +960,13 @@ export function SupplierCatalogView({
                               : "Based on verified inputs. Final supplier cost must still be confirmed before purchase."}
                           </p>
                           {pricingPreview.warnings.length > 0 ? (
-                            <p className="mt-1 text-[11px] text-white/50">
+                            <p className="mt-1 text-[11px] text-muted-foreground">
                               {pricingPreview.warnings.join(", ")}
                             </p>
                           ) : null}
                         </>
                       ) : (
-                        <p className="text-white/60">
+                        <p className="text-muted-foreground">
                           {pricingError ?? "Enter a retail price to preview estimated profit and margin before publishing."}
                         </p>
                       )}
@@ -975,7 +975,7 @@ export function SupplierCatalogView({
                     {/* County & Town */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-medium text-white/70">
+                        <label className="block text-xs font-medium text-foreground/80">
                           County <span className="text-red-400">*</span>
                         </label>
                         <select
@@ -983,10 +983,10 @@ export function SupplierCatalogView({
                           onChange={(e) =>
                             setImportForm((prev) => ({ ...prev, county: e.target.value }))
                           }
-                          className="mt-1.5 h-11 w-full rounded-xl border border-white/10 bg-[#1A1A1A] px-3.5 text-sm text-white outline-none focus:border-[#FF8C42]/60 focus:ring-1 focus:ring-[#FF8C42]"
+                          className="mt-1.5 h-11 w-full rounded-xl border border-foreground/10 bg-muted px-3.5 text-sm text-foreground outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary"
                         >
                           {KENYA_COUNTIES.map((county) => (
-                            <option key={county} value={county} className="bg-[#1A1A1A] text-white">
+                            <option key={county} value={county} className="bg-muted text-foreground">
                               {county}
                             </option>
                           ))}
@@ -997,7 +997,7 @@ export function SupplierCatalogView({
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-white/70">
+                        <label className="block text-xs font-medium text-foreground/80">
                           Town / Sub-county <span className="text-red-400">*</span>
                         </label>
                         <Input
@@ -1007,7 +1007,7 @@ export function SupplierCatalogView({
                           onChange={(e) =>
                             setImportForm((prev) => ({ ...prev, town: e.target.value }))
                           }
-                          className="mt-1.5 h-11 rounded-xl border-white/10 bg-[#1A1A1A] text-sm text-white"
+                          className="mt-1.5 h-11 rounded-xl border-foreground/10 bg-muted text-sm text-foreground"
                           required
                         />
                         {importFieldErrors.town && (
@@ -1018,7 +1018,7 @@ export function SupplierCatalogView({
 
                     {/* Quantity */}
                     <div>
-                      <label className="block text-xs font-medium text-white/70">
+                      <label className="block text-xs font-medium text-foreground/80">
                         Listing quantity <span className="text-red-400">*</span>
                       </label>
                       <Input
@@ -1032,7 +1032,7 @@ export function SupplierCatalogView({
                             quantity: parseInt(e.target.value, 10) || 1,
                           }))
                         }
-                        className="mt-1.5 h-11 rounded-xl border-white/10 bg-[#1A1A1A] text-sm text-white"
+                        className="mt-1.5 h-11 rounded-xl border-foreground/10 bg-muted text-sm text-foreground"
                         required
                       />
                       {importFieldErrors.quantity && (
@@ -1040,8 +1040,8 @@ export function SupplierCatalogView({
                       )}
                     </div>
 
-                    <div className="rounded-xl border border-white/5 bg-[#1A1A1A] p-3 text-[11px] text-white/60">
-                      Importing creates a <strong className="text-white">Draft listing</strong> in your seller inventory. You will be able to review the description, set delivery details, and upload photos before publishing.
+                    <div className="rounded-xl border border-foreground/5 bg-muted p-3 text-[11px] text-muted-foreground">
+                      Importing creates a <strong className="text-foreground">Draft listing</strong> in your seller inventory. You will be able to review the description, set delivery details, and upload photos before publishing.
                     </div>
 
                     <div className="mt-6 flex items-center justify-end gap-3 pt-2">
@@ -1056,7 +1056,7 @@ export function SupplierCatalogView({
                       <Button
                         type="submit"
                         disabled={isSubmittingImport}
-                        className="rounded-full bg-[#FF8C42] font-bold text-black hover:bg-[#ff9b5c]"
+                        className="rounded-full bg-primary font-bold text-primary-foreground hover:bg-primary-400"
                       >
                         {isSubmittingImport ? (
                           <>

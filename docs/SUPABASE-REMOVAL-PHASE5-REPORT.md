@@ -1,5 +1,7 @@
 # Supabase removal — Phase 5 acceptance report
 
+> **Historical snapshot:** this report records the Phase 5 implementation state. Its references to a browser-side unsigned listing-image widget and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` were superseded by PR #92. The current upload architecture, limits and rollout requirements are documented in [`docs/security/CLOUDINARY_UPLOAD_GUARDRAILS.md`](./security/CLOUDINARY_UPLOAD_GUARDRAILS.md). Do not use this report's old widget configuration as current deployment guidance.
+
 **Date:** 2026-10-12 · **Branch:** `arena/174af3cf-malihub-kenya` · **Phase 4 commit
 under review:** `b6e3d5e2aefc2a0b5e69422a2332fc128a0488d6` (**PR #36**, base `main`,
 open, mergeable) · **Phase:** 5 of

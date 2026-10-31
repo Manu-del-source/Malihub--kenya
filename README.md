@@ -1,21 +1,23 @@
 # MaliHub Kenya
 
 A premium Kenyan marketplace — Next.js 15, Neon Managed Better Auth, Prisma
-on independent PostgreSQL, and a FastAPI backend for payments.
+on independent PostgreSQL, and a FastAPI backend for chat realtime and supporting APIs.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design and
 build-phase checklist.
 
 **Two services, one database.** The Next.js app (`src/`) serves the storefront
-and dashboards. The FastAPI backend (`backend/`, added in Phase 8) owns
-payments, provider webhooks and health reporting. They deploy independently and
-share PostgreSQL and Redis. **Neon Managed Better Auth is authentication** —
+and dashboards. The FastAPI backend (`backend/`) provides the chat WebSocket service,
+health/readiness reporting and supporting backend services. Buyer payments
+and Paystack webhooks are handled by the Next.js application. The services
+deploy independently and share PostgreSQL and Redis. **Neon Managed Better Auth is authentication** —
 credentials, sessions, email verification, password reset and Google OAuth all
 live there, and no password is ever stored in this repository's database.
-Supabase remains a dependency, but only for **Storage** (profile avatars) and
-**Realtime** (chat); it is not the application database, and no new file storage
-is built on it (marketplace images are Cloudinary). See §2 and §5 of
-ARCHITECTURE.md, and **`docs/auth/`** for the authoritative auth design.
+Supabase is retired from the active request path. Legacy Supabase avatar URLs
+may remain readable during migration, and rollback-only auth code is retained,
+but current image storage is Cloudinary and chat realtime uses FastAPI
+WebSockets with Redis. See §2 and §5 of ARCHITECTURE.md, and **`docs/auth/`**
+for the authoritative auth design.
 
 ## Getting started — Next.js app
 
@@ -114,13 +116,34 @@ service completes the OAuth handshake itself and returns the browser to the
 and answers **410 Gone**. `docs/auth/MIGRATION.md` §5–§6 is the full console
 checklist (env vars, trusted domains, email verification).
 
-In your **Cloudinary** dashboard: Settings → Upload → Upload presets →
-add an **unsigned** preset, and put its name in
-`NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`. The listing-creation image
-uploader (`next-cloudinary`'s widget) uploads directly from the browser
-using this preset — no server-side signing involved, so without it
-"Add photo" on /seller/listings/new silently has nothing to
-upload to.
+### Image upload configuration
+
+MaliHub does **not** use a browser-side Cloudinary upload widget or unsigned
+upload preset for product, chat or avatar images. The browser sends files to
+MaliHub's authenticated Next.js routes; the server validates and sanitizes the
+image, then uploads the resulting WebP to Cloudinary.
+
+Configure these variables in the **Next.js/Vercel** environment:
+
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET` (server-only; never expose it with a
+  `NEXT_PUBLIC_` prefix)
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `CLOUDINARY_UPLOADS_PAUSED=false` (set to `true` for the product/chat
+  upload emergency pause)
+
+Product and chat uploads fail closed when Redis or Cloudinary usage protection
+cannot be checked. Avatar uploads use the same Cloudinary credentials, but
+their current rate limiter fails open when Redis is unavailable and the avatar
+route does not yet use the Cloudinary usage threshold/emergency-pause guard.
+See [the image-upload security guide](./docs/security/CLOUDINARY_UPLOAD_GUARDRAILS.md)
+for exact route limits, rollout checks and this remaining gap.
+
+No `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` is required. Disable old unsigned
+presets only after checking that no other application or legacy client still
+uses them.
 
 ```bash
 npm run prisma:seed          # seeds the 17 marketplace categories

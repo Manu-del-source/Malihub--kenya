@@ -147,6 +147,15 @@ export function isVerificationEmailDisabled(
 ): boolean {
   if (!error) return false;
   if ("code" in error && error.code === "capability_not_enabled") return true;
+
+  // Production telemetry shows the Neon SDK can collapse the disabled-link
+  // response into an unclassified HTTP 400 (code: "unknown"), losing the
+  // upstream message needed by the exact-match rules below. This predicate is
+  // called only after a verification-LINK attempt; retrying with the existing
+  // code endpoint is safe and lets that endpoint return its own actionable
+  // error if the 400 was caused by something else (for example, bad input).
+  if (error.status === 400) return true;
+
   const message = error.message?.toLowerCase() ?? "";
   return (
     message.includes("verification email isn't enabled") ||

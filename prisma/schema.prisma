@@ -480,6 +480,7 @@ model User {
 
   profile         Profile?
   seller          Seller?
+  sellerInvitationToken SellerInvitationToken?
   products        Product[]        @relation("ProductOwner")
   campaignsCreated Campaign[]      @relation("CampaignCreator")
   orders          Order[]          @relation("BuyerOrders")
@@ -517,6 +518,25 @@ model User {
   @@map("users")
 }
 
+
+
+/// A one-time admin-issued link that lets a seller create their Neon Auth
+/// identity themselves. Only the SHA-256 token hash is stored; raw tokens are
+/// returned once to the admin for manual sharing and never persisted.
+model SellerInvitationToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @unique @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  claimedAt DateTime? @map("claimed_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("seller_invitation_tokens")
+}
 
 /// Tracks inactivity per Neon Auth session, not per account/device.
 model AuthSessionActivity {

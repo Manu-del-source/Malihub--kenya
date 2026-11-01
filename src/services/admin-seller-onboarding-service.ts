@@ -52,7 +52,7 @@ function createInvitation(): { token: string; tokenHash: string; expiresAt: Date
 }
 
 function invitationUrl(token: string): string {
-  return `${appOrigin()}/seller/activate?token=${encodeURIComponent(token)}`;
+  return `${appOrigin()}/seller/activate#token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -163,7 +163,7 @@ export async function createAdminSellerAccount(
     sellerId: created.seller.id,
     businessName,
     email,
-    activationUrl: `${origin}/seller/activate?token=${encodeURIComponent(invitation.token)}`,
+    activationUrl: `${origin}/seller/activate#token=${encodeURIComponent(invitation.token)}`,
     expiresAt: invitation.expiresAt.toISOString(),
   };
 }
@@ -230,38 +230,6 @@ export async function resendAdminSellerInvitation(
   const codeAttempt = await providerSendVerificationCode({ email: seller.user.email });
   if (codeAttempt.failure) throw new SellerOnboardingError(codeAttempt.failure.message);
   return { method: "code" };
-}
-
-/** Server-side lookup used only to render the password setup screen. */
-export async function getSellerInvitationDetails(token: string): Promise<{
-  email: string;
-  fullName: string;
-  businessName: string;
-} | null> {
-  if (!token || token.length > 256) return null;
-  const invitation = await prisma.sellerInvitationToken.findFirst({
-    where: {
-      tokenHash: hashInvitationToken(token),
-      expiresAt: { gt: new Date() },
-      claimedAt: null,
-      consumedAt: null,
-    },
-    select: {
-      user: {
-        select: {
-          email: true,
-          profile: { select: { fullName: true } },
-          seller: { select: { businessName: true } },
-        },
-      },
-    },
-  });
-  if (!invitation?.user.profile || !invitation.user.seller) return null;
-  return {
-    email: invitation.user.email,
-    fullName: invitation.user.profile.fullName,
-    businessName: invitation.user.seller.businessName,
-  };
 }
 
 /**

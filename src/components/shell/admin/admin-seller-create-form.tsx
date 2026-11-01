@@ -90,7 +90,7 @@ export function AdminSellerCreateForm() {
     <form onSubmit={submit} className="glass flex max-w-2xl flex-col gap-5 rounded-2xl p-6">
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="text-sm">
-          <span className="font-medium">Seller's full name</span>
+          <span className="font-medium">Seller&apos;s full name</span>
           <input name="fullName" required minLength={2} maxLength={80} autoComplete="name" className={fieldClass} />
         </label>
         <label className="text-sm">

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { UserRole, ListingStatus, OrderStatus, SellerVerificationStatus } from "@prisma/client";
+import { KENYA_COUNTIES } from "@/lib/constants";
 
 /**
  * Server-side input validation for the admin dashboard.
@@ -99,6 +100,20 @@ export const sellerReviewActionSchema = z.object({
   note: decisionNote,
 });
 export type SellerReviewActionInput = z.infer<typeof sellerReviewActionSchema>;
+
+/** Admin-created seller accounts are provisioned through Neon Auth server-side. */
+export const adminSellerCreateSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address").max(254).transform((value) => value.toLowerCase()),
+  fullName: z.string().trim().min(2, "Enter the seller's full name").max(80),
+  businessName: z.string().trim().min(2, "Enter a shop name").max(100),
+  county: z.enum(KENYA_COUNTIES, { error: "Select a county" }),
+  subCounty: z.string().trim().max(100).optional().transform((value) => value || undefined),
+});
+export type AdminSellerCreateInput = z.infer<typeof adminSellerCreateSchema>;
+
+export const adminSellerInvitationSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address").max(254).transform((value) => value.toLowerCase()),
+});
 
 export const listingModerationActionSchema = z.object({
   productId: uuidSchema,

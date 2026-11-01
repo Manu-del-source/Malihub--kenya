@@ -245,7 +245,21 @@ export async function resendAdminSellerInvitation(emailInput: string): Promise<b
   });
   if (!seller) throw new SellerOnboardingError("Seller account not found.");
 
-  const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "").origin;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!appUrl) {
+    throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before resending a seller activation link.");
+  }
+
+  let appOrigin: string;
+  try {
+    const parsedAppUrl = new URL(appUrl);
+    if (parsedAppUrl.protocol !== "https:" && parsedAppUrl.protocol !== "http:") {
+      throw new Error("Unsupported application URL protocol.");
+    }
+    appOrigin = parsedAppUrl.origin;
+  } catch {
+    throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be a valid absolute HTTP or HTTPS URL.");
+  }
   const result = await providerSendVerificationEmail({
     email: seller.user.email,
     callbackURL: `${appOrigin}/login?verified=1`,

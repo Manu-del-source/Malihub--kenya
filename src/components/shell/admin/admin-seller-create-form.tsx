@@ -56,7 +56,7 @@ export function AdminSellerCreateForm() {
         </p>
         <p className="mt-3 text-sm">
           {success.activationLinkSent
-            ? `An activation link was sent to ${success.email}. Ask the seller to open the email, select “Activate my MaliHub account”, then use “Forgot password” on the sign-in page to set a password they control.`
+            ? `An activation link was sent to ${success.email}. Ask the seller to open the email, select the verification link, then use “Forgot password” on the sign-in page to set a password they control.`
             : `The account was created, but Neon Auth did not confirm that the activation email was sent. Check the Neon Auth email provider, then resend the activation link from the seller record.`}
         </p>
         <p className="mt-3 text-sm text-muted-foreground">

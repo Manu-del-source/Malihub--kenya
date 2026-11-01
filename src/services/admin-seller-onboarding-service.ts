@@ -2,7 +2,8 @@ import "server-only";
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { providerSendVerificationEmail } from "@/lib/auth/neon";
+import { providerSendVerificationCode, providerSendVerificationEmail } from "@/lib/auth/neon";
+import { isVerificationEmailDisabled } from "@/lib/auth/errors";
 import { resolveNeonAuthBaseUrl } from "@/lib/auth/config";
 import { logAuditEvent } from "@/services/audit-service";
 import { logServerError } from "@/lib/safe-log";
@@ -236,8 +237,10 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   };
 }
 
-/** Re-send the email activation link for an already-created seller account. */
-export async function resendAdminSellerInvitation(emailInput: string): Promise<boolean> {
+/** Re-send seller activation, falling back to a verification code when links are disabled. */
+export async function resendAdminSellerInvitation(
+  emailInput: string
+): Promise<"link" | "code"> {
   const email = emailInput.trim().toLowerCase();
   const seller = await prisma.seller.findFirst({
     where: { user: { email, authUserId: { not: null } } },
@@ -247,7 +250,7 @@ export async function resendAdminSellerInvitation(emailInput: string): Promise<b
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (!appUrl) {
-    throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before resending a seller activation link.");
+    throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before resending a seller activation message.");
   }
 
   let appOrigin: string;
@@ -260,12 +263,22 @@ export async function resendAdminSellerInvitation(emailInput: string): Promise<b
   } catch {
     throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be a valid absolute HTTP or HTTPS URL.");
   }
-  const result = await providerSendVerificationEmail({
+
+  const linkAttempt = await providerSendVerificationEmail({
     email: seller.user.email,
     callbackURL: `${appOrigin}/login?verified=1`,
   });
-  if (result.failure) {
-    throw new SellerOnboardingError(result.failure.message);
+
+  if (linkAttempt.failure === null) return "link";
+
+  if (!isVerificationEmailDisabled(linkAttempt.failure)) {
+    throw new SellerOnboardingError(linkAttempt.failure.message);
   }
-  return result.data === true;
+
+  const codeAttempt = await providerSendVerificationCode({ email: seller.user.email });
+  if (codeAttempt.failure) {
+    throw new SellerOnboardingError(codeAttempt.failure.message);
+  }
+
+  return "code";
 }

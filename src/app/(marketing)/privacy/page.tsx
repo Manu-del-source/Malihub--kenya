@@ -43,7 +43,8 @@ const sections = [
   {
     title: "5. Cookies, security, and retention",
     paragraphs: [
-      "Essential cookies or similar technologies may be used to keep you signed in, maintain security, and make the website function. You can control cookies through your browser, but disabling essential cookies may affect features.",
+      "Essential cookies or similar technologies are used to keep you signed in, maintain security, and make the website function. These do not need consent. You can control cookies through your browser, but disabling essential cookies may affect features.",
+      "With your permission (the \"Accept all\" choice on our cookie banner), we also use Google Analytics cookies to understand how MaliHub is used and to improve it. If you choose \"Essential only\", analytics does not load. You can change your choice at any time using \"Cookie settings\" in the footer.",
       "We use reasonable technical and organisational measures intended to protect information. No website or transmission method can be guaranteed completely secure, so protect your password and never share payment PINs or one-time codes.",
       "We retain information for as long as needed to operate the service, maintain legitimate business records, resolve disputes, enforce our terms, and meet legal obligations. Retention periods vary by information type and purpose.",
     ],
@@ -82,7 +83,7 @@ export default function PrivacyPolicyPage() {
         </p>
         <div className="mt-10 space-y-8">
           {sections.map((section) => (
-            <section key={section.title} className="space-y-3">
+            <section key={section.title} id={section.title.startsWith("5.") ? "cookies" : undefined} className="scroll-mt-24 space-y-3">
               <h2 className="text-lg font-semibold">{section.title}</h2>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="leading-7 text-foreground/80">{paragraph}</p>

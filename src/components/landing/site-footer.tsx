@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Mail } from "lucide-react";
 import { Container } from "@/components/ui/container";
+import { CookieSettingsButton } from "@/components/cookie-consent";
 
 const FOOTER_LINKS = {
   Marketplace: [
@@ -51,6 +52,11 @@ export function SiteFooter() {
                     </Link>
                   </li>
                 ))}
+                {heading === "Legal" && (
+                  <li>
+                    <CookieSettingsButton className="footer-link text-sm text-muted-foreground transition-colors hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                  </li>
+                )}
               </ul>
             </nav>
           ))}

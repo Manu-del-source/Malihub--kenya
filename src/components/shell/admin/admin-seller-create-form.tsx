@@ -91,14 +91,9 @@ export function AdminSellerCreateForm() {
             Expires {new Date(success.expiresAt).toLocaleString()}.
           </p>
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          <Link href="/login?verified=1" className="text-primary-400 hover:underline">
-            Open the sign-in page
-          </Link>
-          {" "}·{" "}
-          <Link href="/forgot-password" className="text-primary-400 hover:underline">
-            Password setup / Forgot password
-          </Link>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Share the link privately. Anyone who has it can attempt to activate this seller account until
+          it expires or you generate a replacement.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link

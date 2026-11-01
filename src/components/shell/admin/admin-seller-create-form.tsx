@@ -40,7 +40,6 @@ export function AdminSellerCreateForm() {
         return;
       }
       setSuccess(result.data);
-      event.currentTarget?.reset?.();
       router.refresh();
     });
   }

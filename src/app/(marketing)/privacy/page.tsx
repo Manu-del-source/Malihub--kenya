@@ -13,7 +13,7 @@ const sections = [
     paragraphs: [
       "This Privacy Policy explains how MaliHub Kenya (MaliHub, we, us) handles personal information when you browse the marketplace, create an account, publish a listing, contact another user, make or manage an order, submit a report, or otherwise use the website.",
       "MaliHub is an online marketplace service. Information you place in a public listing or public seller profile may be viewed by visitors and search engines. Do not include private information in listing text or photos unless you intend to make it public.",
-      "For privacy questions and requests, contact the MaliHub team at support@malihubke.online. The legal name and registered address of the entity operating MaliHub should be confirmed and published here before launch; the MaliHub brand name alone may not identify the data controller sufficiently for every legal notice.",
+      "MaliHub Kenya is the service name used for this marketplace. MaliHub has not yet been registered as a company. The marketplace is currently operated by an individual. For privacy questions and requests, contact the MaliHub team at support@malihubke.online. This contact channel does not replace any legal requirement to identify the data controller to you or to the Office of the Data Protection Commissioner; the operator must provide any legally required identity information when exercising your data-protection rights or where required by law.",
     ],
   },
   {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { providerSendVerificationCode } from "@/lib/auth/neon";
 import { resolveNeonAuthBaseUrl } from "@/lib/auth/config";
 import { logAuditEvent } from "@/services/audit-service";
+import { logServerError } from "@/lib/safe-log";
 import { slugify } from "@/utils";
 
 export type CreateAdminSellerInput = {
@@ -91,7 +92,7 @@ async function createNeonIdentity(input: {
   return authUserId;
 }
 
-async function deleteNeonIdentity(authUserId: string): Promise<void> {
+async function deleteNeonIdentity(authUserId: string): Promise<boolean> {
   const config = neonManagementConfig();
   if (!config) return false;
   const { apiKey, projectId, branchId } = config;
@@ -184,8 +185,10 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     try {
       const removed = await deleteNeonIdentity(authUserId);
       if (!removed) {
-        // The application failure remains the primary error. If cleanup is not
-        // configured or Neon rejects it, the auth identity needs manual cleanup.
+        logServerError(
+          "Admin seller onboarding could not clean up the Neon identity after a database failure",
+          new Error("Optional Neon Management API cleanup is unavailable or was rejected.")
+        );
       }
     } catch {
       // The original database error is the useful failure; cleanup is best effort.

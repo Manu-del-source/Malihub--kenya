@@ -63,7 +63,7 @@ const sections = [
     title: "7. Safety and user conduct",
     paragraphs: [
       "Use reasonable care when communicating, paying, collecting items, or meeting another user. For in-person exchanges, choose a public place and do not proceed if you feel unsafe.",
-      "Do not move a transaction off-platform to evade applicable fees, safety checks, or platform rules. Be alert to requests for advance payments, unusual payment arrangements, or sensitive authentication information.",
+      "Be alert to requests for advance payments, unusual payment arrangements, or sensitive authentication information. Where an order is managed through MaliHub, keep relevant order details and payment references in the order flow or support channel where available so they can be used to help review a problem.",
     ],
   },
   {

@@ -290,7 +290,7 @@ export async function createAdminSellerAction(
   sellerId: string;
   businessName: string;
   email: string;
-  invitationSent: boolean;
+  verificationCodeSent: boolean;
 }>> {
   const auth = await requireAdministratorAction();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -317,7 +317,7 @@ export async function createAdminSellerAction(
         sellerId: created.sellerId,
         businessName: created.businessName,
         email: created.email,
-        invitationSent: created.invitationSent,
+        verificationCodeSent: created.verificationCodeSent,
       },
     };
   } catch (error) {
@@ -331,7 +331,7 @@ export async function createAdminSellerAction(
 
 export async function resendAdminSellerInvitationAction(
   input: unknown
-): Promise<ApiResult<{ email: string; invitationSent: boolean }>> {
+): Promise<ApiResult<{ email: string; verificationCodeSent: boolean }>> {
   const auth = await requireAdministratorAction();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -339,10 +339,10 @@ export async function resendAdminSellerInvitationAction(
   if (!parsed.success) return { success: false, error: "Enter a valid seller email address." };
 
   try {
-    const invitationSent = await resendAdminSellerInvitation(parsed.data.email);
+    const verificationCodeSent = await resendAdminSellerInvitation(parsed.data.email);
     return {
       success: true,
-      data: { email: parsed.data.email, invitationSent },
+      data: { email: parsed.data.email, verificationCodeSent },
     };
   } catch (error) {
     if (error instanceof SellerOnboardingError) {

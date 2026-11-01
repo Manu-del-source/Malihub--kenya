@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { providerSendVerificationCode } from "@/lib/auth/neon";
+import { providerSendVerificationEmail } from "@/lib/auth/neon";
 import { resolveNeonAuthBaseUrl } from "@/lib/auth/config";
 import { logAuditEvent } from "@/services/audit-service";
 import { logServerError } from "@/lib/safe-log";
@@ -121,7 +121,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   sellerId: string;
   businessName: string;
   email: string;
-  verificationCodeSent: boolean;
+  activationLinkSent: boolean;
 }> {
   if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
     throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before seller onboarding.");
@@ -206,8 +206,12 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     throw new SellerOnboardingError("The seller profile could not be linked to the new account.");
   }
 
-  const verification = await providerSendVerificationCode({ email });
-  const verificationCodeSent = verification.failure === null && verification.data === true;
+  const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL!).origin;
+  const verification = await providerSendVerificationEmail({
+    email,
+    callbackURL: `${appOrigin}/login?verified=1`,
+  });
+  const activationLinkSent = verification.failure === null && verification.data === true;
 
   await logAuditEvent({
     action: "admin.seller_created",
@@ -218,7 +222,8 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     metadata: {
       userId: created.id,
       verificationStatus: "UNVERIFIED",
-      verificationCodeSent,
+      activationLinkSent,
+      ...(verification.failure ? { activationDeliveryError: verification.failure.code } : {}),
     },
   });
 
@@ -227,11 +232,11 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     sellerId: created.seller.id,
     businessName,
     email,
-    verificationCodeSent,
+    activationLinkSent,
   };
 }
 
-/** Re-send the email verification code for an already-created seller account. */
+/** Re-send the email activation link for an already-created seller account. */
 export async function resendAdminSellerInvitation(emailInput: string): Promise<boolean> {
   const email = emailInput.trim().toLowerCase();
   const seller = await prisma.seller.findFirst({
@@ -240,6 +245,13 @@ export async function resendAdminSellerInvitation(emailInput: string): Promise<b
   });
   if (!seller) throw new SellerOnboardingError("Seller account not found.");
 
-  const result = await providerSendVerificationCode({ email: seller.user.email });
-  return result.failure === null && result.data === true;
+  const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "").origin;
+  const result = await providerSendVerificationEmail({
+    email: seller.user.email,
+    callbackURL: `${appOrigin}/login?verified=1`,
+  });
+  if (result.failure) {
+    throw new SellerOnboardingError(result.failure.message);
+  }
+  return result.data === true;
 }

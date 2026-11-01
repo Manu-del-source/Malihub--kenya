@@ -56,8 +56,17 @@ export function AdminSellerCreateForm() {
         </p>
         <p className="mt-3 text-sm">
           {success.verificationCodeSent
-            ? `A email verification code was sent to ${success.email}.`
-            : `The account was created, but the email verification code could not be sent. Check Neon Auth email configuration, then use the resend invitation action from the seller record.`}
+            ? `An email verification code was sent to ${success.email}. The seller must verify this address, then use “Forgot password” on the sign-in page to choose their password.`
+            : `The account was created, but the verification code was not confirmed as sent. Check Neon Auth email configuration, then resend the code from the seller record.`}
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          <Link href={`/verify-email?email=${encodeURIComponent(success.email)}`} className="text-primary-400 hover:underline">
+            Open the email verification page
+          </Link>
+          {" "}·{" "}
+          <Link href="/forgot-password" className="text-primary-400 hover:underline">
+            Password setup / Forgot password
+          </Link>
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -111,8 +120,9 @@ export function AdminSellerCreateForm() {
           Seller controls their password
         </div>
         <p className="mt-2">
-          MaliHub creates the Neon Auth account and emails a password setup link. No password is
-          shared with or stored by the admin. New seller profiles remain unverified until reviewed.
+          MaliHub creates the Neon Auth account with a random temporary credential that it never stores
+          or reveals. The seller verifies their email, then uses Forgot password to choose their own
+          password. Seller verification remains a separate admin review.
         </p>
       </div>
 

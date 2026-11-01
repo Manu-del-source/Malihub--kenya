@@ -22,12 +22,7 @@ function neonManagementConfig() {
   const projectId = process.env.NEON_PROJECT_ID?.trim();
   const branchId = process.env.NEON_AUTH_BRANCH_ID?.trim();
 
-  if (!apiKey || !projectId || !branchId) {
-    throw new SellerOnboardingError(
-      "Seller onboarding is not configured. Add NEON_API_KEY, NEON_PROJECT_ID and NEON_AUTH_BRANCH_ID to the server environment."
-    );
-  }
-
+  if (!apiKey || !projectId || !branchId) return null;
   return { apiKey, projectId, branchId };
 }
 
@@ -97,8 +92,10 @@ async function createNeonIdentity(input: {
 }
 
 async function deleteNeonIdentity(authUserId: string): Promise<void> {
-  const { apiKey, projectId, branchId } = neonManagementConfig();
-  await fetch(
+  const config = neonManagementConfig();
+  if (!config) return false;
+  const { apiKey, projectId, branchId } = config;
+  const response = await fetch(
     `https://console.neon.tech/api/v2/projects/${encodeURIComponent(projectId)}/branches/${encodeURIComponent(branchId)}/auth/users/${encodeURIComponent(authUserId)}`,
     {
       method: "DELETE",
@@ -106,6 +103,7 @@ async function deleteNeonIdentity(authUserId: string): Promise<void> {
       cache: "no-store",
     }
   );
+  return response.ok;
 }
 
 
@@ -124,7 +122,6 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   email: string;
   verificationCodeSent: boolean;
 }> {
-  neonManagementConfig();
   if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
     throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before seller onboarding.");
   }
@@ -185,7 +182,11 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     // The Neon identity is created first because its id is the mapping key.
     // Roll it back if the application transaction fails, avoiding an orphan.
     try {
-      await deleteNeonIdentity(authUserId);
+      const removed = await deleteNeonIdentity(authUserId);
+      if (!removed) {
+        // The application failure remains the primary error. If cleanup is not
+        // configured or Neon rejects it, the auth identity needs manual cleanup.
+      }
     } catch {
       // The original database error is the useful failure; cleanup is best effort.
     }

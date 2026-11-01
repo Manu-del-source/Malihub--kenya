@@ -121,6 +121,8 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   email: string;
   invitationSent: boolean;
 }> {
+  neonManagementConfig();
+  const redirectTo = passwordSetupRedirect();
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
   const businessName = input.businessName.trim();
@@ -193,7 +195,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
 
   const invitation = await providerRequestPasswordReset({
     email,
-    redirectTo: passwordSetupRedirect(),
+    redirectTo,
   });
   const invitationSent = invitation.failure === null && invitation.data === true;
 

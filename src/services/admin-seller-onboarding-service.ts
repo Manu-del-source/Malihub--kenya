@@ -196,20 +196,39 @@ export async function resendAdminSellerInvitation(
 
   if (!seller.user.authUserId) {
     const invitation = createInvitation();
-    await prisma.sellerInvitationToken.upsert({
-      where: { userId: seller.user.id },
-      create: {
+    const staleClaimBefore = new Date(Date.now() - 15 * 60 * 1000);
+    const rotated = await prisma.sellerInvitationToken.updateMany({
+      where: {
         userId: seller.user.id,
-        tokenHash: invitation.tokenHash,
-        expiresAt: invitation.expiresAt,
+        OR: [
+          { claimedAt: null },
+          { consumedAt: { not: null } },
+          { claimedAt: { lt: staleClaimBefore } },
+        ],
       },
-      update: {
+      data: {
         tokenHash: invitation.tokenHash,
         expiresAt: invitation.expiresAt,
         claimedAt: null,
         consumedAt: null,
       },
     });
+    if (rotated.count === 0) {
+      const existingInvitation = await prisma.sellerInvitationToken.findUnique({
+        where: { userId: seller.user.id },
+        select: { id: true },
+      });
+      if (existingInvitation) {
+        throw new SellerOnboardingError("This seller invitation is currently being activated. Wait a few minutes before generating another link.");
+      }
+      await prisma.sellerInvitationToken.create({
+        data: {
+          userId: seller.user.id,
+          tokenHash: invitation.tokenHash,
+          expiresAt: invitation.expiresAt,
+        },
+      });
+    }
     return {
       method: "invitation",
       activationUrl: invitationUrl(invitation.token),

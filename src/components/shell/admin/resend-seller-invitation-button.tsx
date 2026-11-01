@@ -17,9 +17,9 @@ export function ResendSellerInvitationButton({ email }: { email: string }) {
         return;
       }
       setMessage(
-        result.data.activationLinkSent
+        result.data.method === "link"
           ? `Seller activation link sent to ${email}.`
-          : "Neon Auth did not confirm activation-link delivery. Check its email provider configuration."
+          : `A verification code was sent to ${email}. Ask the seller to open /verify-email?email=${encodeURIComponent(email)} and enter the code.`
       );
     });
   }
@@ -33,7 +33,7 @@ export function ResendSellerInvitationButton({ email }: { email: string }) {
         className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-60"
       >
         {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Mail className="h-3.5 w-3.5" aria-hidden />}
-        {pending ? "Sending…" : "Resend activation link"}
+        {pending ? "Sending…" : "Resend activation message"}
       </button>
       {message && <p role="status" className="mt-2 text-xs text-muted-foreground">{message}</p>}
     </div>

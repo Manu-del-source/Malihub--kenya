@@ -11,6 +11,8 @@ import {
   listingModerationActionSchema,
   sellerReviewActionSchema,
   uuidSchema,
+  adminSellerCreateSchema,
+  adminSellerInvitationSchema,
 } from "@/lib/validations/admin";
 import {
   AdminServiceError,
@@ -21,6 +23,11 @@ import {
   setSellerVerificationStatus,
   updateAdminCategory,
 } from "@/services/admin-service";
+import {
+  createAdminSellerAccount,
+  resendAdminSellerInvitation,
+  SellerOnboardingError,
+} from "@/services/admin-seller-onboarding-service";
 import type { ApiResult } from "@/types";
 
 /**
@@ -272,4 +279,76 @@ export async function deleteCategoryAction(
     revalidatePath("/marketplace");
     return { id: parsed.data };
   });
+}
+
+
+// ─── Manual seller onboarding ──────────────────────────────────────────────
+
+export async function createAdminSellerAction(
+  input: unknown
+): Promise<ApiResult<{
+  sellerId: string;
+  businessName: string;
+  email: string;
+  invitationSent: boolean;
+}>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const parsed = adminSellerCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Check the seller details and try again.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const created = await createAdminSellerAccount(parsed.data, {
+      id: auth.user.id,
+      email: auth.user.email,
+    });
+    revalidatePath("/admin/sellers");
+    revalidatePath("/admin/users");
+    return {
+      success: true,
+      data: {
+        sellerId: created.sellerId,
+        businessName: created.businessName,
+        email: created.email,
+        invitationSent: created.invitationSent,
+      },
+    };
+  } catch (error) {
+    if (error instanceof SellerOnboardingError) {
+      return { success: false, error: error.message };
+    }
+    logServerError("Admin seller onboarding failed", error);
+    return { success: false, error: "Could not create the seller account. Please try again." };
+  }
+}
+
+export async function resendAdminSellerInvitationAction(
+  input: unknown
+): Promise<ApiResult<{ email: string; invitationSent: boolean }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const parsed = adminSellerInvitationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Enter a valid seller email address." };
+
+  try {
+    const invitationSent = await resendAdminSellerInvitation(parsed.data.email);
+    return {
+      success: true,
+      data: { email: parsed.data.email, invitationSent },
+    };
+  } catch (error) {
+    if (error instanceof SellerOnboardingError) {
+      return { success: false, error: error.message };
+    }
+    logServerError("Admin seller invitation resend failed", error);
+    return { success: false, error: "Could not resend the setup email. Please try again." };
+  }
 }

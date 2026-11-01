@@ -1,8 +1,9 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { providerRequestPasswordReset } from "@/lib/auth/neon";
+import { providerSendVerificationCode } from "@/lib/auth/neon";
+import { resolveNeonAuthBaseUrl } from "@/lib/auth/config";
 import { logAuditEvent } from "@/services/audit-service";
 import { slugify } from "@/utils";
 
@@ -34,26 +35,35 @@ async function createNeonIdentity(input: {
   email: string;
   name: string;
 }): Promise<string> {
-  const { apiKey, projectId, branchId } = neonManagementConfig();
-  const response = await fetch(
-    `https://console.neon.tech/api/v2/projects/${encodeURIComponent(projectId)}/branches/${encodeURIComponent(branchId)}/auth/users`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ email: input.email, name: input.name }),
-      cache: "no-store",
-    }
-  );
+  const baseUrl = resolveNeonAuthBaseUrl();
+  if (!baseUrl) {
+    throw new SellerOnboardingError("Neon Auth is not configured for this deployment.");
+  }
+
+  // A one-time random credential lets Better Auth create the credential
+  // account. It is never returned, logged or stored by MaliHub. The seller
+  // verifies their email, then uses Forgot password to choose a known password.
+  const temporaryPassword = randomBytes(32).toString("base64url");
+  const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "").origin;
+  const response = await fetch(`${baseUrl.replace(/\\/+$/, "")}/sign-up/email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Origin: appOrigin,
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: temporaryPassword,
+      name: input.name,
+    }),
+    cache: "no-store",
+  });
 
   if (!response.ok) {
-    // Never include the provider response body: it can contain user data.
-    if (response.status === 409) {
+    if (response.status === 409 || response.status === 422) {
       throw new SellerOnboardingError(
-        "An authentication account with this email already exists. Ask the seller to use Forgot password or contact support."
+        "An authentication account with this email already exists. Ask the seller to sign in or use Forgot password."
       );
     }
     throw new SellerOnboardingError(
@@ -66,17 +76,20 @@ async function createNeonIdentity(input: {
   const payload = (await response.json()) as {
     id?: unknown;
     user?: { id?: unknown };
+    data?: { user?: { id?: unknown } };
   };
   const authUserId =
-    typeof payload.id === "string"
-      ? payload.id
-      : typeof payload.user?.id === "string"
-        ? payload.user.id
-        : null;
+    typeof payload.user?.id === "string"
+      ? payload.user.id
+      : typeof payload.data?.user?.id === "string"
+        ? payload.data.user.id
+        : typeof payload.id === "string"
+          ? payload.id
+          : null;
 
   if (!authUserId) {
     throw new SellerOnboardingError(
-      "Neon Auth created a response without an account ID. Contact support before retrying."
+      "Neon Auth did not return the new account ID. Contact support before retrying."
     );
   }
 
@@ -95,16 +108,6 @@ async function deleteNeonIdentity(authUserId: string): Promise<void> {
   );
 }
 
-function passwordSetupRedirect(): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (!configured) {
-    throw new SellerOnboardingError(
-      "NEXT_PUBLIC_APP_URL must be configured before seller invitations can be sent."
-    );
-  }
-  const url = new URL("/reset-password", configured);
-  return url.toString();
-}
 
 /**
  * Creates a real Neon Auth identity, maps it to MaliHub's own user UUID, and
@@ -119,10 +122,12 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   sellerId: string;
   businessName: string;
   email: string;
-  invitationSent: boolean;
+  verificationCodeSent: boolean;
 }> {
   neonManagementConfig();
-  const redirectTo = passwordSetupRedirect();
+  if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
+    throw new SellerOnboardingError("NEXT_PUBLIC_APP_URL must be configured before seller onboarding.");
+  }
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
   const businessName = input.businessName.trim();
@@ -197,11 +202,8 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     throw new SellerOnboardingError("The seller profile could not be linked to the new account.");
   }
 
-  const invitation = await providerRequestPasswordReset({
-    email,
-    redirectTo,
-  });
-  const invitationSent = invitation.failure === null && invitation.data === true;
+  const verification = await providerSendVerificationCode({ email });
+  const verificationCodeSent = verification.failure === null && verification.data === true;
 
   await logAuditEvent({
     action: "admin.seller_created",
@@ -212,7 +214,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     metadata: {
       userId: created.id,
       verificationStatus: "UNVERIFIED",
-      invitationSent,
+      verificationCodeSent,
     },
   });
 
@@ -221,7 +223,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
     sellerId: created.seller.id,
     businessName,
     email,
-    invitationSent,
+    verificationCodeSent,
   };
 }
 
@@ -234,9 +236,6 @@ export async function resendAdminSellerInvitation(emailInput: string): Promise<b
   });
   if (!seller) throw new SellerOnboardingError("Seller account not found.");
 
-  const result = await providerRequestPasswordReset({
-    email: seller.user.email,
-    redirectTo: passwordSetupRedirect(),
-  });
+  const result = await providerSendVerificationCode({ email: seller.user.email });
   return result.failure === null && result.data === true;
 }

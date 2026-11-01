@@ -2,16 +2,14 @@
 
 MaliHub administrators can create a seller from **Admin → Sellers → Create seller**.
 
-## Required production configuration
+## Production configuration
 
 Set these server-side environment variables on the Next.js deployment (Vercel), using values for the same Neon branch as `NEON_AUTH_BASE_URL`:
 
-- `NEON_API_KEY`: a Neon Management API key used only for best-effort cleanup if the application database transaction fails. Keep it secret; never use a `NEXT_PUBLIC_` prefix.
-- `NEON_PROJECT_ID`: the Neon project containing the active Managed Auth integration.
-- `NEON_AUTH_BRANCH_ID`: the branch ID for that Managed Auth integration.
+- `NEON_API_KEY`, `NEON_PROJECT_ID`, and `NEON_AUTH_BRANCH_ID` are optional. If set, they allow best-effort deletion of the Neon identity if the application database transaction fails. Keep the API key secret; never use a `NEXT_PUBLIC_` prefix.
 - `NEXT_PUBLIC_APP_URL`: the canonical MaliHub origin, which must be configured as a trusted redirect domain in Neon Auth.
 
-The feature fails closed when the three Neon Management API variables are missing. It does not attempt to create an application-only user that cannot authenticate.
+The feature uses the existing Neon Auth URL and app origin for account creation. Without the optional Management API values, onboarding still works, but an auth identity created just before an application database failure may need manual cleanup in Neon.
 
 ## What happens when an admin creates a seller
 

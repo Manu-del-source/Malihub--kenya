@@ -24,7 +24,7 @@ function neonManagementConfig() {
 
   if (!apiKey || !projectId || !branchId) {
     throw new SellerOnboardingError(
-      "Seller invitations are not configured. Add NEON_API_KEY, NEON_PROJECT_ID and NEON_AUTH_BRANCH_ID to the server environment."
+      "Seller onboarding is not configured. Add NEON_API_KEY, NEON_PROJECT_ID and NEON_AUTH_BRANCH_ID to the server environment."
     );
   }
 
@@ -45,7 +45,7 @@ async function createNeonIdentity(input: {
   // verifies their email, then uses Forgot password to choose a known password.
   const temporaryPassword = randomBytes(32).toString("base64url");
   const appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "").origin;
-  const response = await fetch(`${baseUrl.replace(/\\/+$/, "")}/sign-up/email`, {
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/sign-up/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -112,7 +112,7 @@ async function deleteNeonIdentity(authUserId: string): Promise<void> {
 /**
  * Creates a real Neon Auth identity, maps it to MaliHub's own user UUID, and
  * creates the profile + unverified seller record in one Prisma transaction.
- * No password is generated, requested, returned, or stored by MaliHub.
+ * The one-time temporary password is used only for Neon Auth provisioning; MaliHub never stores or returns it.
  */
 export async function createAdminSellerAccount(input: CreateAdminSellerInput, actor: {
   id: string;
@@ -227,7 +227,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   };
 }
 
-/** Re-send the password setup link for an already-created seller account. */
+/** Re-send the email verification code for an already-created seller account. */
 export async function resendAdminSellerInvitation(emailInput: string): Promise<boolean> {
   const email = emailInput.trim().toLowerCase();
   const seller = await prisma.seller.findFirst({

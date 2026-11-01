@@ -331,7 +331,7 @@ export async function createAdminSellerAction(
 
 export async function resendAdminSellerInvitationAction(
   input: unknown
-): Promise<ApiResult<{ email: string; activationLinkSent: boolean }>> {
+): Promise<ApiResult<{ email: string; method: "link" | "code" }>> {
   const auth = await requireAdministratorAction();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -339,10 +339,10 @@ export async function resendAdminSellerInvitationAction(
   if (!parsed.success) return { success: false, error: "Enter a valid seller email address." };
 
   try {
-    const activationLinkSent = await resendAdminSellerInvitation(parsed.data.email);
+    const method = await resendAdminSellerInvitation(parsed.data.email);
     return {
       success: true,
-      data: { email: parsed.data.email, activationLinkSent },
+      data: { email: parsed.data.email, method },
     };
   } catch (error) {
     if (error instanceof SellerOnboardingError) {

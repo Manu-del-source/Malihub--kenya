@@ -147,7 +147,7 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
   });
   const sellerSlug = existingSlug ? `${baseSlug}-${userId.slice(0, 6)}` : baseSlug;
 
-  let created: { id: string; seller: { id: string } };
+  let created: { id: string; seller: { id: string } | null };
   try {
     created = await prisma.user.create({
       data: {
@@ -191,6 +191,10 @@ export async function createAdminSellerAccount(input: CreateAdminSellerInput, ac
       );
     }
     throw error;
+  }
+
+  if (!created.seller) {
+    throw new SellerOnboardingError("The seller profile could not be linked to the new account.");
   }
 
   const invitation = await providerRequestPasswordReset({

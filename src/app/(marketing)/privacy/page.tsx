@@ -11,62 +11,74 @@ const sections = [
   {
     title: "1. Who this policy applies to",
     paragraphs: [
-      "This Privacy Policy explains how MaliHub Kenya (MaliHub, we, us) handles personal information when you browse the marketplace, create an account, publish a listing, contact another user, or otherwise use the website.",
-      "MaliHub is a marketplace service. The information visible on a public listing may be viewed by other visitors, so do not include personal information in listing text or photos unless you intend to make it public.",
+      "This Privacy Policy explains how MaliHub Kenya (MaliHub, we, us) handles personal information when you browse the marketplace, create an account, publish a listing, contact another user, make or manage an order, submit a report, or otherwise use the website.",
+      "MaliHub is an online marketplace service. Information you place in a public listing or public seller profile may be viewed by visitors and search engines. Do not include private information in listing text or photos unless you intend to make it public.",
+      "For privacy questions and requests, contact the MaliHub team at support@malihubke.online. The legal name and registered address of the entity operating MaliHub should be confirmed and published here before launch; the MaliHub brand name alone may not identify the data controller sufficiently for every legal notice.",
     ],
   },
   {
     title: "2. Information we may collect",
     paragraphs: [
-      "Account and profile information you submit, such as your name, email address, phone number, profile details, and account preferences.",
-      "Listing information, including item descriptions, prices, photos, location details, and information you choose to share with potential buyers.",
-      "Messages, support requests, reports, and other information you send to us or through marketplace features.",
-      "Transaction and payment-related records needed to operate the service, respond to disputes, prevent fraud, and meet legal obligations. Payment credentials should be handled by the payment provider where its checkout is used; do not send PINs or passwords to MaliHub users.",
-      "Technical and usage information such as device/browser details, log records, approximate usage events, and cookies or similar technologies used for essential site functionality and security.",
+      "Account and profile information you submit, such as your name, email address, phone number, profile details, seller or business information, and account preferences.",
+      "Listing information, including item descriptions, prices, photos, category, location details, availability, and information you choose to share with potential buyers.",
+      "Messages, support requests, reports, verification materials, and other information you send to us or through marketplace features. Do not send passwords, payment PINs, or one-time authentication codes to support staff or other users.",
+      "Order, transaction, delivery, payment-status, and dispute records needed to operate the marketplace, support buyers and sellers, prevent fraud, reconcile payments, and meet legal obligations. Where hosted checkout is used, payment credentials are handled by the relevant payment provider; MaliHub does not ask users to disclose their M-Pesa PIN.",
+      "Technical and usage information such as device and browser details, IP address, log records, security events, approximate usage events, and cookies or similar technologies used for essential site functionality, security, and (where permitted) analytics.",
     ],
   },
   {
-    title: "3. Why we use information",
+    title: "3. Why we use information and our lawful grounds",
     paragraphs: [
-      "We use information to provide and maintain accounts and listings, enable search and marketplace interactions, respond to support requests, protect users and the service, detect fraud or abuse, troubleshoot technical issues, and comply with applicable law.",
-      "Where consent is required, we will ask for it before using information for that purpose. We do not promise a feature or payment method is available unless it is actually presented in the product.",
+      "We use information to create and manage accounts, authenticate users, publish and search listings, facilitate marketplace interactions, process orders and payment status updates, support delivery and dispute workflows where available, respond to requests, protect users and the service, detect fraud or abuse, troubleshoot technical issues, and comply with applicable law.",
+      "Depending on the purpose and circumstances, processing may be necessary to provide a service or take steps requested by you, comply with a legal obligation, protect vital interests, perform a task carried out in the public interest where applicable, pursue legitimate interests that are not overridden by your rights, or obtain your consent. Where we rely on consent, you may withdraw it; withdrawal does not affect processing already lawfully carried out.",
+      "We aim to collect only information that is relevant and reasonably necessary for the stated purpose. If you do not provide information required for an account, seller verification, order, or support request, the relevant feature or request may not be available.",
     ],
   },
   {
     title: "4. How information may be shared",
     paragraphs: [
-      "Public listing details and profile information you choose to publish may be visible to other users. Information you send directly to another user is shared with that recipient.",
-      "We may share limited information with service providers that help host the website, operate authentication, store images, provide support, protect against abuse, or process a transaction you choose to make. Providers should receive only information needed for their role and are subject to applicable contractual or legal safeguards.",
-      "We may disclose information where reasonably necessary to comply with law, respond to lawful requests, protect users, investigate suspected fraud, or protect our rights and the security of the service. We do not sell personal information as a product.",
+      "Public listing details and seller profile information you choose to publish may be visible to other users. Information you send directly to another user is shared with that recipient. Order information may be shared with the relevant buyer, seller, delivery provider, or payment provider to the extent needed to complete or support the transaction.",
+      "We use service providers to help operate MaliHub. Depending on which features you use and the production configuration, these may include Vercel for website hosting and delivery, Neon for database and authentication services, Cloudinary for image storage and delivery, Resend for transactional email, Google Analytics for analytics after consent, and Paystack for hosted payment processing. These providers process information under their own service terms and applicable data-protection obligations; the exact information shared depends on the feature used.",
+      "We may disclose limited information to professional advisers, regulators, law-enforcement bodies, courts, or other parties where reasonably necessary to comply with law or a lawful request, protect users, investigate suspected fraud, enforce our terms, or protect the rights and security of MaliHub and its users.",
+      "We do not sell personal information as a product. We do not authorise service providers to use information they process for MaliHub for unrelated purposes except where their own role and applicable law permit it.",
     ],
   },
   {
-    title: "5. Cookies, security, and retention",
+    title: "5. International processing and transfers",
     paragraphs: [
-      "Essential cookies or similar technologies are used to keep you signed in, maintain security, and make the website function. These do not need consent. You can control cookies through your browser, but disabling essential cookies may affect features.",
-      "With your permission (the \"Accept all\" choice on our cookie banner), we also use Google Analytics cookies to understand how MaliHub is used and to improve it. If you choose \"Essential only\", analytics does not load. You can change your choice at any time using \"Cookie settings\" in the footer.",
-      "We use reasonable technical and organisational measures intended to protect information. No website or transmission method can be guaranteed completely secure, so protect your password and never share payment PINs or one-time codes.",
-      "We retain information for as long as needed to operate the service, maintain legitimate business records, resolve disputes, enforce our terms, and meet legal obligations. Retention periods vary by information type and purpose.",
+      "Some technology providers used to operate MaliHub may store or process information in data centres outside Kenya. Where personal data is transferred outside Kenya, MaliHub is responsible for assessing the transfer and ensuring that a lawful transfer basis and appropriate safeguards are in place as required by the Data Protection Act, 2019 and applicable regulations. The countries and safeguards depend on the provider, service configuration, and data involved.",
+      "We will provide further details about relevant transfer destinations and safeguards when these have been confirmed against the active provider contracts and account configurations. You may contact support@malihubke.online with a question about international processing.",
     ],
   },
   {
-    title: "6. Your choices and data protection rights",
+    title: "6. Cookies, security, and retention",
     paragraphs: [
-      "Subject to applicable law, including Kenya's Data Protection Act, 2019, you may have rights to request access to, correction of, or deletion of personal information, object to or restrict certain processing, or withdraw consent where processing relies on consent.",
-      "Some information must be retained where the law requires it or where it is necessary to resolve a dispute or protect the service. We may need to verify your identity before acting on a request.",
+      "Essential cookies or similar technologies are used to keep you signed in, maintain security, remember necessary settings, and make the website function. These are required for the service. You can control cookies through your browser, but disabling essential cookies may affect sign-in, checkout, or other features.",
+      "With your permission (the 'Accept all' choice on our cookie banner), we use Google Analytics cookies to understand how MaliHub is used and improve it. If you choose 'Essential only', analytics should not load. You can change or withdraw your choice at any time using 'Cookie settings' in the footer. The cookie banner's optional analytics category currently covers Google Analytics; if other non-essential tracking is introduced, the settings and this policy should be updated before it is activated.",
+      "We use reasonable technical and organisational measures intended to protect information, including access controls and security monitoring. No website or transmission method can be guaranteed completely secure. Protect your password and never share payment PINs or one-time codes.",
+      "We keep personal information only for as long as reasonably necessary for the purpose for which it was collected, including operating accounts and listings, completing and supporting transactions, handling disputes, preventing fraud, maintaining required business and payment records, enforcing our terms, and meeting legal obligations. When information is no longer required, we will take reasonable steps to delete or anonymise it, subject to backups, legal retention requirements, and the need to preserve evidence of disputes or security incidents.",
     ],
   },
   {
-    title: "7. Children and changes to this policy",
+    title: "7. Your data protection rights",
     paragraphs: [
-      "The marketplace is not intended for children to use independently to enter transactions. If you believe a child has provided personal information inappropriately, contact us through the website so the matter can be reviewed.",
-      "We may update this policy as the service or legal requirements change. The date below indicates when this version was published. Material changes will be reflected on this page.",
+      "Subject to the Data Protection Act, 2019 and applicable law, you may have the right to be informed about the use of your personal data, request access to it, request correction of inaccurate or misleading information, request deletion where the law permits, object to or restrict certain processing, request data portability where applicable, and withdraw consent where processing relies on consent.",
+      "To exercise a right, email support@malihubke.online with the subject 'Privacy request'. Tell us which right you wish to exercise and provide enough information for us to locate the relevant account or records. Do not include your password, M-Pesa PIN, or one-time verification code. We may ask for reasonable proof of identity before acting. We will respond within the period required by applicable law.",
+      "Some information may need to be retained where required by law or where necessary to establish, exercise, or defend legal claims, resolve a dispute, prevent fraud, or protect the service. If you are dissatisfied with our handling of a request, you may raise a complaint with the Office of the Data Protection Commissioner in Kenya.",
     ],
   },
   {
-    title: "8. Contact",
+    title: "8. Children and changes to this policy",
     paragraphs: [
-      "For privacy questions or requests concerning your personal information, use the contact/support channel provided on the MaliHub website. Include enough detail for us to understand your request, but do not send passwords, payment PINs, or other authentication secrets.",
+      "MaliHub is not designed for children to independently create accounts or enter marketplace transactions. If you believe a child has provided personal information inappropriately, contact us so the matter can be reviewed.",
+      "We may update this policy as the service, providers, or legal requirements change. The 'Last updated' date indicates when this version was revised. We will take reasonable steps to draw attention to material changes where appropriate.",
+    ],
+  },
+  {
+    title: "9. Contact",
+    paragraphs: [
+      "For privacy questions, access or correction requests, deletion requests, objections, or other data-protection concerns, email support@malihubke.online with the subject 'Privacy request'. For general marketplace support, use support@malihubke.online. Do not send passwords, payment PINs, or authentication codes.",
+      "Office of the Data Protection Commissioner (Kenya): https://www.odpc.go.ke/contact-us/.",
     ],
   },
 ];
@@ -77,13 +89,13 @@ export default function PrivacyPolicyPage() {
       <article className="marketing-document mx-auto max-w-3xl rounded-3xl border border-foreground/[0.07] bg-card/75 px-6 py-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-10 sm:py-10">
         <p className="text-sm font-medium text-primary">Legal</p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Privacy Policy</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Last updated: 11 October 2026</p>
+        <p className="mt-3 text-sm text-muted-foreground">Last updated: 1 November 2026</p>
         <p className="mt-6 leading-7 text-muted-foreground">
-          This policy describes the information MaliHub may handle and how it is used. It should be read together with the Terms of Service.
+          This policy explains how MaliHub handles personal information. It should be read together with the Terms of Service and Cookie Settings.
         </p>
         <div className="mt-10 space-y-8">
           {sections.map((section) => (
-            <section key={section.title} id={section.title.startsWith("5.") ? "cookies" : undefined} className="scroll-mt-24 space-y-3">
+            <section key={section.title} id={section.title.startsWith("6.") ? "cookies" : undefined} className="scroll-mt-24 space-y-3">
               <h2 className="text-lg font-semibold">{section.title}</h2>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="leading-7 text-foreground/80">{paragraph}</p>

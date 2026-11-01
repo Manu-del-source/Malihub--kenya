@@ -18,7 +18,7 @@ export function AdminSellerCreateForm() {
     sellerId: string;
     businessName: string;
     email: string;
-    invitationSent: boolean;
+    verificationCodeSent: boolean;
   } | null>(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -55,9 +55,9 @@ export function AdminSellerCreateForm() {
           {success.businessName} has been added to MaliHub with an unverified seller profile.
         </p>
         <p className="mt-3 text-sm">
-          {success.invitationSent
-            ? `A password setup email was sent to ${success.email}.`
-            : `The account was created, but the password setup email could not be sent. Check Neon Auth email configuration, then use the resend invitation action from the seller record.`}
+          {success.verificationCodeSent
+            ? `A email verification code was sent to ${success.email}.`
+            : `The account was created, but the email verification code could not be sent. Check Neon Auth email configuration, then use the resend invitation action from the seller record.`}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -108,7 +108,7 @@ export function AdminSellerCreateForm() {
       <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
           <Mail className="h-4 w-4" aria-hidden />
-          Seller sets their own password
+          Seller controls their password
         </div>
         <p className="mt-2">
           MaliHub creates the Neon Auth account and emails a password setup link. No password is

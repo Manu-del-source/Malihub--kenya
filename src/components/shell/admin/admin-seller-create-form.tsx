@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Store } from "lucide-react";
+import { Check, Copy, Loader2, Store } from "lucide-react";
 import { KENYA_COUNTIES } from "@/lib/constants";
 import { createAdminSellerAction } from "@/app/(dashboard)/admin/actions";
 
@@ -14,11 +14,13 @@ export function AdminSellerCreateForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [success, setSuccess] = useState<{
     sellerId: string;
     businessName: string;
     email: string;
-    activationLinkSent: boolean;
+    activationUrl: string;
+    expiresAt: string;
   } | null>(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -55,18 +57,43 @@ export function AdminSellerCreateForm() {
           {success.businessName} has been added to MaliHub with an unverified seller profile.
         </p>
         <p className="mt-3 text-sm">
-          {success.activationLinkSent
-            ? `An activation link was sent to ${success.email}. Ask the seller to open the email, select the verification link, then use “Forgot password” on the sign-in page to set a password they control.`
-            : `The account was created, but Neon Auth did not confirm that the activation email was sent. Check the Neon Auth email provider, then resend the activation link from the seller record.`}
+          Share this one-time setup link with the seller. It expires in 24 hours and is invalidated
+          when you generate another invitation. The seller chooses their password, then verifies
+          their email through Neon Auth before signing in.
         </p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          <Link href="/login?verified=1" className="text-primary-400 hover:underline">
-            Open the sign-in page
-          </Link>
-          {" "}·{" "}
-          <Link href="/forgot-password" className="text-primary-400 hover:underline">
-            Password setup / Forgot password
-          </Link>
+        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3">
+          <label htmlFor="seller-invitation-url" className="text-xs font-medium text-muted-foreground">
+            One-time seller invitation link
+          </label>
+          <input
+            id="seller-invitation-url"
+            readOnly
+            value={success.activationUrl}
+            className="mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-xs"
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(success.activationUrl);
+                setCopied(true);
+              } catch {
+                setCopied(false);
+              }
+            }}
+            className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"
+          >
+            {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+            {copied ? "Copied" : "Copy invitation link"}
+          </button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Expires {new Date(success.expiresAt).toLocaleString()}.
+          </p>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Share the link privately. Anyone who has it can attempt to activate this seller account until
+          it expires or you generate a replacement.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -116,13 +143,13 @@ export function AdminSellerCreateForm() {
 
       <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
-          <Mail className="h-4 w-4" aria-hidden />
+          <Store className="h-4 w-4" aria-hidden />
           Seller controls their password
         </div>
         <p className="mt-2">
-          MaliHub creates the Neon Auth account with a random temporary credential that it never stores
-          or reveals. The seller verifies their email, then uses Forgot password to choose their own
-          password. Seller verification remains a separate admin review.
+          The Neon Auth account is created when the seller redeems this invitation and chooses a
+          password. Email verification is still required. Seller business verification remains a
+          separate admin review.
         </p>
       </div>
 

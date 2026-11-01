@@ -23,8 +23,8 @@ export default async function AdminCreateSellerPage() {
         </Link>
         <h1 className="mt-4 font-display text-3xl font-medium">Create seller account</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Set up a seller profile manually. The seller receives a secure email link to choose
-          their own password.
+          Set up a seller profile and generate a secure one-time invitation link to share manually.
+          The seller chooses their own password and then verifies their email.
         </p>
       </div>
       <AdminSellerCreateForm />

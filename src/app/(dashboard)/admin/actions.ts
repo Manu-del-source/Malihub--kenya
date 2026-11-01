@@ -290,7 +290,8 @@ export async function createAdminSellerAction(
   sellerId: string;
   businessName: string;
   email: string;
-  activationLinkSent: boolean;
+  activationUrl: string;
+  expiresAt: string;
 }>> {
   const auth = await requireAdministratorAction();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -317,7 +318,8 @@ export async function createAdminSellerAction(
         sellerId: created.sellerId,
         businessName: created.businessName,
         email: created.email,
-        activationLinkSent: created.activationLinkSent,
+        activationUrl: created.activationUrl,
+        expiresAt: created.expiresAt,
       },
     };
   } catch (error) {
@@ -331,7 +333,7 @@ export async function createAdminSellerAction(
 
 export async function resendAdminSellerInvitationAction(
   input: unknown
-): Promise<ApiResult<{ email: string; method: "link" | "code" }>> {
+): Promise<ApiResult<{ email: string; method: "invitation" | "verification-link" | "code"; activationUrl?: string; expiresAt?: string }>> {
   const auth = await requireAdministratorAction();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -339,10 +341,10 @@ export async function resendAdminSellerInvitationAction(
   if (!parsed.success) return { success: false, error: "Enter a valid seller email address." };
 
   try {
-    const method = await resendAdminSellerInvitation(parsed.data.email);
+    const result = await resendAdminSellerInvitation(parsed.data.email);
     return {
       success: true,
-      data: { email: parsed.data.email, method },
+      data: { email: parsed.data.email, ...result },
     };
   } catch (error) {
     if (error instanceof SellerOnboardingError) {

@@ -12,6 +12,7 @@ import {
   UserRoleBadge,
 } from "@/components/shell/admin/admin-badges";
 import { AdminSellerReviewPanel } from "@/components/shell/admin/admin-seller-review-panel";
+import { ResendSellerInvitationButton } from "@/components/shell/admin/resend-seller-invitation-button";
 import { ListingStatusBadge } from "@/components/shell/seller/listing-status-badge";
 import { formatDateTime } from "@/components/shell/admin/admin-format";
 import { requireAdministrator } from "@/lib/auth";
@@ -209,6 +210,7 @@ export default async function AdminSellerDetailPage({
               <AdminField label="Email" value={owner.email} mono />
               <AdminField label="Joined" value={formatDateTime(owner.createdAt)} mono />
             </dl>
+            <ResendSellerInvitationButton email={owner.email} />
             <Link
               href={`/admin/users/${owner.id}`}
               className="mt-4 inline-flex items-center rounded-full bg-primary/10 px-3.5 py-1.5 text-xs font-medium text-primary-400 transition-colors hover:bg-primary/20"

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Search, Store } from "lucide-react";
+import { Search, Store, Plus } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,13 @@ export default async function AdminSellersPage({
             filters
           </p>
         </div>
+        <Link
+          href="/admin/sellers/new"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          Create seller
+        </Link>
       </header>
 
       <form className="glass-sm flex flex-wrap items-end gap-3 rounded-2xl p-4" method="GET">

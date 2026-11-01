@@ -18,7 +18,7 @@ export function AdminSellerCreateForm() {
     sellerId: string;
     businessName: string;
     email: string;
-    verificationCodeSent: boolean;
+    activationLinkSent: boolean;
   } | null>(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -55,13 +55,13 @@ export function AdminSellerCreateForm() {
           {success.businessName} has been added to MaliHub with an unverified seller profile.
         </p>
         <p className="mt-3 text-sm">
-          {success.verificationCodeSent
-            ? `An email verification code was sent to ${success.email}. The seller must verify this address, then use “Forgot password” on the sign-in page to choose their password.`
-            : `The account was created, but the verification code was not confirmed as sent. Check Neon Auth email configuration, then resend the code from the seller record.`}
+          {success.activationLinkSent
+            ? `An activation link was sent to ${success.email}. Ask the seller to open the email, select the verification link, then use “Forgot password” on the sign-in page to set a password they control.`
+            : `The account was created, but Neon Auth did not confirm that the activation email was sent. Check the Neon Auth email provider, then resend the activation link from the seller record.`}
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
-          <Link href={`/verify-email?email=${encodeURIComponent(success.email)}`} className="text-primary-400 hover:underline">
-            Open the email verification page
+          <Link href="/login?verified=1" className="text-primary-400 hover:underline">
+            Open the sign-in page
           </Link>
           {" "}·{" "}
           <Link href="/forgot-password" className="text-primary-400 hover:underline">

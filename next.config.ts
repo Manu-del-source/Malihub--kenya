@@ -72,6 +72,9 @@ const nextConfig: NextConfig = {
     // explicit `Route` casts if compile-time route safety becomes a priority.
     serverActions: {
       bodySizeLimit: "5mb",
+      // Vercel serves the canonical www host and the apex alias. Explicitly
+      // trust only these production origins for Server Actions; do not use "*".
+      allowedOrigins: ["www.malihubke.online", "malihubke.online"],
     },
   },
   images: {

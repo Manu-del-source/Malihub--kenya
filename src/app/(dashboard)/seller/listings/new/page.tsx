@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { ListingForm } from "@/components/marketplace/listing-form";
 import { requireUser } from "@/lib/auth";
+import { isAdministratorRole } from "@/lib/auth/types";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Create a listing" };
@@ -14,7 +15,8 @@ export default async function NewListingPage() {
     select: { verificationStatus: true },
   });
   if (!seller) redirect("/account");
-  if (seller.verificationStatus !== "VERIFIED") redirect("/seller/onboarding");
+  const isAdmin = isAdministratorRole(user.role);
+  if (!isAdmin && seller.verificationStatus !== "VERIFIED") redirect("/seller/onboarding");
 
   return (
     <Container className="max-w-2xl py-12">

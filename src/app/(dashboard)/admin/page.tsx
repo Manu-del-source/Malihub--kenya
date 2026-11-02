@@ -57,9 +57,12 @@ export default async function AdminDashboardPage() {
             Live counts from the production database — updated on every request.
           </p>
         </div>
+        <div className="flex items-center gap-4">
+        <Link href="/seller/listings/new" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-400">Add MaliHub product</Link>
         <Link href="/admin/audit" className="text-sm text-primary-400 hover:underline">
           Recent admin activity →
         </Link>
+        </div>
       </header>
 
       {/* ── Accounts ─────────────────────────────────────────────────────── */}

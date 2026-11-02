@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { SellerApplicationForm } from "@/components/seller/seller-application-form";
 import { requireUser } from "@/lib/auth";
+import { isAdministratorRole } from "@/lib/auth/types";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export const metadata: Metadata = { title: "Become a seller — MaliHub" };
 
 export default async function SellerOnboardingPage() {
   const { user } = await requireUser();
+  if (isAdministratorRole(user.role)) redirect("/admin/listings");
   const seller = await prisma.seller.findUnique({
     where: { userId: user.id },
     select: {

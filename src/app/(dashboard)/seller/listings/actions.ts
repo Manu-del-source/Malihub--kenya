@@ -3,7 +3,7 @@
 import { logServerError } from "@/lib/safe-log";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdministratorRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing";
 import {
@@ -53,7 +53,9 @@ export async function createListingAction(
 
   return toResult(async () => {
     const { userId, sellerId, verificationStatus } = await requireSeller();
-    if (verificationStatus !== "VERIFIED") {
+    const currentUser = (await getCurrentUser())?.user;
+    const isAdmin = currentUser ? isAdministratorRole(currentUser.role) : false;
+    if (!isAdmin && verificationStatus !== "VERIFIED") {
       throw new ListingServiceError("Complete your seller application and wait for MaliHub approval before publishing listings.");
     }
     const product = await createListing(userId, sellerId, parsed.data);

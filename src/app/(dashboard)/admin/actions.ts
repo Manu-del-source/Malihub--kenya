@@ -18,6 +18,7 @@ import {
   AdminServiceError,
   createAdminCategory,
   deleteAdminCategory,
+  deleteAdminSeller,
   deleteAdminListing,
   moderateListing,
   setSellerVerificationStatus,
@@ -151,6 +152,29 @@ export async function resetSellerVerificationAction(
       actor,
     });
     revalidateAdmin("/admin/sellers");
+    return result;
+  });
+}
+
+// ─── Seller deletion ───────────────────────────────────────────────────────
+
+export async function deleteAdminSellerAction(
+  input: unknown
+): Promise<ApiResult<{ id: string; businessName: string }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.user.role !== "SUPER_ADMIN") {
+    return { success: false, error: "Only a super admin can delete seller profiles." };
+  }
+
+  const parsed = uuidSchema.safeParse(
+    (input as { sellerId?: unknown } | null)?.sellerId
+  );
+  if (!parsed.success) return { success: false, error: "Invalid seller." };
+
+  return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
+    const result = await deleteAdminSeller({ sellerId: parsed.data, actor });
+    revalidateAdmin("/admin/sellers", "/admin/users");
     return result;
   });
 }

@@ -1253,6 +1253,76 @@ export async function deleteAdminCategory(params: {
   });
 }
 
+/** Permanently remove an unused seller profile without touching user, product, or order history. */
+export async function deleteAdminSeller(params: {
+  sellerId: string;
+  actor: AdminActor;
+  db?: PrismaHandle;
+}) {
+  const db = params.db ?? prisma;
+  if (!isUuid(params.sellerId)) throw new AdminServiceError("Seller not found.");
+
+  const seller = await db.seller.findUnique({
+    where: { id: params.sellerId },
+    select: {
+      id: true,
+      userId: true,
+      businessName: true,
+      _count: {
+        select: {
+          products: true,
+          orders: true,
+          payoutAccounts: true,
+          settlements: true,
+          payouts: true,
+          commissionRules: true,
+          supplierFulfilments: true,
+          supplierPurchases: true,
+          supplierListingCosts: true,
+        },
+      },
+    },
+  });
+  if (!seller) throw new AdminServiceError("Seller not found.");
+
+  const linked = Object.entries(seller._count).filter(([, count]) => count > 0);
+  if (linked.length) {
+    const labels: Record<string, string> = {
+      products: "listings",
+      orders: "orders",
+      payoutAccounts: "payout accounts",
+      settlements: "settlements",
+      payouts: "payouts",
+      commissionRules: "commission rules",
+      supplierFulfilments: "supplier fulfilments",
+      supplierPurchases: "supplier purchases",
+      supplierListingCosts: "supplier listing costs",
+    };
+    throw new AdminServiceError(
+      `Cannot delete ${seller.businessName}: it still has ${linked.map(([key, count]) => `${count} ${labels[key] ?? key}`).join(", ")}. Resolve or reassign those records first.`
+    );
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.seller.delete({ where: { id: seller.id } });
+    await tx.user.update({
+      where: { id: seller.userId },
+      data: { role: "BUYER" },
+    });
+  });
+
+  await logAuditEvent({
+    action: "admin.seller_deleted",
+    actorId: params.actor.id,
+    actorEmail: params.actor.email,
+    targetType: "seller",
+    targetId: seller.id,
+    metadata: { businessName: seller.businessName, userId: seller.userId },
+  });
+
+  return { id: seller.id, businessName: seller.businessName };
+}
+
 // ─── Audit trail ───────────────────────────────────────────────────────────
 
 export type AdminAuditListFilters = {

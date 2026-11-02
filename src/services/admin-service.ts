@@ -1268,6 +1268,7 @@ export async function deleteAdminSeller(params: {
       id: true,
       userId: true,
       businessName: true,
+      user: { select: { role: true } },
       _count: {
         select: {
           products: true,
@@ -1284,6 +1285,9 @@ export async function deleteAdminSeller(params: {
     },
   });
   if (!seller) throw new AdminServiceError("Seller not found.");
+  if (seller.user.role === "ADMIN" || seller.user.role === "SUPER_ADMIN") {
+    throw new AdminServiceError("Admin accounts cannot be removed from the seller management page.");
+  }
 
   const linked = Object.entries(seller._count).filter(([, count]) => count > 0);
   if (linked.length) {
@@ -1305,10 +1309,12 @@ export async function deleteAdminSeller(params: {
 
   await db.$transaction(async (tx) => {
     await tx.seller.delete({ where: { id: seller.id } });
-    await tx.user.update({
-      where: { id: seller.userId },
-      data: { role: "BUYER" },
-    });
+    if (seller.user.role === "SELLER") {
+      await tx.user.update({
+        where: { id: seller.userId },
+        data: { role: "BUYER" },
+      });
+    }
   });
 
   await logAuditEvent({

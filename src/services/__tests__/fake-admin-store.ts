@@ -477,6 +477,8 @@ export function createFakeAdminStore() {
 
   const operations: string[] = [];
   const store = { tables: tables as unknown as AdminTables, operations } as FakeAdminStore;
+  (store as Record<string, unknown>).$queryRaw = async () =>
+    Array.from(tables.users.values(), (user) => ({ id: String(user.id) }));
   for (const delegate of Object.keys(TABLE_ALIASES)) {
     const table = TABLE_ALIASES[delegate]!;
     const inner = makeDelegate(table, tables);

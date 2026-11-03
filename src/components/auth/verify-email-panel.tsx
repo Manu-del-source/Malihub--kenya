@@ -21,7 +21,7 @@ import {
 
 /** Email verification uses the 6-digit code sent to the user. */
 
-export function VerifyEmailPanel({ email }: { email: string }) {
+export function VerifyEmailPanel({ email, redirectTo }: { email: string; redirectTo?: string }) {
   const router = useRouter();
   const [cooldown, setCooldown] = useState(0);
   const [isSending, setIsSending] = useState(false);
@@ -60,7 +60,7 @@ export function VerifyEmailPanel({ email }: { email: string }) {
   }
 
   async function onSubmit(input: VerifyEmailCodeInput) {
-    const result = await verifyEmailWithCodeAction({ ...input, email });
+    const result = await verifyEmailWithCodeAction({ ...input, email }, redirectTo);
 
     if (!result.success) {
       toast.error(result.error);

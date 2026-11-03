@@ -1285,8 +1285,8 @@ export async function deleteAdminSeller(params: {
     },
   });
   if (!seller) throw new AdminServiceError("Seller not found.");
-  if (seller.user.role === "ADMIN" || seller.user.role === "SUPER_ADMIN") {
-    throw new AdminServiceError("Admin accounts cannot be removed from the seller management page.");
+  if (seller.user.role === "ADMIN") {
+    throw new AdminServiceError("Standard admin accounts cannot be removed from seller management.");
   }
 
   const linked = Object.entries(seller._count).filter(([, count]) => count > 0);

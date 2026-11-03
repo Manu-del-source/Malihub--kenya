@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 
 export function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") ?? undefined;
 
   const {
     register,
@@ -23,12 +25,12 @@ export function RegisterForm() {
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
   async function onSubmit(input: RegisterInput) {
-    const result = await signUpAction(input);
+    const result = await signUpAction(input, redirectTo);
     if (!result.success) {
       toast.error(result.error);
       return;
     }
-    router.push(`/verify-email?email=${encodeURIComponent(result.data.email)}`);
+    router.push(`/verify-email?email=${encodeURIComponent(result.data.email)}&redirectTo=${encodeURIComponent(result.data.redirectTo)}`);
   }
 
   return (

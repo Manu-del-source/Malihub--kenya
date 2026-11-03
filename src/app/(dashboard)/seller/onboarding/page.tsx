@@ -12,19 +12,35 @@ export const metadata: Metadata = { title: "Become a seller — MaliHub" };
 export default async function SellerOnboardingPage() {
   const { user } = await requireUser();
   if (isAdministratorRole(user.role)) redirect("/admin/listings");
-  const seller = await prisma.seller.findUnique({
-    where: { userId: user.id },
-    select: {
-      businessName: true,
-      description: true,
-      county: true,
-      subCounty: true,
-      kraPin: true,
-      verificationStatus: true,
-    },
-  });
 
-  if (!seller) redirect("/seller-center");
+  const [seller, profile] = await Promise.all([
+    prisma.seller.findUnique({
+      where: { userId: user.id },
+      select: {
+        businessName: true,
+        description: true,
+        county: true,
+        subCounty: true,
+        kraPin: true,
+        verificationStatus: true,
+      },
+    }),
+    prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: { fullName: true },
+    }),
+  ]);
+
+  // Existing buyers do not need a separately-created seller record. The
+  // application action creates it atomically when they submit valid details.
+  const application = seller ?? {
+    businessName: profile?.fullName ?? "",
+    description: null,
+    county: "",
+    subCounty: null,
+    kraPin: null,
+    verificationStatus: "UNVERIFIED" as const,
+  };
 
   return (
     <Container className="max-w-3xl py-10 sm:py-14">
@@ -40,7 +56,7 @@ export default async function SellerOnboardingPage() {
         </p>
       </div>
       <div className="rounded-2xl border border-border bg-card/90 p-5 shadow-2xl shadow-black/20 sm:p-8">
-        <SellerApplicationForm application={seller} />
+        <SellerApplicationForm application={application} />
       </div>
     </Container>
   );

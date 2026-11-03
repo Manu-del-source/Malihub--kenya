@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { PAID_ORDER_STATUSES } from "@/lib/order-status";
 import { logAuditEvent } from "@/services/audit-service";
 import { notifyUser } from "@/services/notification-service";
+import type { ListingInput } from "@/lib/validations/listing";
+import { slugify } from "@/utils";
 
 /**
  * Admin operations — the data layer behind `/admin`.
@@ -575,6 +577,101 @@ export async function getAdminSellerDetail(sellerId: string, db: PrismaHandle = 
     recentListings,
     recentOrders,
   };
+}
+
+/**
+ * Create a listing for MaliHub's own storefront. The SUPER_ADMIN remains the
+ * product owner; a verified storefront seller row is provisioned automatically
+ * because the marketplace schema requires every product to belong to a seller.
+ * This is not a seller application and never changes the user's role.
+ */
+export async function createMaliHubOfficialListing(params: {
+  ownerId: string;
+  actor: AdminActor;
+  input: ListingInput;
+  db?: PrismaHandle;
+}) {
+  const db = params.db ?? prisma;
+  const existingSeller = await db.seller.findUnique({
+    where: { userId: params.ownerId },
+    select: { id: true, businessName: true, slug: true, verificationStatus: true },
+  });
+  if (existingSeller && existingSeller.businessName !== "MaliHub Official Store") {
+    throw new AdminServiceError(
+      "This admin account already has a different seller profile. Remove or resolve that profile before creating official-store listings."
+    );
+  }
+
+  const slugOwner = await db.seller.findUnique({
+    where: { slug: "malihub-official-store" },
+    select: { userId: true },
+  });
+  if (slugOwner && slugOwner.userId !== params.ownerId) {
+    throw new AdminServiceError("The MaliHub Official Store identity is already assigned to another account.");
+  }
+
+  const category = await db.category.findUnique({
+    where: { slug: params.input.categorySlug },
+    select: { id: true },
+  });
+  if (!category) throw new AdminServiceError("Select a valid category.");
+
+  const seller = existingSeller ?? await db.seller.create({
+    data: {
+      userId: params.ownerId,
+      businessName: "MaliHub Official Store",
+      slug: "malihub-official-store",
+      description: "Official products managed and listed by MaliHub.",
+      county: params.input.county,
+      verificationStatus: "VERIFIED",
+    },
+    select: { id: true, businessName: true, slug: true, verificationStatus: true },
+  });
+
+  const isPublishing = params.input.status === "ACTIVE";
+  const product = await db.product.create({
+    data: {
+      ownerId: params.ownerId,
+      sellerId: seller.id,
+      categoryId: category.id,
+      title: params.input.title,
+      slug: slugify(params.input.title),
+      description: params.input.description,
+      priceCents: params.input.priceCents,
+      isNegotiable: params.input.isNegotiable,
+      condition: params.input.condition,
+      brand: params.input.brand || null,
+      size: params.input.size || null,
+      sizeSystem: params.input.sizeSystem || null,
+      availableSizes: params.input.availableSizes || null,
+      quantity: params.input.quantity,
+      contactPreference: params.input.contactPreference,
+      county: params.input.county,
+      subCounty: params.input.town,
+      status: isPublishing ? "ACTIVE" : "DRAFT",
+      publishedAt: isPublishing ? new Date() : null,
+      images: {
+        create: params.input.images.map((img, index) => ({
+          url: img.url,
+          cloudinaryId: img.cloudinaryId,
+          sortOrder: index,
+          isPrimary: index === 0,
+        })),
+      },
+    },
+    select: { id: true, title: true, slug: true, status: true },
+  });
+
+  await logAuditEvent({
+    action: "admin.official_listing_created",
+    actorId: params.actor.id,
+    actorEmail: params.actor.email,
+    targetType: "listing",
+    targetId: product.id,
+    metadata: { status: product.status, storefront: "MaliHub Official Store" },
+  });
+
+  return product;
 }
 
 // ─── Seller verification decisions ─────────────────────────────────────────

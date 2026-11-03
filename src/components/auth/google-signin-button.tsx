@@ -31,7 +31,9 @@ function GoogleIcon() {
 export function GoogleSignInButton({ next }: { next?: string }) {
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
-  // Honour the destination selected before sign-in (for example, the seller\n  // application). The server action validates this as a same-origin path.\n  const destination = searchParams.get("redirectTo") ?? next ?? "/complete-profile";
+  // Honour the destination selected before sign-in (for example, the seller
+  // application). The server action validates this as a same-origin path.
+  const destination = searchParams.get("redirectTo") ?? next ?? "/complete-profile";
 
   return (
     <Button

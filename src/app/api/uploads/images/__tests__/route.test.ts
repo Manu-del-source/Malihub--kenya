@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 1, 2, 3]);
-let session: { id: string } | null = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" };
+let session: { id: string; role?: string } | null = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", role: "SELLER" };
 let redisAvailable = true;
 let sellerVerified = true;
 let rateAllowed = true;
@@ -67,7 +67,7 @@ function makeRequest(purpose: string, bytes: Uint8Array, mime = "image/jpeg", or
 
 before(async () => { route = await import("@/app/api/uploads/images/route"); });
 beforeEach(() => {
-  session = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" };
+  session = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", role: "SELLER" };
   redisAvailable = true;
   sellerVerified = true;
   rateAllowed = true;
@@ -99,6 +99,13 @@ describe("authenticated image upload endpoint", () => {
     sellerVerified = false;
     const response = await route.POST(makeRequest("product", JPEG));
     assert.equal(response.status, 403);
+  });
+  it("allows SUPER_ADMIN to upload official product photos without a seller profile", async () => {
+    session = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", role: "SUPER_ADMIN" };
+    sellerVerified = false;
+    const response = await route.POST(makeRequest("product", JPEG));
+    assert.equal(response.status, 200);
+    assert.equal(stored[0]!.purpose, "product");
   });
   it("stores only sanitized WebP output for product photos", async () => {
     const response = await route.POST(makeRequest("product", JPEG));

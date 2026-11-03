@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth/auth-card";
@@ -24,7 +25,9 @@ export default function RegisterPage() {
         </>
       }
     >
-      <GoogleSignInButton next="/complete-profile" />
+      <Suspense fallback={null}>
+        <GoogleSignInButton next="/complete-profile" />
+      </Suspense>
       <AuthDivider />
       <RegisterForm />
     </AuthCard>

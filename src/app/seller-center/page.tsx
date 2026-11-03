@@ -16,7 +16,7 @@ export default function SellerCentrePage() {
             Mali<span className="text-primary">Hub</span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
-            <Link href="/login?redirectTo=%2Fseller%2Fonboarding" className="text-foreground/80 transition hover:text-foreground">Sign in</Link>
+            <Link href="/seller/onboarding" className="text-foreground/80 transition hover:text-foreground">Sign in</Link>
             <Link href="/register" className="rounded-full bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:bg-primary-400">Create account</Link>
           </div>
         </Container>
@@ -39,7 +39,7 @@ export default function SellerCentrePage() {
                 <Link href="/register" className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400">
                   Start your seller journey <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
-                <Link href="/login?redirectTo=%2Fseller%2Fonboarding" className="inline-flex items-center rounded-full border border-foreground/15 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-foreground/5">
+                <Link href="/seller/onboarding" className="inline-flex items-center rounded-full border border-foreground/15 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-foreground/5">
                   I already have an account
                 </Link>
               </div>

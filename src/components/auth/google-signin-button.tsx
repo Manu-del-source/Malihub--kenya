@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { signInWithGoogleAction } from "@/app/(auth)/actions";
 
@@ -29,6 +30,10 @@ function GoogleIcon() {
 
 export function GoogleSignInButton({ next }: { next?: string }) {
   const [isPending, startTransition] = useTransition();
+  const searchParams = useSearchParams();
+  // Honour the destination selected before sign-in (for example, the seller
+  // application). The server action validates this as a same-origin path.
+  const destination = searchParams.get("redirectTo") ?? next ?? "/complete-profile";
 
   return (
     <Button
@@ -36,7 +41,7 @@ export function GoogleSignInButton({ next }: { next?: string }) {
       variant="secondary"
       size="lg"
       disabled={isPending}
-      onClick={() => startTransition(() => signInWithGoogleAction(next))}
+      onClick={() => startTransition(() => signInWithGoogleAction(destination))}
       className="w-full"
     >
       <GoogleIcon />

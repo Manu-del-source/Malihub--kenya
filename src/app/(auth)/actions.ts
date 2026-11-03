@@ -367,7 +367,7 @@ export async function resetPasswordAction(
     };
   }
 
-  return { success: true, data: { redirectTo: "/login" } };
+  return { success: true, data: { redirectTo: `/login?redirectTo=${encodeURIComponent(safeInternalRedirect(requestedRedirect) ?? "/complete-profile")}` } };
 }
 
 // ─── Email verification ────────────────────────────────────────────────────

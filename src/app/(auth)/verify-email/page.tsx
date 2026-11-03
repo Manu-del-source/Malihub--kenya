@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; redirectTo?: string }>;
 }) {
   const params = await searchParams;
   const { identity } = await getAuthContext();
@@ -37,6 +37,7 @@ export default async function VerifyEmailPage({
   // attacker-influenced, and sending a code to an address typed into a URL would
   // let one person trigger mail to another.
   const email = identity?.email ?? params.email?.trim().toLowerCase() ?? null;
+  const redirectTo = params.redirectTo?.startsWith("/") && !params.redirectTo.startsWith("//") ? params.redirectTo : "/complete-profile";
 
   if (!email) {
     return (
@@ -46,7 +47,7 @@ export default async function VerifyEmailPage({
         footer={
           <>
             Already registered?{" "}
-            <Link href="/login" className="text-primary-400 hover:underline">
+            <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}`} className="text-primary-400 hover:underline">
               Sign in
             </Link>
           </>
@@ -67,13 +68,13 @@ export default async function VerifyEmailPage({
       footer={
         <>
           Wrong email?{" "}
-          <Link href="/register" className="text-primary-400 hover:underline">
+          <Link href={`/register?redirectTo=${encodeURIComponent(redirectTo)}`} className="text-primary-400 hover:underline">
             Start over
           </Link>
         </>
       }
     >
-      <VerifyEmailPanel email={email} />
+      <VerifyEmailPanel email={email} redirectTo={redirectTo} />
     </AuthCard>
   );
 }

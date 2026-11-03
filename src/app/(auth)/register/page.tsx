@@ -11,7 +11,10 @@ export const metadata: Metadata = {
   description: "Create a free MaliHub Kenya account to buy or sell.",
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
+  const params = await searchParams;
+  const redirectTo = params.redirectTo?.startsWith("/") && !params.redirectTo.startsWith("//") ? params.redirectTo : "/complete-profile";
+  const loginHref = `/login?redirectTo=${encodeURIComponent(redirectTo)}`;
   return (
     <AuthCard
       title="Create your account"
@@ -19,17 +22,19 @@ export default function RegisterPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="text-primary-400 hover:underline">
+          <Link href={loginHref} className="text-primary-400 hover:underline">
             Sign in
           </Link>
         </>
       }
     >
       <Suspense fallback={null}>
-        <GoogleSignInButton next="/complete-profile" />
+        <GoogleSignInButton next={redirectTo} />
       </Suspense>
       <AuthDivider />
-      <RegisterForm />
+      <Suspense fallback={null}>
+        <RegisterForm />
+      </Suspense>
     </AuthCard>
   );
 }

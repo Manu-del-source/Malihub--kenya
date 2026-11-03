@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { CompleteProfileForm } from "@/components/auth/complete-profile-form";
-import { getAuthContext } from "@/lib/auth";
+import { getAuthContext, safeInternalRedirect } from "@/lib/auth";
 import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 
@@ -20,7 +20,9 @@ export const metadata: Metadata = {
   title: "Complete your profile",
 };
 
-export default async function CompleteProfilePage() {
+export default async function CompleteProfilePage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
+  const params = await searchParams;
+  const requestedRedirect = safeInternalRedirect(params.redirectTo) ?? "/complete-profile";
   // Identity, not a mapped application user. A brand-new account can reach this
   // page before its `users`/`profiles` rows exist — sign-up provisioning is
   // best-effort, and `completeProfileAction` provisions authoritatively inside
@@ -29,7 +31,7 @@ export default async function CompleteProfilePage() {
   const { identity, user } = await getAuthContext();
 
   if (!identity) {
-    redirect("/login?redirectTo=/complete-profile");
+    redirect(`/login?redirectTo=${encodeURIComponent(requestedRedirect)}`);
   }
 
   const profile = user
@@ -42,7 +44,7 @@ export default async function CompleteProfilePage() {
   if (profile?.onboarded) {
     // A profile row only exists for a mapped application user, but TypeScript
     // cannot infer that from `profile` alone.
-    redirect(user?.hasSellerProfile ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH);
+    redirect(requestedRedirect !== "/complete-profile" ? requestedRedirect : (user?.hasSellerProfile ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH));
   }
 
   return (
@@ -56,6 +58,7 @@ export default async function CompleteProfilePage() {
         // which Managed Better Auth does not have.
         defaultFullName={profile?.fullName || identity.name || ""}
         defaultAvatarUrl={profile?.avatarUrl ?? identity.image ?? ""}
+        redirectTo={requestedRedirect}
       />
     </AuthCard>
   );

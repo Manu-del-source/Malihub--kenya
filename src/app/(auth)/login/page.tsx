@@ -26,7 +26,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <GoogleSignInButton next={BUYER_DASHBOARD_PATH} />
+      <Suspense fallback={null}>\n        <GoogleSignInButton next={BUYER_DASHBOARD_PATH} />\n      </Suspense>
       <AuthDivider />
       <Suspense fallback={null}>
         <LoginForm />

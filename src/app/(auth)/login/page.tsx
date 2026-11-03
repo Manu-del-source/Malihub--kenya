@@ -12,7 +12,10 @@ export const metadata: Metadata = {
   description: "Sign in to your MaliHub Kenya account.",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
+  const params = await searchParams;
+  const redirectTo = params.redirectTo?.startsWith("/") && !params.redirectTo.startsWith("//") ? params.redirectTo : BUYER_DASHBOARD_PATH;
+  const registerHref = `/register?redirectTo=${encodeURIComponent(redirectTo)}`;
   return (
     <AuthCard
       title="Welcome back"
@@ -20,14 +23,14 @@ export default function LoginPage() {
       footer={
         <>
           Don&rsquo;t have an account?{" "}
-          <Link href="/register" className="text-primary-400 hover:underline">
+          <Link href={registerHref} className="text-primary-400 hover:underline">
             Create one
           </Link>
         </>
       }
     >
       <Suspense fallback={null}>
-        <GoogleSignInButton next={BUYER_DASHBOARD_PATH} />
+        <GoogleSignInButton next={redirectTo} />
       </Suspense>
       <AuthDivider />
       <Suspense fallback={null}>

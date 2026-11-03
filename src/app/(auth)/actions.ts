@@ -219,7 +219,7 @@ export async function signInAction(
   // Supabase version of this action there is no `refreshSession()` call here.
   const destination = state.onboarded
     ? safeInternalRedirect(redirectTo) ?? dashboardFor(state)
-    : "/complete-profile";
+    : `/complete-profile?redirectTo=${encodeURIComponent(safeInternalRedirect(redirectTo) ?? "/complete-profile")}`;
 
   return { success: true, data: { redirectTo: destination } };
 }
@@ -498,7 +498,7 @@ export async function verifyEmailWithCodeAction(
   const identity = await requireActionIdentity();
   if (!identity.ok) {
     // Verified but still signed out — a normal outcome, not an error.
-    return { success: true, data: { redirectTo: "/login" } };
+    return { success: true, data: { redirectTo: `/login?redirectTo=${encodeURIComponent(safeInternalRedirect(requestedRedirect) ?? "/complete-profile")}` } };
   }
 
   const guarded = await requireActionUser();

@@ -32,6 +32,7 @@ export type AuditAction =
   | "admin.category_updated"
   | "admin.category_deleted"
   | "admin.seller_created"
+  | "admin.seller_deleted"
   // ─── Order lifecycle (Phase 9.1) ───────────────────────────────────────────
   // Every `Order.status` change goes through `order-transition-service.ts`, and
   // each of these records one. They were added because the transition service

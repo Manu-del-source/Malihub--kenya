@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { AdminPagination, adminListHref } from "@/components/shell/admin/admin-pagination";
 import { AccountStatusBadge, SellerVerificationBadge } from "@/components/shell/admin/admin-badges";
 import { formatDate } from "@/components/shell/admin/admin-format";
+import { AdminDeleteSellerButton } from "@/components/shell/admin/admin-delete-seller-button";
 import { requireAdministrator } from "@/lib/auth";
 import { listAdminSellers } from "@/services/admin-service";
 import { adminSellerListSchema, parseListParams, type RawSearchParams } from "@/lib/validations/admin";
@@ -118,11 +119,14 @@ export default async function AdminSellersPage({
       ) : (
         <div className="glass flex flex-col divide-y divide-border rounded-2xl">
           {sellers.map((seller) => (
-            <Link
+            <div
               key={seller.id}
-              href={`/admin/sellers/${seller.id}`}
-              className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40"
+              className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-muted/40"
             >
+              <Link
+                href={`/admin/sellers/${seller.id}`}
+                className="flex min-w-0 flex-1 items-center gap-4"
+              >
               <span
                 aria-hidden
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary-400"
@@ -146,7 +150,9 @@ export default async function AdminSellersPage({
                 </span>
                 Joined {formatDate(seller.createdAt)}
               </span>
-            </Link>
+              </Link>
+              <AdminDeleteSellerButton sellerId={seller.id} businessName={seller.businessName} />
+            </div>
           ))}
         </div>
       )}

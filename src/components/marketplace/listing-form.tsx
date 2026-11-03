@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowRight, Save } from "lucide-react";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing";
 import { createListingAction, updateListingAction } from "@/app/(dashboard)/seller/listings/actions";
+import { createMaliHubOfficialListingAction } from "@/app/(dashboard)/admin/actions";
 import { FormField } from "@/components/auth/form-field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,9 +28,11 @@ const selectClass =
 export function ListingForm({
   productId,
   defaultValues,
+  adminMode = false,
 }: {
   productId?: string;
   defaultValues?: Partial<ListingInput>;
+  adminMode?: boolean;
 }) {
   const router = useRouter();
 
@@ -59,14 +62,16 @@ export function ListingForm({
     const payload = { ...input, status };
     const result = productId
       ? await updateListingAction(productId, payload)
-      : await createListingAction(payload);
+      : adminMode
+        ? await createMaliHubOfficialListingAction(payload)
+        : await createListingAction(payload);
 
     if (!result.success) {
       toast.error(result.error);
       return;
     }
     toast.success(status === "ACTIVE" ? "Listing published!" : "Draft saved.");
-    router.push("/seller/listings");
+    router.push(adminMode ? "/admin/listings" : "/seller/listings");
     router.refresh();
   }
 

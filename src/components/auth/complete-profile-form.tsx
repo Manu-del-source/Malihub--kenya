@@ -45,7 +45,7 @@ export function CompleteProfileForm({
   const avatarUrl = watch("avatarUrl") ?? "";
 
   async function onSubmit(input: CompleteProfileInput) {
-    const result = await completeProfileAction(input);
+    const result = await completeProfileAction(input, redirectTo);
     if (!result.success) {
       toast.error(result.error);
       return;

@@ -1,14 +1,13 @@
 "use server";
 
 import { logServerError } from "@/lib/safe-log";
-
 import { revalidatePath } from "next/cache";
 import { requireOnboardedActionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sellerApplicationSchema, type SellerApplicationInput } from "@/lib/validations/seller-onboarding";
 import type { ApiResult } from "@/types";
 
-function makeSlug(name: string, sellerId: string) {
+function makeSlug(name: string, userId: string) {
   const base = name
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -18,13 +17,13 @@ function makeSlug(name: string, sellerId: string) {
     .replace(/[\s-]+/g, "-")
     .slice(0, 48)
     .replace(/-+$/g, "");
-  return `${base || "seller"}-${sellerId.slice(0, 6).toLowerCase()}`;
+  return `${base || "seller"}-${userId.slice(0, 6).toLowerCase()}`;
 }
 
 /**
- * A seller application is attached to the already-authenticated MaliHub user.
- * No user/seller id is accepted from the browser, and existing verified sellers
- * cannot accidentally revoke their approval by resubmitting this form.
+ * A seller application is attached to the authenticated MaliHub user.
+ * Existing buyers receive a seller profile only after submitting valid
+ * business details. The account role remains BUYER until admin verification.
  */
 export async function submitSellerApplicationAction(
   input: SellerApplicationInput
@@ -42,37 +41,49 @@ export async function submitSellerApplicationAction(
   }
 
   try {
-    const seller = await prisma.seller.findUnique({
-      where: { userId: auth.user.id },
-      select: { id: true, verificationStatus: true },
-    });
-
-    if (!seller) {
-      return {
-        success: false,
-        error: "Open Seller Centre to start your seller profile before submitting an application.",
-      };
-    }
-
-    if (seller.verificationStatus === "VERIFIED") {
-      return {
-        success: false,
-        error: "Your seller profile is already verified. Contact support if your business details need to change.",
-      };
-    }
-
     const data = parsed.data;
-    await prisma.seller.update({
-      where: { id: seller.id },
-      data: {
+    await prisma.$transaction(async (tx) => {
+      const currentUser = await tx.user.findUnique({
+        where: { id: auth.user.id },
+        select: { role: true, isActive: true, isBanned: true },
+      });
+      if (!currentUser || !currentUser.isActive || currentUser.isBanned) {
+        throw new Error("This account cannot submit a seller application.");
+      }
+      if (currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") {
+        throw new Error("Administrator accounts cannot apply to become sellers.");
+      }
+
+      const existing = await tx.seller.findUnique({
+        where: { userId: auth.user.id },
+        select: { id: true, verificationStatus: true },
+      });
+      if (existing?.verificationStatus === "VERIFIED") {
+        throw new Error("Your seller profile is already verified. Contact support if your business details need to change.");
+      }
+
+      const profileData = {
         businessName: data.businessName,
-        slug: makeSlug(data.businessName, seller.id),
+        slug: makeSlug(data.businessName, auth.user.id),
         description: data.description,
         county: data.county,
         subCounty: data.subCounty || null,
         kraPin: data.kraPin || null,
-        verificationStatus: "PENDING",
-      },
+        verificationStatus: "PENDING" as const,
+      };
+
+      if (existing) {
+        await tx.seller.update({ where: { id: existing.id }, data: profileData });
+      } else {
+        await tx.seller.create({
+          data: {
+            userId: auth.user.id,
+            ...profileData,
+          },
+        });
+      }
+      // Deliberately do not change users.role here. Admin verification is the
+      // only path that grants SELLER privileges and enables seller publishing.
     });
 
     revalidatePath("/seller/onboarding");
@@ -84,7 +95,9 @@ export async function submitSellerApplicationAction(
     logServerError("submitSellerApplicationAction failed", error);
     return {
       success: false,
-      error: "We couldn't submit your application right now. Please try again.",
+      error: error instanceof Error && error.message !== "Internal Server Error"
+        ? error.message
+        : "We couldn't submit your application right now. Please try again.",
     };
   }
 }

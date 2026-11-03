@@ -20,9 +20,11 @@ import { cn } from "@/utils";
 export function CompleteProfileForm({
   defaultFullName,
   defaultAvatarUrl,
+  redirectTo,
 }: {
   defaultFullName?: string;
   defaultAvatarUrl?: string;
+  redirectTo?: string;
 }) {
   const router = useRouter();
 

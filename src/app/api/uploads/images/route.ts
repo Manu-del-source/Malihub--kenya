@@ -58,14 +58,21 @@ export async function POST(request: NextRequest) {
   }
 
   if (purpose === "product") {
-    const seller = await prisma.seller.findUnique({
-      where: { userId: user.id },
-      select: { id: true, verificationStatus: true },
-    });
-    if (!seller || seller.verificationStatus !== "VERIFIED") {
+    // Official MaliHub listings are created by SUPER_ADMIN accounts. They
+    // must not need a seller application, but retain a per-admin upload quota.
+    const isSuperAdmin = user.role === "SUPER_ADMIN";
+    const seller = isSuperAdmin
+      ? null
+      : await prisma.seller.findUnique({
+          where: { userId: user.id },
+          select: { id: true, verificationStatus: true },
+        });
+    if (!isSuperAdmin && (!seller || seller.verificationStatus !== "VERIFIED")) {
       return errorResponse("Only verified sellers can upload product photos.", 403);
     }
-    const limit = await rateLimit.listingImageUpload(seller.id);
+    const limit = await rateLimit.listingImageUpload(
+      isSuperAdmin ? `admin:${user.id}` : seller!.id
+    );
     if (!limit.success) {
       return NextResponse.json(
         { success: false, error: `Upload limit reached (30 product images per rolling 24 hours). Try again in ${formatRetryAfter(limit.reset)}.` },

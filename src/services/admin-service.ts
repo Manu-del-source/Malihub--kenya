@@ -292,7 +292,16 @@ export async function listAdminUsers(
   filters: AdminUserListFilters,
   db: PrismaHandle = prisma
 ): Promise<{ users: AdminUserRow[]; total: number; pageSize: number }> {
+  // Only list app users whose Neon Auth identity still exists. Keep the
+  // application rows themselves so historical orders and audit data remain.
+  const linkedAuthUsers = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT app_user.id
+    FROM public.users AS app_user
+    INNER JOIN neon_auth."user" AS auth_user
+      ON auth_user.id::text = app_user.auth_user_id
+  `;
   const where: Prisma.UserWhereInput = {
+    id: { in: linkedAuthUsers.map(({ id }) => id) },
     ...(filters.role ? { role: filters.role } : {}),
     ...userAccountWhere(filters.account),
     ...(filters.q

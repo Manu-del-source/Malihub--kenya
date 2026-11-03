@@ -95,8 +95,9 @@ function dashboardFor(state: AuthoritativeOnboardingState): string {
  * cannot double-send.
  */
 export async function signUpAction(
-  input: RegisterInput
-): Promise<ApiResult<{ email: string }>> {
+  input: RegisterInput,
+  redirectTo?: string
+): Promise<ApiResult<{ email: string; redirectTo: string }>> {
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -139,7 +140,7 @@ export async function signUpAction(
     logServerError("[auth] signUp: application rows not provisioned", provisioning.error);
   }
 
-  return { success: true, data: { email } };
+  return { success: true, data: { email, redirectTo: safeInternalRedirect(redirectTo) ?? "/complete-profile" } };
 }
 
 // ─── Sign in ───────────────────────────────────────────────────────────────
@@ -366,7 +367,7 @@ export async function resetPasswordAction(
     };
   }
 
-  return { success: true, data: { redirectTo: "/login" } };
+  return { success: true, data: { redirectTo: `/login?redirectTo=${encodeURIComponent(safeInternalRedirect(requestedRedirect) ?? "/complete-profile")}` } };
 }
 
 // ─── Email verification ────────────────────────────────────────────────────
@@ -466,7 +467,8 @@ export async function sendVerificationCodeAction(email: string): Promise<ApiResu
  * MaliHub's own rows afterwards rather than assumed to be /complete-profile.
  */
 export async function verifyEmailWithCodeAction(
-  input: VerifyEmailCodeInput
+  input: VerifyEmailCodeInput,
+  requestedRedirect?: string
 ): Promise<ApiResult<{ redirectTo: string }>> {
   const parsed = verifyEmailCodeSchema.safeParse(input);
   if (!parsed.success) {
@@ -503,18 +505,18 @@ export async function verifyEmailWithCodeAction(
   if (!guarded.ok) {
     // Signed in, but no MaliHub row maps to this identity yet — which is the
     // expected state for a brand-new account. Onboarding provisions it.
-    return { success: true, data: { redirectTo: "/complete-profile" } };
+    return { success: true, data: { redirectTo: `/complete-profile?redirectTo=${encodeURIComponent(safeInternalRedirect(requestedRedirect) ?? "/complete-profile")}` } };
   }
 
   // Whatever the outcome, the destination comes from MaliHub's rows, never from
   // a claim in the session.
   const destination = guarded.user.onboarded
-    ? dashboardFor({
+    ? safeInternalRedirect(requestedRedirect) ?? dashboardFor({
         onboarded: guarded.user.onboarded,
         hasSellerProfile: guarded.user.hasSellerProfile,
         role: guarded.user.role,
       })
-    : "/complete-profile";
+    : `/complete-profile?redirectTo=${encodeURIComponent(safeInternalRedirect(requestedRedirect) ?? "/complete-profile")}`;
 
   return { success: true, data: { redirectTo: destination } };
 }
@@ -522,7 +524,8 @@ export async function verifyEmailWithCodeAction(
 // ─── Onboarding ────────────────────────────────────────────────────────────
 
 export async function completeProfileAction(
-  input: CompleteProfileInput
+  input: CompleteProfileInput,
+  requestedRedirect?: string
 ): Promise<ApiResult<{ redirectTo: string }>> {
   const parsed = completeProfileSchema.safeParse(input);
   if (!parsed.success) {
@@ -553,7 +556,7 @@ export async function completeProfileAction(
     // the new value from Postgres. There is no stale-claim window to close.
     return {
       success: true,
-      data: { redirectTo: wantsToSell ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH },
+      data: { redirectTo: safeInternalRedirect(requestedRedirect) ?? (wantsToSell ? SELLER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH) },
     };
   } catch (error) {
     if (error instanceof AuthServiceError) {

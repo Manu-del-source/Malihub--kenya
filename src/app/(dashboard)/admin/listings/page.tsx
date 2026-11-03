@@ -49,7 +49,7 @@ export default async function AdminListingsPage({
 }: {
   searchParams: Promise<RawSearchParams>;
 }) {
-  await requireAdministrator();
+  const { user } = await requireAdministrator();
 
   const parsed = parseListParams(adminListingListSchema, await searchParams);
   const filters = parsed;
@@ -80,6 +80,14 @@ export default async function AdminListingsPage({
             {filters.status ? ` (${filters.status.replace("_", " ").toLowerCase()})` : " — all statuses"}
           </p>
         </div>
+        {user.role === "SUPER_ADMIN" && (
+          <Link
+            href="/admin/listings/new"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-400"
+          >
+            Add MaliHub product
+          </Link>
+        )}
       </header>
 
       <form className="glass-sm flex flex-wrap items-end gap-3 rounded-2xl p-4" method="GET">

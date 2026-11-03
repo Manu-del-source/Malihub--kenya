@@ -470,15 +470,16 @@ export function createFakeAdminStore() {
     "notifications",
     "auditLogs",
   ];
+  const usersTable = new Map<string, Row>();
   const tables: Record<string, Map<string, Row>> = Object.fromEntries(
-    tableNames.map((name) => [name, new Map<string, Row>()])
+    tableNames.map((name) => [name, name === "users" ? usersTable : new Map<string, Row>()])
   );
   storeTables = tables;
 
   const operations: string[] = [];
   const store = { tables: tables as unknown as AdminTables, operations } as FakeAdminStore;
   (store as Record<string, unknown>).$queryRaw = async () =>
-    Array.from(tables.users.values(), (user) => ({ id: String(user.id) }));
+    Array.from(usersTable.values(), (user) => ({ id: String(user.id) }));
   for (const delegate of Object.keys(TABLE_ALIASES)) {
     const table = TABLE_ALIASES[delegate]!;
     const inner = makeDelegate(table, tables);

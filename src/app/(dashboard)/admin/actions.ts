@@ -19,6 +19,7 @@ import {
   createAdminCategory,
   deleteAdminCategory,
   deleteAdminSeller,
+  createMaliHubOfficialListing,
   deleteAdminListing,
   moderateListing,
   setSellerVerificationStatus,
@@ -176,6 +177,35 @@ export async function deleteAdminSellerAction(
     const result = await deleteAdminSeller({ sellerId: parsed.data, actor });
     revalidateAdmin("/admin/sellers", "/admin/users");
     return result;
+  });
+}
+
+// ─── MaliHub Official Store listings ───────────────────────────────────────
+
+export async function createMaliHubOfficialListingAction(
+  input: unknown
+): Promise<ApiResult<{ id: string; slug: string }>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.user.role !== "SUPER_ADMIN") {
+    return { success: false, error: "Only a super admin can create MaliHub Official Store listings." };
+  }
+
+  const { listingSchema } = await import("@/lib/validations/listing");
+  const parsed = listingSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid input", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
+    const product = await createMaliHubOfficialListing({
+      ownerId: auth.user.id,
+      actor,
+      input: parsed.data,
+    });
+    revalidateAdmin("/admin/listings", "/admin/sellers", "/marketplace", "/search");
+    revalidatePath(`/products/${product.slug}`);
+    return { id: product.id, slug: product.slug };
   });
 }
 

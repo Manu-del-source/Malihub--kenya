@@ -32,7 +32,9 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
         <GoogleSignInButton next={redirectTo} />
       </Suspense>
       <AuthDivider />
-      <RegisterForm />
+      <Suspense fallback={null}>
+        <RegisterForm />
+      </Suspense>
     </AuthCard>
   );
 }

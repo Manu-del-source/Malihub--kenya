@@ -133,6 +133,6 @@ describe("verify-email panel — full path: enter a code, then verify it", () =>
     const verified = await verifyEmailWithCodeAction({ email: EMAIL, code: code! });
 
     assert.equal(verified.success, true, verified.success ? "" : verified.error);
-    assert.equal(verified.success && verified.data.redirectTo, "/complete-profile");
+    assert.equal(verified.success && verified.data.redirectTo, "/complete-profile?redirectTo=%2Fcomplete-profile");
   });
 });

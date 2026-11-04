@@ -94,12 +94,21 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     const blocked = message.includes("85%") || message.includes("paused by the MaliHub administrator");
-    return errorResponse(
-      blocked
-        ? "Image uploads are temporarily paused to protect MaliHub's Cloudinary allowance."
-        : "Image uploads are temporarily unavailable because usage protection could not be verified.",
-      503
-    );
+
+    // A Super Admin may continue official platform uploads if the usage
+    // verification service is temporarily unavailable. This does NOT bypass
+    // a confirmed 85% Cloudinary threshold or the administrator emergency
+    // pause, and the per-admin rolling upload quota above still applies.
+    if (user.role === "SUPER_ADMIN" && !blocked) {
+      logServerError("[image-upload] Super Admin bypassed unavailable usage verification", error);
+    } else {
+      return errorResponse(
+        blocked
+          ? "Image uploads are temporarily paused to protect MaliHub's Cloudinary allowance."
+          : "Image uploads are temporarily unavailable because usage protection could not be verified.",
+        503
+      );
+    }
   }
 
   let sanitized;

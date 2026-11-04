@@ -380,7 +380,7 @@ describe("account provisioning — existing accounts", () => {
     assert.equal(store.tables.users.size, 1);
     assert.equal(store.tables.profiles.size, 1);
     assert.equal(store.tables.users.get(userId)?.phone, "0712345678");
-    assert.equal(store.tables.users.get(userId)?.role, "BUYER", "seller role is reserved for admin-approved applicants");
+    assert.equal(store.tables.users.get(userId)?.role, "SELLER", "provisioning must preserve the role already assigned to the account");
     assert.equal(store.tables.profiles.get(userId)?.fullName, "Emmanuel K. Yegon");
     assert.equal(store.tables.profiles.get(userId)?.county, "Nairobi");
   });
@@ -465,7 +465,7 @@ describe("enableSelling — post-onboarding seller opt-in", () => {
     assert.equal(store.tables.sellers.size, 1);
     const seller = store.tables.sellers.get(userId)!;
     assert.equal(seller.userId, userId);
-    assert.equal(store.tables.users.get(userId)?.role, "SELLER");
+    assert.equal(store.tables.users.get(userId)?.role, "BUYER", "creating a pending seller profile must not grant seller privileges");
   });
 
   it("is idempotent — a second call returns the existing row without writing another", async () => {

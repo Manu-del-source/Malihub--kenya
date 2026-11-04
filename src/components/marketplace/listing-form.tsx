@@ -14,13 +14,6 @@ import { ImageUploadGrid } from "@/components/marketplace/image-upload-grid";
 import { DEFAULT_CATEGORIES, KENYA_COUNTIES, PRODUCT_CONDITIONS } from "@/lib/constants";
 import { cn } from "@/utils";
 
-const CONTACT_OPTIONS = [
-  { value: "ANY", label: "Any method" },
-  { value: "CALL", label: "Phone call" },
-  { value: "WHATSAPP", label: "WhatsApp" },
-  { value: "CHAT", label: "In-app chat" },
-] as const;
-
 const selectClass =
   "h-11 w-full rounded-xl border border-border bg-background/60 px-4 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -62,7 +55,11 @@ export function ListingForm({
       : await createListingAction(payload);
 
     if (!result.success) {
-      toast.error(result.error);
+      const fieldErrors = result.fieldErrors;
+      const firstFieldError = fieldErrors
+        ? Object.values(fieldErrors).flat().find((message): message is string => Boolean(message))
+        : undefined;
+      toast.error(firstFieldError || result.error);
       return;
     }
     toast.success(status === "ACTIVE" ? "Listing published!" : "Draft saved.");
@@ -207,16 +204,6 @@ export function ListingForm({
           <Input id="town" placeholder="e.g. Kilimani, CBD" invalid={!!errors.town} {...register("town")} />
         </FormField>
       </div>
-
-      <FormField id="contactPreference" label="Preferred contact method">
-        <select id="contactPreference" className={selectClass} {...register("contactPreference")}>
-          {CONTACT_OPTIONS.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </FormField>
 
       <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
         <Button

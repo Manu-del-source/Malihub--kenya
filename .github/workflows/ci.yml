@@ -1,0 +1,39 @@
+name: CI
+
+# Full validation on every PR and every push to main. Uses throwaway
+# placeholder connection strings only: nothing here connects to, or migrates,
+# any real database. The production-migration step in `npm run build` is a no-op
+# outside Vercel Production (see scripts/deploy-production-migrations.mjs).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

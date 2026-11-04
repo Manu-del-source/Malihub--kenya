@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { verifySameOrigin } from "@/lib/csrf";
@@ -7,7 +8,7 @@ import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { uploadMarketplaceImage } from "@/lib/cloudinary";
 import { ImageValidationError, sanitizeImageBuffer } from "@/lib/validations/sanitize-image";
-import { logServerError } from "@/lib/safe-log";
+import { logCloudinaryUploadError, logServerError } from "@/lib/safe-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,7 +139,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    logServerError("[image-upload] Cloudinary upload failed", error);
-    return errorResponse("The sanitized image could not be stored. Please try again.", 502);
+    const errorId = randomUUID();
+    logCloudinaryUploadError(error, { errorId, purpose });
+    return NextResponse.json(
+      { success: false, error: "The sanitized image could not be stored. Please try again.", reference: errorId },
+      { status: 502 }
+    );
   }
 }

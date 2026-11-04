@@ -92,6 +92,7 @@ export type Tables = {
   users: Map<string, UserRow>;
   profiles: Map<string, ProfileRow>;
   sellers: Map<string, SellerRow>;
+  authSessionActivities: Map<string, { sessionId: string; authUserId: string; lastActivityAt: Date; createdAt: Date; updatedAt: Date }>;
 };
 
 /** What `user.findUnique`/`findFirst` project for a resolved mapping. */
@@ -145,21 +146,29 @@ export type FakeStore = {
     findUnique(args: { where: { userId: string } }): Promise<SellerRow | null>;
     create(args: { data: SellerRow }): Promise<SellerRow>;
   };
+  authSessionActivity: {
+    findUnique(args: { where: { sessionId: string } }): Promise<{ sessionId: string; authUserId: string; lastActivityAt: Date } | null>;
+    create(args: { data: { sessionId: string; authUserId: string; lastActivityAt?: Date } }): Promise<unknown>;
+    updateMany(args: { where: { sessionId: string; authUserId: string; lastActivityAt: Date }; data: { lastActivityAt: Date } }): Promise<{ count: number }>;
+  };
   $transaction<T>(fn: (tx: FakeStore) => Promise<T>): Promise<T>;
 };
 
 export function createFakeAccountStore(): FakeStore {
-  const tables: Tables = { users: new Map(), profiles: new Map(), sellers: new Map() };
+  const tables: Tables = { users: new Map(), profiles: new Map(), sellers: new Map(), authSessionActivities: new Map() };
 
   const snapshot = () => ({
     users: new Map(tables.users),
     profiles: new Map(tables.profiles),
     sellers: new Map(tables.sellers),
+    authSessionActivities: new Map(tables.authSessionActivities),
   });
   const restore = (snap: ReturnType<typeof snapshot>) => {
     tables.users.clear();
     tables.profiles.clear();
     tables.sellers.clear();
+    tables.authSessionActivities.clear();
+    for (const [id, row] of snap.authSessionActivities) tables.authSessionActivities.set(id, row);
     for (const [id, row] of snap.users) tables.users.set(id, row);
     for (const [id, row] of snap.profiles) tables.profiles.set(id, row);
     for (const [id, row] of snap.sellers) tables.sellers.set(id, row);
@@ -319,6 +328,27 @@ export function createFakeAccountStore(): FakeStore {
         const row: SellerRow = { ...data, id: data.id ?? `seller-${data.userId}` };
         tables.sellers.set(data.userId, row);
         return { ...row };
+      },
+    },
+    authSessionActivity: {
+      async findUnique({ where }) {
+        const row = tables.authSessionActivities.get(where.sessionId);
+        return row ? { ...row } : null;
+      },
+      async create({ data }) {
+        if (tables.authSessionActivities.has(data.sessionId)) {
+          throw new PrismaKnownError("P2002", "Unique constraint failed on auth_session_activity.session_id");
+        }
+        const now = new Date();
+        const row = { sessionId: data.sessionId, authUserId: data.authUserId, lastActivityAt: data.lastActivityAt ?? now, createdAt: now, updatedAt: now };
+        tables.authSessionActivities.set(row.sessionId, row);
+        return { ...row };
+      },
+      async updateMany({ where, data }) {
+        const row = tables.authSessionActivities.get(where.sessionId);
+        if (!row || row.authUserId !== where.authUserId || row.lastActivityAt.getTime() !== where.lastActivityAt.getTime()) return { count: 0 };
+        tables.authSessionActivities.set(where.sessionId, { ...row, lastActivityAt: data.lastActivityAt, updatedAt: new Date() });
+        return { count: 1 };
       },
     },
     async $transaction<T>(fn: (tx: FakeStore) => Promise<T>): Promise<T> {

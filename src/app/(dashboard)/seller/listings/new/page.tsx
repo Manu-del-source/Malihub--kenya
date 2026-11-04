@@ -10,13 +10,15 @@ export const metadata: Metadata = { title: "Create a listing" };
 
 export default async function NewListingPage() {
   const { user } = await requireUser();
-  const seller = await prisma.seller.findUnique({
-    where: { userId: user.id },
-    select: { verificationStatus: true },
-  });
-  if (!seller) redirect("/account");
   const isAdmin = isAdministratorRole(user.role);
-  if (!isAdmin && seller.verificationStatus !== "VERIFIED") redirect("/seller/onboarding");
+  const seller = isAdmin
+    ? null
+    : await prisma.seller.findUnique({
+        where: { userId: user.id },
+        select: { verificationStatus: true },
+      });
+  if (!isAdmin && !seller) redirect("/account");
+  if (!isAdmin && seller?.verificationStatus !== "VERIFIED") redirect("/seller/onboarding");
 
   return (
     <Container className="max-w-2xl py-12">

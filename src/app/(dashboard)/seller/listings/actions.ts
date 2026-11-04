@@ -18,17 +18,44 @@ import {
 } from "@/services/listing-service";
 import type { ApiResult } from "@/types";
 
-async function requireSeller() {
+async function requireSeller(options: { allowAdminProvision?: boolean } = {}) {
   const user = (await getCurrentUser())?.user;
   if (!user) throw new ListingServiceError("You need to sign in first.");
 
-  const seller = await prisma.seller.findUnique({
+  const isAdmin = isAdministratorRole(user.role);
+  let seller = await prisma.seller.findUnique({
     where: { userId: user.id },
     select: { id: true, verificationStatus: true },
   });
-  if (!seller) throw new ListingServiceError("Complete your seller setup before listing an item.");
 
-  return { userId: user.id, sellerId: seller.id, verificationStatus: seller.verificationStatus };
+  // Admin-created products still require a valid Seller foreign key. Give each
+  // administrator a platform-managed catalog profile; product ownership remains
+  // the administrator's own user id for auditability and access control.
+  if (!seller && isAdmin && options.allowAdminProvision) {
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: { county: true },
+    });
+    seller = await prisma.seller.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        businessName: "MaliHub Admin Listings",
+        slug: `malihub-admin-${user.id}`,
+        description: "Platform-managed listings published by MaliHub administrators.",
+        county: profile?.county || "Nairobi",
+        verificationStatus: "UNVERIFIED",
+      },
+      update: {},
+      select: { id: true, verificationStatus: true },
+    });
+  }
+
+  if (!seller) {
+    throw new ListingServiceError("Complete your seller setup before listing an item.");
+  }
+
+  return { userId: user.id, sellerId: seller.id, verificationStatus: seller.verificationStatus, isAdmin };
 }
 
 function toResult<T>(fn: () => Promise<T>): Promise<ApiResult<T>> {
@@ -52,9 +79,9 @@ export async function createListingAction(
   }
 
   return toResult(async () => {
-    const { userId, sellerId, verificationStatus } = await requireSeller();
-    const currentUser = (await getCurrentUser())?.user;
-    const isAdmin = currentUser ? isAdministratorRole(currentUser.role) : false;
+    const { userId, sellerId, verificationStatus, isAdmin } = await requireSeller({
+      allowAdminProvision: true,
+    });
     if (!isAdmin && verificationStatus !== "VERIFIED") {
       throw new ListingServiceError("Complete your seller application and wait for MaliHub approval before publishing listings.");
     }

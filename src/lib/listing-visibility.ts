@@ -26,7 +26,7 @@ export function canViewListing(
   listing: {
     status: string;
     ownerId: string;
-    ownerRole?: string;
+    ownerRole?: UserRole;
     seller?: { verificationStatus?: string } | null;
   },
   viewer: { id: string; role: UserRole } | null | undefined
@@ -37,7 +37,7 @@ export function canViewListing(
 
   const isPublicAdminManagedListing =
     isPublicListingStatus(listing.status) &&
-    isAdministratorRole(listing.ownerRole ?? "");
+    isAdministratorRole(listing.ownerRole);
 
   if (
     isPublicListingStatus(listing.status) &&

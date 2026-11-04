@@ -75,9 +75,6 @@ export function SellerInfoCard({
           </Button>
         </div>
       )}
-      <p className="text-center text-[11px] text-muted-foreground">
-        Meet in a public place. Never pay before seeing the item.
-      </p>
     </div>
   );
 }

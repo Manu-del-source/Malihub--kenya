@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mock } from "node:test";
 
-mock.module("server-only", { exports: {} });
+mock.module("server-only", { namedExports: {} });
 
 test("session idle timeout policy", async (t) => {
   const { isSessionIdleExpired, SESSION_IDLE_TIMEOUT_MS } = await import("./session-activity");

@@ -346,11 +346,14 @@ describe("the admin action surface is exactly what it should be — and no more"
     const exported = Object.keys(mod).sort();
 
     assert.deepEqual(exported, [
+      "createAdminSellerAction",
       "createCategoryAction",
       "deleteAdminListingAction",
+      "deleteAdminSellerAction",
       "deleteCategoryAction",
       "moderateListingAction",
       "rejectSellerAction",
+      "resendAdminSellerInvitationAction",
       "resetSellerVerificationAction",
       "updateCategoryAction",
       "verifySellerAction",

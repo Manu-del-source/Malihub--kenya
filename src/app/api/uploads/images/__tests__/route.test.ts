@@ -8,6 +8,8 @@ let redisAvailable = true;
 let sellerVerified = true;
 let rateAllowed = true;
 let usageProtectionError: Error | null = null;
+let cloudinaryUploadError: Error | null = null;
+const cloudinaryLogs: Array<{ error: unknown; context: unknown }> = [];
 const stored: Array<{ buffer: Buffer; purpose: string }> = [];
 class TestImageValidationError extends Error {}
 
@@ -48,11 +50,12 @@ mock.module("@/lib/cloudinary", {
   namedExports: {
     uploadMarketplaceImage: async (buffer: Buffer, purpose: "product" | "message") => {
       stored.push({ buffer, purpose });
+      if (cloudinaryUploadError) throw cloudinaryUploadError;
       return { secureUrl: "https://res.cloudinary.com/test/image/upload/malihub/photo.webp", publicId: "malihub/photo" };
     },
   },
 });
-mock.module("@/lib/safe-log", { namedExports: { logServerError: () => {} } });
+mock.module("@/lib/safe-log", { namedExports: { logServerError: () => {}, logCloudinaryUploadError: (error: unknown, context: unknown) => { cloudinaryLogs.push({ error, context }); } } });
 
 let route: typeof import("@/app/api/uploads/images/route");
 function makeRequest(purpose: string, bytes: Uint8Array, mime = "image/jpeg", origin = "http://localhost:3000") {
@@ -73,6 +76,8 @@ beforeEach(() => {
   sellerVerified = true;
   rateAllowed = true;
   usageProtectionError = null;
+  cloudinaryUploadError = null;
+  cloudinaryLogs.length = 0;
   stored.length = 0;
 });
 
@@ -136,6 +141,16 @@ describe("authenticated image upload endpoint", () => {
     assert.equal(stored[0]!.buffer.toString(), "clean-webp");
     const body = await response.json();
     assert.equal(body.data.format, "webp");
+  });
+  it("returns a trace reference and records Cloudinary provider failures", async () => {
+    cloudinaryUploadError = Object.assign(new Error("Invalid API key"), { http_code: 401 });
+    const response = await route.POST(makeRequest("product", JPEG));
+    assert.equal(response.status, 502);
+    const body = await response.json();
+    assert.equal(body.success, false);
+    assert.match(body.reference, /^[0-9a-f-]{36}$/i);
+    assert.equal(cloudinaryLogs.length, 1);
+    assert.deepEqual(cloudinaryLogs[0]!.context, { errorId: body.reference, purpose: "product" });
   });
   it("supports sanitized chat attachments", async () => {
     const response = await route.POST(makeRequest("message", JPEG));

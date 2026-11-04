@@ -480,24 +480,25 @@ export function createFakeAdminStore() {
 
   const operations: string[] = [];
   const store = { tables: tables as unknown as AdminTables, operations } as FakeAdminStore;
+  const authSessionActivitiesTable = tables.authSessionActivities!;
   (store as Record<string, unknown>).$queryRaw = async () =>
     Array.from(usersTable.values(), (user) => ({ id: String(user.id) }));
   (store as Record<string, unknown>).authSessionActivity = {
     async findUnique({ where }: { where: { sessionId: string } }) {
-      const row = tables.authSessionActivities.get(where.sessionId);
+      const row = authSessionActivitiesTable.get(where.sessionId);
       return row ? { ...row } : null;
     },
     async create({ data }: { data: { sessionId: string; authUserId: string; lastActivityAt?: Date } }) {
-      if (tables.authSessionActivities.has(data.sessionId)) throw new FakePrismaError("P2002", "Unique constraint failed on auth_session_activity.session_id");
+      if (authSessionActivitiesTable.has(data.sessionId)) throw new FakePrismaError("P2002", "Unique constraint failed on auth_session_activity.session_id");
       const now = new Date();
       const row = { sessionId: data.sessionId, authUserId: data.authUserId, lastActivityAt: data.lastActivityAt ?? now, createdAt: now, updatedAt: now };
-      tables.authSessionActivities.set(row.sessionId, row);
+      authSessionActivitiesTable.set(row.sessionId, row);
       return { ...row };
     },
     async updateMany({ where, data }: { where: { sessionId: string; authUserId: string; lastActivityAt: Date }; data: { lastActivityAt: Date } }) {
-      const row = tables.authSessionActivities.get(where.sessionId);
+      const row = authSessionActivitiesTable.get(where.sessionId);
       if (!row || row.authUserId !== where.authUserId || (row.lastActivityAt as Date).getTime() !== where.lastActivityAt.getTime()) return { count: 0 };
-      tables.authSessionActivities.set(where.sessionId, { ...row, lastActivityAt: data.lastActivityAt, updatedAt: new Date() });
+      authSessionActivitiesTable.set(where.sessionId, { ...row, lastActivityAt: data.lastActivityAt, updatedAt: new Date() });
       return { count: 1 };
     },
   };

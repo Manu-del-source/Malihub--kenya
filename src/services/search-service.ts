@@ -46,7 +46,7 @@ export async function searchListings(
   const conditions: Prisma.Sql[] = [
     Prisma.sql`p.status = 'ACTIVE'`,
     Prisma.sql`c.slug NOT IN ('vehicles', 'property')`,
-    Prisma.sql`EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED')`,
+    Prisma.sql`(EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED') OR EXISTS (SELECT 1 FROM users u WHERE u.id = p.owner_id AND u.role IN ('ADMIN', 'SUPER_ADMIN')))`,
   ];
 
   if (params.q?.trim()) {
@@ -113,7 +113,7 @@ export async function searchListings(
   const products = await prisma.product.findMany({
     // Re-check visibility when hydrating: a listing/seller may have changed
     // since the raw search query ran.
-    where: { id: { in: ids }, status: "ACTIVE", seller: { verificationStatus: "VERIFIED" }, category: { slug: { notIn: ["vehicles", "property"] } } },
+    where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { slug: { notIn: ["vehicles", "property"] } } },
     select: PUBLIC_PRODUCT_SELECT,
   });
 

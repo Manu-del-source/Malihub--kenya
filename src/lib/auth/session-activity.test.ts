@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isSessionIdleExpired, SESSION_IDLE_TIMEOUT_MS } from "./session-activity";
+import { mock } from "node:test";
+
+mock.module("server-only", { namedExports: {} });
+
+const { isSessionIdleExpired, SESSION_IDLE_TIMEOUT_MS } = await import("./session-activity");
 
 test("session remains active just before the 30-minute idle boundary", () => {
   const now = new Date("2026-10-30T12:30:00.000Z");

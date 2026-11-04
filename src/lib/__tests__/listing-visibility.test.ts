@@ -1,5 +1,6 @@
 import { before, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import type { UserRole } from "@prisma/client";
 
 // The helper delegates administrator detection to the auth layer, which is
 // server-only — substitute the marker module and the auth module before it loads.
@@ -19,7 +20,7 @@ before(async () => {
 const OWNER = "owner-user";
 const STRANGER = "stranger-user";
 
-function listing(status: string, verificationStatus = "VERIFIED", ownerRole = "SELLER") {
+function listing(status: string, verificationStatus = "VERIFIED", ownerRole: UserRole = "SELLER") {
   return { status, ownerId: OWNER, ownerRole, seller: { verificationStatus } };
 }
 

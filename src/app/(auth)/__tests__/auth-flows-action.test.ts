@@ -362,7 +362,7 @@ describe("verifyEmailWithCodeAction", () => {
     assert.equal(result.success, true, result.success ? "" : result.error);
     // Verification auto-signs-in by provider default, and this identity has no
     // application row yet — so onboarding is the next step, not the dashboard.
-    assert.equal(result.success && result.data.redirectTo, "/complete-profile");
+    assert.equal(result.success && result.data.redirectTo, "/complete-profile?redirectTo=%2Fcomplete-profile");
   });
 
   it("hands the supplied email and code to providerVerifyEmailWithCode", async () => {
@@ -417,7 +417,7 @@ describe("verifyEmailWithCodeAction", () => {
     const result = await verifyEmailWithCodeAction({ email: EMAIL, code: "424242" });
 
     assert.equal(result.success, true, result.success ? "" : result.error);
-    assert.equal(result.success && result.data.redirectTo, "/login");
+    assert.equal(result.success && result.data.redirectTo, "/login?redirectTo=%2Fcomplete-profile");
   });
 
   it("rejects a wrong code", async () => {

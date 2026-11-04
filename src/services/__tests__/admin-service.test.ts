@@ -93,6 +93,87 @@ function marketplaceFixture() {
   return { buyer, sellerUser, seller, admin, category, listing, order };
 }
 
+/**
+ * The fake `$queryRaw` normally reports every seeded user as having a Neon Auth
+ * identity. These tests swap in a narrower answer for the duration of one call
+ * so the read-side identity filter is exercised, then always restore it.
+ */
+async function withLinkedAuthIds<T>(ids: string[], run: () => Promise<T>): Promise<T> {
+  const holder = store as unknown as Record<string, unknown>;
+  const original = holder.$queryRaw;
+  holder.$queryRaw = async () => ids.map((id) => ({ id }));
+  try {
+    return await run();
+  } finally {
+    holder.$queryRaw = original;
+  }
+}
+
+describe("admin users list — only users with a Neon Auth identity are listed", () => {
+  it("hides orphaned application users without deleting them", async () => {
+    const linked = seedUser(store, { email: "linked@example.com", role: "BUYER" });
+    const orphan = seedUser(store, { email: "orphan@example.com", role: "BUYER" });
+
+    const result = await withLinkedAuthIds([linked.id], () =>
+      service.listAdminUsers({ page: 1 }, store as never)
+    );
+
+    assert.deepEqual(result.users.map((u) => u.id), [linked.id]);
+    assert.equal(result.total, 1, "total uses the same identity filter as the rows");
+    assert.ok(store.tables.users.has(orphan.id), "the orphaned application row is left in place");
+  });
+
+  it("an empty identity result yields an empty list and a zero total, not an error", async () => {
+    seedUser(store, { email: "a@example.com", role: "BUYER" });
+    seedUser(store, { email: "b@example.com", role: "SUPER_ADMIN" });
+
+    const result = await withLinkedAuthIds([], () =>
+      service.listAdminUsers({ page: 1 }, store as never)
+    );
+
+    assert.deepEqual(result.users, []);
+    assert.equal(result.total, 0);
+    assert.equal(store.tables.users.size, 2, "no application user is removed");
+  });
+
+  it("role, account and search filters combine with the identity filter", async () => {
+    const buyer = seedUser(store, { email: "keep@example.com", role: "BUYER" });
+    const hiddenBuyer = seedUser(store, { email: "keep-hidden@example.com", role: "BUYER" });
+    const admin = seedUser(store, { email: "admin@example.com", role: "SUPER_ADMIN" });
+
+    const linkedIds = [buyer.id, admin.id];
+    const buyers = await withLinkedAuthIds(linkedIds, () =>
+      service.listAdminUsers({ page: 1, role: "BUYER" }, store as never)
+    );
+    assert.deepEqual(buyers.users.map((u) => u.id), [buyer.id]);
+    assert.equal(buyers.total, 1);
+
+    const searched = await withLinkedAuthIds(linkedIds, () =>
+      service.listAdminUsers({ page: 1, q: "keep" }, store as never)
+    );
+    assert.deepEqual(searched.users.map((u) => u.id), [buyer.id], "a search match without an identity stays hidden");
+    assert.ok(!searched.users.some((u) => u.id === hiddenBuyer.id));
+  });
+
+  it("pagination counts only identity-linked users", async () => {
+    const linkedIds: string[] = [];
+    for (let i = 0; i < 30; i++) {
+      linkedIds.push(
+        seedUser(store, { email: `linked${String(i).padStart(2, "0")}@example.com`, createdAt: new Date(2026, 0, 1 + i) }).id
+      );
+    }
+    for (let i = 0; i < 5; i++) seedUser(store, { email: `orphan${i}@example.com` });
+
+    const first = await withLinkedAuthIds(linkedIds, () => service.listAdminUsers({ page: 1 }, store as never));
+    const second = await withLinkedAuthIds(linkedIds, () => service.listAdminUsers({ page: 2 }, store as never));
+
+    assert.equal(first.total, 30);
+    assert.equal(second.total, 30);
+    assert.equal(first.users.length + second.users.length, 30);
+    assert.ok([...first.users, ...second.users].every((u) => linkedIds.includes(u.id)));
+  });
+});
+
 describe("admin list queries — filters and pagination are real", () => {
   it("users list filters by role and search term, and reports totals", async () => {
     const { buyer } = marketplaceFixture();

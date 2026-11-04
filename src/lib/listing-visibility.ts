@@ -6,15 +6,14 @@ import { isAdministratorRole } from "@/lib/auth";
  * (`/marketplace/[productId]` and `/products/[slug]`) and
  * `GET /api/products/[id]` so the pages and the API can never drift apart.
  *
- *  - `ACTIVE` and `SOLD` are public only when the seller is VERIFIED.
- *  - every other status, and every listing from a non-verified seller, is
- *    visible ONLY to the listing's owner and to administrators. The rule
- *    is enforced against the *session* viewer — nothing in the request
- *    decides it — so knowing a listing's UUID never exposes an unpublished
- *    product (or its seller) to the public.
+ *  - ACTIVE and SOLD listings are public when the seller is VERIFIED, OR
+ *    when the listing is owned by an administrator (admin-managed catalogue).
+ *  - every other status is visible ONLY to the listing's owner and to
+ *    administrators.
  *
- * An anonymous or non-owner, non-admin viewer yields 404 rather than a 403,
- * so an unpublished id can't be probed for existence.
+ * The owner role is read from the database, never from request input. An
+ * anonymous or unauthorized viewer receives 404 so unpublished listings
+ * cannot be probed for existence.
  */
 
 const PUBLIC_LISTING_STATUSES = new Set(["ACTIVE", "SOLD"]);
@@ -27,6 +26,7 @@ export function canViewListing(
   listing: {
     status: string;
     ownerId: string;
+    ownerRole?: UserRole;
     seller?: { verificationStatus?: string } | null;
   },
   viewer: { id: string; role: UserRole } | null | undefined
@@ -35,11 +35,13 @@ export function canViewListing(
     viewer && (viewer.id === listing.ownerId || isAdministratorRole(viewer.role))
   );
 
-  // Public listings require an approved seller as well as a public listing
-  // status. The owner and administrators retain access for support/moderation.
+  const isPublicAdminManagedListing =
+    isPublicListingStatus(listing.status) &&
+    isAdministratorRole(listing.ownerRole);
+
   if (
     isPublicListingStatus(listing.status) &&
-    listing.seller?.verificationStatus === "VERIFIED"
+    (listing.seller?.verificationStatus === "VERIFIED" || isPublicAdminManagedListing)
   ) return true;
 
   return isOwnerOrAdmin;

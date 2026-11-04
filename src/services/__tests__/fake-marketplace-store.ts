@@ -576,6 +576,14 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     const category = tables.categories.get(product.categoryId);
     return {
       ...withSupplierProduct(product),
+      // Product-detail GET now selects the owning user's role for the
+      // server-side public-catalogue visibility rule. Keep that relation
+      // available in the fake Prisma store just as the real relation is.
+      owner: tables.users.get(product.ownerId) ?? {
+        id: product.ownerId,
+        email: `${product.ownerId}@example.com`,
+        role: "BUYER",
+      },
       images,
       seller: seller
         ? {

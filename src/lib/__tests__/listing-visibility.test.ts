@@ -1,9 +1,9 @@
 import { before, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import type { UserRole } from "@prisma/client";
 
 // The helper delegates administrator detection to the auth layer, which is
-// server-only — substitute the marker module and the auth module before the
-// helper loads (same pattern as the other service suites).
+// server-only — substitute the marker module and the auth module before it loads.
 mock.module("server-only", { namedExports: {} });
 mock.module("@/lib/auth", {
   namedExports: {
@@ -20,17 +20,12 @@ before(async () => {
 const OWNER = "owner-user";
 const STRANGER = "stranger-user";
 
-function listing(status: string, verificationStatus = "VERIFIED") {
-  return { status, ownerId: OWNER, seller: { verificationStatus } };
+function listing(status: string, verificationStatus = "VERIFIED", ownerRole: UserRole = "SELLER") {
+  return { status, ownerId: OWNER, ownerRole, seller: { verificationStatus } };
 }
 
-/**
- * The one visibility rule, pinned as a truth table — both detail pages and
- * GET /api/products/[id] call this helper, so a regression here is a draft
- * leak on every public surface at once.
- */
 describe("listing visibility — one rule for pages and API", () => {
-  it("shows ACTIVE and SOLD listings to everyone, including anonymous visitors", () => {
+  it("shows ACTIVE and SOLD listings from verified sellers to everyone", () => {
     for (const status of ["ACTIVE", "SOLD"]) {
       assert.equal(visibility.canViewListing(listing(status), null), true, status);
       assert.equal(
@@ -39,28 +34,48 @@ describe("listing visibility — one rule for pages and API", () => {
         status
       );
     }
-    assert.equal(visibility.isPublicListingStatus("ACTIVE"), true);
-    assert.equal(visibility.isPublicListingStatus("SOLD"), true);
   });
 
-  it("hides ACTIVE and SOLD listings when the seller is not verified", () => {
-    for (const verificationStatus of ["UNVERIFIED", "PENDING", "REJECTED"]) {
-      assert.equal(visibility.canViewListing(listing("ACTIVE", verificationStatus), null), false);
-      assert.equal(
-        visibility.canViewListing(listing("ACTIVE", verificationStatus), { id: STRANGER, role: "BUYER" }),
-        false
-      );
-      assert.equal(
-        visibility.canViewListing(listing("ACTIVE", verificationStatus), { id: OWNER, role: "BUYER" }),
-        true
-      );
+  it("shows ACTIVE and SOLD admin-owned catalogue listings to everyone, even if the seller is unverified", () => {
+    for (const status of ["ACTIVE", "SOLD"]) {
+      for (const verificationStatus of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+        assert.equal(
+          visibility.canViewListing(listing(status, verificationStatus, "ADMIN"), null),
+          true,
+          `${status} / ${verificationStatus} / ADMIN`
+        );
+        assert.equal(
+          visibility.canViewListing(
+            listing(status, verificationStatus, "SUPER_ADMIN"),
+            { id: STRANGER, role: "BUYER" }
+          ),
+          true,
+          `${status} / ${verificationStatus} / SUPER_ADMIN`
+        );
+      }
     }
+  });
+
+  it("does not make an unverified seller's own listing public just because a buyer has an admin role string", () => {
+    assert.equal(
+      visibility.canViewListing(listing("ACTIVE", "PENDING", "SELLER"), null),
+      false
+    );
+    assert.equal(
+      visibility.canViewListing(listing("ACTIVE", "PENDING", "SELLER"), {
+        id: STRANGER,
+        role: "BUYER",
+      }),
+      false
+    );
   });
 
   it("hides every non-public status from anonymous visitors", () => {
     for (const status of ["DRAFT", "PENDING_REVIEW", "ARCHIVED", "SUSPENDED", "REMOVED"]) {
       assert.equal(visibility.isPublicListingStatus(status), false, status);
       assert.equal(visibility.canViewListing(listing(status), null), false, status);
+      // Admin ownership does not bypass unpublished/non-public statuses.
+      assert.equal(visibility.canViewListing(listing(status, "PENDING", "ADMIN"), null), false);
     }
   });
 
@@ -71,8 +86,6 @@ describe("listing visibility — one rule for pages and API", () => {
         false,
         status
       );
-      // Even a fellow SELLER (or one with the admin *role string* but not a
-      // real admin role) gets nothing on someone else's listing.
       assert.equal(
         visibility.canViewListing(listing(status), { id: STRANGER, role: "SELLER" }),
         false,

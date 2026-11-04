@@ -7,13 +7,14 @@ let session: { id: string; role?: string } | null = { id: "3f2504e0-4f89-41d3-9a
 let redisAvailable = true;
 let sellerVerified = true;
 let rateAllowed = true;
+let usageProtectionError: Error | null = null;
 const stored: Array<{ buffer: Buffer; purpose: string }> = [];
 class TestImageValidationError extends Error {}
 
 mock.module("server-only", { namedExports: {} });
 mock.module("@/lib/auth", { namedExports: { getCurrentUser: async () => session ? { user: session } : null } });
 mock.module("@/lib/redis", { namedExports: { getRedis: () => redisAvailable ? {} : null } });
-mock.module("@/lib/cloudinary-usage", { namedExports: { assertCloudinaryUploadsAllowed: async () => {} } });
+mock.module("@/lib/cloudinary-usage", { namedExports: { assertCloudinaryUploadsAllowed: async () => { if (usageProtectionError) throw usageProtectionError; } } });
 mock.module("@/lib/rate-limit", {
   namedExports: {
     rateLimit: {
@@ -71,6 +72,7 @@ beforeEach(() => {
   redisAvailable = true;
   sellerVerified = true;
   rateAllowed = true;
+  usageProtectionError = null;
   stored.length = 0;
 });
 
@@ -106,6 +108,26 @@ describe("authenticated image upload endpoint", () => {
     const response = await route.POST(makeRequest("product", JPEG));
     assert.equal(response.status, 200);
     assert.equal(stored[0]!.purpose, "product");
+  });
+  it("allows SUPER_ADMIN to continue when usage verification is temporarily unavailable", async () => {
+    session = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", role: "SUPER_ADMIN" };
+    usageProtectionError = new Error("Upstash Redis is required for Cloudinary upload safeguards.");
+    const response = await route.POST(makeRequest("product", JPEG));
+    assert.equal(response.status, 200);
+    assert.equal(stored[0]!.purpose, "product");
+  });
+  it("does not allow ordinary sellers to bypass unavailable usage verification", async () => {
+    usageProtectionError = new Error("Upstash Redis is required for Cloudinary upload safeguards.");
+    const response = await route.POST(makeRequest("product", JPEG));
+    assert.equal(response.status, 503);
+    assert.equal(stored.length, 0);
+  });
+  it("does not allow SUPER_ADMIN to bypass a confirmed usage threshold or emergency pause", async () => {
+    session = { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", role: "SUPER_ADMIN" };
+    usageProtectionError = new Error("Cloudinary usage has reached the 85% safety threshold.");
+    const response = await route.POST(makeRequest("product", JPEG));
+    assert.equal(response.status, 503);
+    assert.equal(stored.length, 0);
   });
   it("stores only sanitized WebP output for product photos", async () => {
     const response = await route.POST(makeRequest("product", JPEG));

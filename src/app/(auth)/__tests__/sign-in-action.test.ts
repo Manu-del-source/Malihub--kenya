@@ -63,7 +63,7 @@ function seedAppAccount({
     id: APP_USER_ID,
     email,
     authUserId,
-    phone: "+254726090372",
+    phone: "+254700000000",
     role,
     isActive: true,
     isBanned: false,
@@ -132,7 +132,7 @@ describe("signInAction — routing from authoritative application state", () => 
     seedAppAccount({ onboarded: false });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN), "/complete-profile");
+    assertRedirect(await signInAction(LOGIN), "/complete-profile?redirectTo=%2Fcomplete-profile");
   });
 
   it("provisions an unmapped brand-new identity before reading its state", async () => {
@@ -141,7 +141,7 @@ describe("signInAction — routing from authoritative application state", () => 
 
     const result = await signInAction(LOGIN);
 
-    assertRedirect(result, "/complete-profile");
+    assertRedirect(result, "/complete-profile?redirectTo=%2Fcomplete-profile");
     assert.equal(store.tables.users.size, 1, "the users row was created");
     const created = [...store.tables.users.values()][0]!;
     assert.equal(created.authUserId, AUTH_USER_ID);
@@ -381,7 +381,7 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
     const result = await signInAction(LOGIN);
 
     // A brand-new account has not onboarded, so it goes to /complete-profile.
-    assertRedirect(result, "/complete-profile");
+    assertRedirect(result, "/complete-profile?redirectTo=%2Fcomplete-profile");
     assert.equal([...store.tables.users.values()][0]?.authUserId, AUTH_USER_ID);
   });
 
@@ -463,7 +463,7 @@ describe("signInAction — redirect targets", () => {
     seedAppAccount({ onboarded: false });
     const { signInAction } = await loadAction();
 
-    assertRedirect(await signInAction(LOGIN, "/seller"), "/complete-profile");
+    assertRedirect(await signInAction(LOGIN, "/seller"), "/complete-profile?redirectTo=%2Fseller");
   });
 });
 

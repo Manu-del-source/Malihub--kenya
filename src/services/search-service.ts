@@ -150,9 +150,9 @@ export async function getListingById(productId: string) {
   }
   const product = await prisma.product.findFirst({
     where: { id: productId, category: { slug: { not: "vehicles" } } },
-    select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true },
+    select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
   });
-  return product ? { ...toPublicProduct(product), ownerId: product.ownerId } : null;
+  return product ? { ...toPublicProduct(product), ownerId: product.ownerId, ownerRole: product.owner.role } : null;
 }
 
 export async function getSimilarListings(productId: string, categoryId: string, county: string) {

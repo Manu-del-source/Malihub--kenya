@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const product = await prisma.product.findUnique({
       where: { id },
       // ownerId is needed for the authorization check, never for the response.
-      select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true },
+      select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
     });
 
     if (!product) {
@@ -27,10 +27,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     // resolve the viewer to check owner/admin access.
     const publicAndVerified =
       isPublicListingStatus(product.status) &&
-      product.seller.verificationStatus === "VERIFIED";
+      (product.seller.verificationStatus === "VERIFIED" ||
+        product.owner.role === "ADMIN" ||
+        product.owner.role === "SUPER_ADMIN");
     if (!publicAndVerified) {
       const viewer = (await getCurrentUser())?.user;
-      if (!canViewListing(product, viewer)) {
+      if (!canViewListing({ ...product, ownerRole: product.owner.role }, viewer)) {
         return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });
       }
     }

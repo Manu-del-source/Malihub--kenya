@@ -106,7 +106,7 @@ describe("public listing/search DTOs", () => {
       assert.equal(data.hasMore, false);
       const where = lastQuery?.where as Record<string, unknown>;
       assert.equal(where.status, "ACTIVE");
-      assert.deepEqual(where.seller, { verificationStatus: "VERIFIED" });
+      assert.deepEqual(where.OR, [\n        { seller: { verificationStatus: "VERIFIED" } },\n        { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },\n      ]);
     }
   });
 

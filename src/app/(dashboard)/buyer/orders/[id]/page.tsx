@@ -2,7 +2,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ChevronLeft, MapPin, ShieldCheck } from "lucide-react";
+import { ChevronLeft, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
@@ -98,9 +98,6 @@ export default async function BuyerOrderDetailPage({
           </p>
           <p className="text-xs text-muted-foreground">
             Sold by {order.seller.businessName}
-            {order.seller.verificationStatus === "VERIFIED" && (
-              <ShieldCheck className="ml-1 inline h-3.5 w-3.5 text-cyan" aria-hidden />
-            )}
           </p>
         </div>
       </div>

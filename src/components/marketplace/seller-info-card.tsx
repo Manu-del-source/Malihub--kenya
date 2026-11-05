@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, Star } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SellerInfoCard({
@@ -15,7 +14,6 @@ export function SellerInfoCard({
     businessName: string;
     slug: string;
     logoUrl: string | null;
-    verificationStatus: string;
     ratingAverage: unknown;
     ratingCount?: number;
     county: string;
@@ -36,9 +34,6 @@ export function SellerInfoCard({
         <div>
           <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
             {seller.businessName}
-            {seller.verificationStatus === "VERIFIED" && (
-              <ShieldCheck className="h-3.5 w-3.5 text-cyan" aria-hidden />
-            )}
           </p>
           <p className="text-xs text-muted-foreground">{seller.county}</p>
         </div>
@@ -55,12 +50,6 @@ export function SellerInfoCard({
         )}
       </div>
 
-      {seller.verificationStatus === "VERIFIED" && (
-        <Badge variant="verified" className="w-fit">
-          <ShieldCheck className="h-3 w-3" aria-hidden />
-          ID verified
-        </Badge>
-      )}
 
       {!isOwnListing && showWhatsapp && (
         <div className="flex flex-col gap-2">

@@ -39,7 +39,7 @@ export function CompleteProfileForm({
     defaultValues: {
       fullName: defaultFullName ?? "",
       phone: "",
-      accountIntent: "BUYER",
+      // A registration started from /seller-center carries /seller/onboarding\n      // through verification and profile completion. Preserve that intent here\n      // so the transaction provisions the seller row instead of a buyer-only\n      // account that later gets redirected away from seller routes.\n      accountIntent: redirectTo?.startsWith("/seller/") ? "SELLER" : "BUYER",
       avatarUrl: defaultAvatarUrl ?? "",
     },
   });

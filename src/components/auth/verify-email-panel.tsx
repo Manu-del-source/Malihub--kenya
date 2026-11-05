@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/auth/form-field";
@@ -72,28 +73,53 @@ export function VerifyEmailPanel({ email, redirectTo }: { email: string; redirec
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-3 py-1">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-cyan">
-          <KeyRound className="h-6 w-6" aria-hidden />
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col gap-4"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.4 }}
+        className="flex flex-col items-center gap-3 py-1"
+      >
+        <motion.div
+          animate={{ y: [0, -3, 0], scale: [1, 1.035, 1] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-cyan"
+        >
+          <motion.span
+            aria-hidden
+            className="absolute inset-0 rounded-full border border-cyan/25"
+            animate={{ scale: [1, 1.22], opacity: [0.55, 0] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
+          />
+          <KeyRound className="relative h-6 w-6" aria-hidden />
+        </motion.div>
         <p className="text-center text-sm text-muted-foreground">
           Enter the 6-digit code we sent to{" "}
           <span className="font-medium text-foreground">{email}</span>.
         </p>
-      </div>
+      </motion.div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+      <motion.form
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16, duration: 0.4 }}
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="flex flex-col gap-4"
+      >
         <FormField id="code" label="Verification code" error={errors.code?.message}>
           <Input
             id="code"
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={8}
-            placeholder="123456"
-            // Centred, letter-spaced and monospaced: a one-time code is read
-            // digit by digit against an email in another window.
-            className="text-center font-mono text-lg tracking-[0.4em]"
+            // Keep the field empty: the user enters the code received by email.
+            className="text-center font-mono text-lg tracking-[0.4em] placeholder:tracking-normal"
             invalid={!!errors.code}
             {...register("code")}
           />
@@ -103,9 +129,14 @@ export function VerifyEmailPanel({ email, redirectTo }: { email: string; redirec
           {isSubmitting ? "Verifying…" : "Verify email"}
           {!isSubmitting && <ArrowRight className="h-4 w-4" aria-hidden />}
         </Button>
-      </form>
+      </motion.form>
 
-      <div className="flex flex-col gap-2">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.24, duration: 0.4 }}
+        className="flex flex-col gap-2"
+      >
         <Button
           type="button"
           variant="secondary"
@@ -119,7 +150,7 @@ export function VerifyEmailPanel({ email, redirectTo }: { email: string; redirec
               ? "Sending…"
               : "Resend code"}
         </Button>
-      </div>
-      </div>
+      </motion.div>
+    </motion.div>
   );
 }

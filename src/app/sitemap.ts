@@ -2,7 +2,7 @@ import { logServerError } from "@/lib/safe-log";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online";
 
 /**
  * Generated at request time on ISR (see `revalidate` below) rather than at
@@ -37,7 +37,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { slug: true },
       }),
       prisma.product.findMany({
-        where: { status: "ACTIVE", category: { slug: { notIn: ["vehicles", "property"] } }, seller: { verificationStatus: "VERIFIED" } },
+        where: {
+          status: "ACTIVE",
+          category: { slug: { notIn: ["vehicles", "property"] } },
+          OR: [
+            { seller: { verificationStatus: "VERIFIED" } },
+            { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+          ],
+        },
         select: { slug: true, updatedAt: true },
         take: 50000, // Sitemap protocol cap is 50k URLs per file
         orderBy: { updatedAt: "desc" },

@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_KE",
     siteName: "MaliHub Kenya",
-    title: "MaliHub Kenya — Buy & Sell Anything, Anywhere in Kenya",
+    title: "MaliHub Kenya — Online Marketplace to Buy and Sell in Kenya",
     description:
       "Discover products and connect with independent sellers across Kenya on the MaliHub online marketplace.",
   },

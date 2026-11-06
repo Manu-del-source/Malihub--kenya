@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -14,6 +14,8 @@ export default function robots(): MetadataRoute.Robots {
         // storefronts crawlable.
         disallow: ["/buyer/", "/seller/", "/admin", "/api/", "/reset-password"],
       },
+      { userAgent: "OAI-SearchBot", allow: "/" },
+      { userAgent: "PerplexityBot", allow: "/" },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
   };

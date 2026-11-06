@@ -16,8 +16,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${BASE_URL}/marketplace`, changeFrequency: "daily", priority: 0.9 },
     { url: `${BASE_URL}/search`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE_URL}/login`, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${BASE_URL}/register`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE_URL}/support`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/privacy`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${BASE_URL}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
   // The dynamic half of the sitemap needs the database, but this route is

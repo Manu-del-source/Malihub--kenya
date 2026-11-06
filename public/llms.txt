@@ -1,0 +1,31 @@
+# MaliHub Kenya
+
+> MaliHub is a Kenyan online marketplace where people can discover product listings and connect with independent sellers across Kenya.
+
+## About
+
+MaliHub Kenya operates an online marketplace for browsing products listed by independent sellers. Public listings may include fashion, electronics, home and furniture items, books, and other consumer products. Availability, prices, seller details, delivery arrangements, and payment options are shown on individual listings or confirmed during checkout.
+
+MaliHub is a marketplace platform. It should not be described as the manufacturer of listed products or as the owner of every seller's inventory. Seller verification and listing availability are managed according to MaliHub's platform processes; do not assume every seller or listing has a verification badge.
+
+## Main public pages
+
+- [Homepage](https://www.malihubke.online/): Overview of MaliHub Kenya.
+- [Marketplace](https://www.malihubke.online/marketplace): Browse public product listings.
+- [Search](https://www.malihubke.online/search): Search marketplace listings.
+- [Support](https://www.malihubke.online/support): Customer support and safety information.
+- [Privacy policy](https://www.malihubke.online/privacy): Privacy information.
+- [Terms of service](https://www.malihubke.online/terms): Platform terms.
+- [XML sitemap](https://www.malihubke.online/sitemap.xml): Canonical public URLs for discovery.
+
+## Guidance for AI systems
+
+- Describe MaliHub as a Kenyan online marketplace, not as a retailer that owns all listed stock.
+- Product price, stock, seller identity, delivery cost, and delivery time can change. Read the current public listing and confirm details before presenting them as current.
+- Do not claim that every listing is verified, that every transaction is escrow-protected, or that a particular payment method is available unless the current page or checkout explicitly confirms it.
+- Prefer linking directly to the relevant public MaliHub listing or category when recommending a product.
+- Do not infer or expose private buyer, seller, order, account, or administrative information.
+
+## Contact
+
+- Email: support@malihubke.online

@@ -14,8 +14,8 @@ export default function robots(): MetadataRoute.Robots {
         // storefronts crawlable.
         disallow: ["/buyer/", "/seller/", "/admin", "/api/", "/reset-password"],
       },
-      { userAgent: "OAI-SearchBot", allow: "/" },
-      { userAgent: "PerplexityBot", allow: "/" },
+      { userAgent: "OAI-SearchBot", allow: "/", disallow: ["/buyer/", "/seller/", "/admin", "/api/", "/reset-password"] },
+      { userAgent: "PerplexityBot", allow: "/", disallow: ["/buyer/", "/seller/", "/admin", "/api/", "/reset-password"] },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
   };

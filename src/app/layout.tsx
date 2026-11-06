@@ -105,6 +105,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="msvalidate.01" content="1EAF50DD51854560C03028AA852E259A" />
         {/* Runs before hydration to avoid a light/dark flash on load. */}
         <script
           dangerouslySetInnerHTML={{

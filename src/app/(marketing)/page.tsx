@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -16,6 +16,7 @@ const jsonLd = {
       "@type": "Organization",
       name: "MaliHub Kenya",
       url: APP_URL,
+      description: "A Kenyan online marketplace connecting buyers with independent sellers and product listings across Kenya.",
       logo: `${APP_URL}/icons/logo.svg`,
     },
     {

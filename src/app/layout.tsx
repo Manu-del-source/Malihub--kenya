@@ -55,13 +55,13 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online"),
   title: {
-    default: "MaliHub Kenya — Buy & Sell Anything, Anywhere in Kenya",
+    default: "MaliHub Kenya — Online Marketplace to Buy and Sell in Kenya",
     template: "%s | MaliHub Kenya",
   },
   description:
-    "MaliHub Kenya is a marketplace to discover electronics, phones, fashion, home essentials, and services from sellers across all 47 counties.",
+    "Discover products on MaliHub, a Kenyan online marketplace connecting buyers with independent sellers. Browse fashion, electronics, home items, books and more, with listings from across Kenya.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
   keywords: [
     "Kenya marketplace",
     "buy and sell Kenya",
-    "M-Pesa marketplace",
+    "Kenya online shopping",
     "online marketplace Kenya",
     "classifieds Kenya",
   ],
@@ -77,9 +77,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_KE",
     siteName: "MaliHub Kenya",
-    title: "MaliHub Kenya — Buy & Sell Anything, Anywhere in Kenya",
+    title: "MaliHub Kenya — Online Marketplace to Buy and Sell in Kenya",
     description:
-      "A premium marketplace to buy and sell across Kenya, with secure M-Pesa payments and verified sellers.",
+      "Discover products and connect with independent sellers across Kenya on the MaliHub online marketplace.",
   },
   twitter: {
     card: "summary_large_image",

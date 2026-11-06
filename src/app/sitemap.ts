@@ -2,7 +2,7 @@ import { logServerError } from "@/lib/safe-log";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://malihubke.online";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online";
 
 /**
  * Generated at request time on ISR (see `revalidate` below) rather than at
@@ -16,8 +16,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${BASE_URL}/marketplace`, changeFrequency: "daily", priority: 0.9 },
     { url: `${BASE_URL}/search`, changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE_URL}/login`, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${BASE_URL}/register`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE_URL}/support`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/privacy`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${BASE_URL}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
   // The dynamic half of the sitemap needs the database, but this route is
@@ -37,7 +38,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { slug: true },
       }),
       prisma.product.findMany({
-        where: { status: "ACTIVE", category: { slug: { notIn: ["vehicles", "property"] } }, seller: { verificationStatus: "VERIFIED" } },
+        where: {
+          status: "ACTIVE",
+          category: { slug: { notIn: ["vehicles", "property"] } },
+          OR: [
+            { seller: { verificationStatus: "VERIFIED" } },
+            { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+          ],
+        },
         select: { slug: true, updatedAt: true },
         take: 50000, // Sitemap protocol cap is 50k URLs per file
         orderBy: { updatedAt: "desc" },

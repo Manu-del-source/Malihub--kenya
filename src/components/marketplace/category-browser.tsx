@@ -58,7 +58,7 @@ export function CategoryBrowser() {
   return (
     <section aria-label="Shop by category" className="grid min-h-[min(680px,calc(100svh-230px))] grid-cols-[minmax(112px,30%)_1fr] overflow-hidden rounded-xl border border-foreground/10 bg-card sm:rounded-2xl">
       <nav aria-label="Main categories" className="max-h-[680px] overflow-y-auto border-r border-foreground/10 bg-background/70">
-        {groups.map((group, index) => {
+        {groups.map((group) => {
           const Icon = group.icon;
           const isActive = selectedCategoryId === group.id;
           return (

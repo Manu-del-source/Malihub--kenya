@@ -1,79 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bot, Send } from "lucide-react";
 import { supportWhatsAppUrl, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 
-type Link_ = { label: string; href: string; external?: boolean };
-type Topic = { id: string; chip: string; keywords: string[]; answer: string; links?: Link_[] };
-type Msg = { id: number; from: "bot" | "user"; text: string; links?: Link_[] };
+type Message = { id: string; role: "user" | "assistant"; content: string };
 
-const WHATSAPP: Link_ = { label: `Chat on WhatsApp (${SUPPORT_WHATSAPP_DISPLAY})`, href: supportWhatsAppUrl(), external: true };
-
-const TOPICS: Topic[] = [
-  { id: "track", chip: "Track my order", keywords: ["track", "order", "where", "delivery", "shipping", "status"],
-    answer: "You can see the status of every order under My orders. Order updates also appear in your Message Centre under Order Updates.",
-    links: [{ label: "My orders", href: "/buyer/orders" }, { label: "Order Updates", href: "/notifications?group=orders" }] },
-  { id: "payment", chip: "Payment problem", keywords: ["pay", "payment", "mpesa", "m-pesa", "charged", "refund", "money"],
-    answer: "If a payment didn't go through, or you were charged but your order didn't update, please send us your order number and the payment confirmation message on WhatsApp so we can check it quickly.",
-    links: [WHATSAPP] },
-  { id: "sell", chip: "Selling on MaliHub", keywords: ["sell", "seller", "listing", "shop", "verify", "verified", "product"],
-    answer: "Open your Seller Centre to add products and manage listings. Products appear in the marketplace once they're active and your seller account is verified.",
-    links: [{ label: "Seller Centre", href: "/seller-center" }] },
-  { id: "seller-chat", chip: "Contact a seller", keywords: ["seller chat", "message seller", "contact seller", "chat"],
-    answer: "Open any product and tap the message button to chat with the seller. Your conversations are listed under Chats with Sellers in the Message Centre.",
-    links: [{ label: "Browse products", href: "/marketplace" }] },
-  { id: "account", chip: "My account", keywords: ["account", "password", "login", "log in", "sign", "profile", "email"],
-    answer: "You can update your profile and account details from your Account page.",
-    links: [{ label: "Account", href: "/account" }] },
+const STORAGE_KEY = "malihub:malibot:conversation:v1";
+const SUGGESTIONS = [
+  "How do I track my order?",
+  "I have a payment problem",
+  "How do I sell on MaliHub?",
+  "How do I reset my password?",
 ];
 
-const GREETING: Msg = {
-  id: 0, from: "bot",
-  text: "Hi, I'm MaliBot. What do you need help with? Pick a topic or type your question.",
+const GREETING: Message = {
+  id: "greeting",
+  role: "assistant",
+  content: "Hello! I'm MaliBot, MaliHub's support assistant. Ask me about orders, payments, delivery, selling, listings or your account. I’ll guide you to the right place.",
 };
 
-function match(input: string): Topic | null {
-  const q = input.toLowerCase();
-  let best: { t: Topic; score: number } | null = null;
-  for (const t of TOPICS) {
-    const score = t.keywords.filter((k) => q.includes(k)).length;
-    if (score > 0 && (!best || score > best.score)) best = { t, score };
-  }
-  return best?.t ?? null;
-}
-
 export function MaliBot() {
-  const [messages, setMessages] = useState<Msg[]>([GREETING]);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
-  const nextId = useRef(1);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Message[];
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 25) {
+        const safe = parsed.filter((m) =>
+          m && typeof m.id === "string" &&
+          (m.role === "user" || m.role === "assistant") &&
+          typeof m.content === "string"
+        );
+        if (safe.length) setMessages(safe);
+      }
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
 
-  function push(user: string, reply: { text: string; links?: Link_[] }) {
-    setMessages((m) => [
-      ...m,
-      { id: nextId.current++, from: "user", text: user },
-      { id: nextId.current++, from: "bot", ...reply },
-    ]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-25)));
+    } catch {
+      // Conversation still works when browser storage is unavailable.
+    }
+  }, [messages]);
+
+  async function sendMessage(value: string) {
+    const content = value.trim();
+    if (!content || busy) return;
+
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
+    const next = [...messages, userMessage];
+    setMessages(next);
+    setInput("");
+    setBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/malibot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          messages: next
+            .filter((message) => message.id !== "greeting")
+            .slice(-12)
+            .map(({ role, content: text }) => ({ role, content: text })),
+        }),
+      });
+      const payload = await response.json() as { success?: boolean; reply?: string; error?: string };
+      if (!response.ok || !payload.success || !payload.reply) {
+        throw new Error(payload.error || "MaliBot could not respond. Please try again.");
+      }
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), role: "assistant", content: payload.reply! },
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connection problem. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function pickTopic(t: Topic) { push(t.chip, { text: t.answer, links: t.links }); }
-
-  function send(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
-    const t = match(text);
-    if (t) push(text, { text: t.answer, links: t.links });
-    else
-      push(text, {
-        text: "I'm not sure about that one. A support agent can help you directly on WhatsApp.",
-        links: [{ ...WHATSAPP, href: supportWhatsAppUrl(`Hello MaliHub support. ${text}`) }],
-      });
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void sendMessage(input);
   }
 
   return (
@@ -82,54 +104,82 @@ export function MaliBot() {
         <Link href="/messages" aria-label="Back" className="rounded-full p-1.5 hover:bg-muted lg:hidden">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white"><Bot className="h-5 w-5" /></span>
-        <div>
-          <p className="text-sm font-semibold">MaliBot</p>
-          <p className="text-xs text-muted-foreground">Order &amp; account help</p>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white">
+          <Bot className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">MaliBot AI Support</p>
+          <p className="text-xs text-muted-foreground">MaliHub Kenya · {busy ? "Replying…" : "Ask us anything"}</p>
         </div>
+        <a
+          href={supportWhatsAppUrl("Hello MaliHub support, I need help.")}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-medium text-primary-300 hover:underline"
+        >
+          Human support
+        </a>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {messages.map((m) => (
-          <div key={m.id} className={m.from === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-5 ${m.from === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-              <p>{m.text}</p>
-              {m.links && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {m.links.map((l) =>
-                    l.external ? (
-                      <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="rounded-full border border-primary/40 px-3 py-1 text-xs font-medium text-primary-300">{l.label}</a>
-                    ) : (
-                      <Link key={l.label} href={l.href} className="rounded-full border border-primary/40 px-3 py-1 text-xs font-medium text-primary-300">{l.label}</Link>
-                    )
-                  )}
-                </div>
-              )}
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+        {messages.map((message) => (
+          <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
+            <div className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-5 ${
+              message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+            }`}>
+              {message.content}
             </div>
           </div>
         ))}
+        {busy && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">MaliBot is thinking…</div>
+          </div>
+        )}
+        {error && (
+          <div className="mx-auto max-w-md rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-center text-xs text-destructive">
+            {error}
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
       <div className="border-t border-border px-3 pt-2">
         <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
-          {TOPICS.map((t) => (
-            <button key={t.id} type="button" onClick={() => pickTopic(t)} className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:border-primary/50">
-              {t.chip}
+          {SUGGESTIONS.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              disabled={busy}
+              onClick={() => void sendMessage(suggestion)}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:border-primary/50 disabled:opacity-50"
+            >
+              {suggestion}
             </button>
           ))}
         </div>
-        <form onSubmit={send} className="flex items-center gap-2 pb-3">
+        <form onSubmit={submit} className="flex items-center gap-2 pb-3">
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your question…"
-            className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background/60 px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onChange={(event) => setInput(event.target.value)}
+            maxLength={2000}
+            disabled={busy}
+            placeholder="Ask MaliBot a question…"
+            aria-label="Message MaliBot"
+            className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background/60 px-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           />
-          <button type="submit" aria-label="Send" className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <button
+            type="submit"
+            aria-label="Send message"
+            disabled={busy || !input.trim()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+          >
             <Send className="h-4 w-4" />
           </button>
         </form>
+        <p className="pb-2 text-center text-[10px] text-muted-foreground">
+          Don’t share passwords, M-Pesa PINs, OTPs or card details. MaliBot cannot view live order or payment records.
+        </p>
       </div>
     </div>
   );

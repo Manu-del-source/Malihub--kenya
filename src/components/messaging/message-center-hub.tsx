@@ -19,9 +19,9 @@ type Row = {
 
 export function MessageCenterHub({ unread }: { unread: HubUnread }) {
   const rows: Row[] = [
-    { label: "Contact Us With Chat", hint: "WhatsApp support", href: supportWhatsAppUrl(), icon: Headset, tile: "from-emerald-400 to-emerald-600", external: true },
-    { label: "Order Query", hint: "Ask MaliBot", href: "/messages/assistant", icon: Bot, tile: "from-pink-400 to-rose-500" },
-    { label: "System Message", href: "/notifications?group=system", icon: Megaphone, tile: "from-yellow-300 to-amber-500", badge: unread.system },
+    { label: "Contact MaliHub Support", hint: "Speak to our support team on WhatsApp", href: supportWhatsAppUrl(), icon: Headset, tile: "from-emerald-400 to-emerald-600", external: true },
+    { label: "MaliBot AI Support", hint: "Instant help with orders, payments and accounts", href: "/messages/assistant", icon: Bot, tile: "from-pink-400 to-rose-500" },
+    { label: "System Messages", href: "/notifications?group=system", icon: Megaphone, tile: "from-yellow-300 to-amber-500", badge: unread.system },
     { label: "Order Updates", href: "/notifications?group=orders", icon: ClipboardList, tile: "from-lime-400 to-green-500", badge: unread.orders },
     { label: "Promotions", href: "/notifications?group=promotions", icon: Tag, tile: "from-orange-400 to-orange-600", badge: unread.promotions },
     { label: "Comments", href: "/notifications?group=comments", icon: MessageSquareText, tile: "from-red-400 to-rose-600", badge: unread.comments },
@@ -62,7 +62,7 @@ export function MessageCenterHub({ unread }: { unread: HubUnread }) {
           );
         })}
       </ul>
-      <h2 className="border-y border-border bg-muted/30 px-4 py-3 font-display text-base font-semibold">Chats with Sellers</h2>
+      <h2 className="border-y border-border bg-muted/30 px-4 py-3 font-display text-base font-semibold">Conversations</h2>
     </div>
   );
 }

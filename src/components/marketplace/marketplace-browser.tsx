@@ -38,7 +38,7 @@ export async function MarketplaceBrowser({
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
   ).toString();
   const activeCategory = flatParams.category;
-  const hasActiveFilters = ["q", "category", "county", "town", "brand", "condition", "minPrice", "maxPrice"].some((key) => Boolean(flatParams[key]));
+  const hasActiveFilters = ["q", "category", "county", "town", "brand", "condition", "minPrice", "maxPrice", "sort"].some((key) => Boolean(flatParams[key]));
   const showCategoryLanding = categoryLanding && !hasActiveFilters;
 
   return (

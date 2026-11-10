@@ -76,13 +76,15 @@ const groups: Group[] = [
 ];
 
 export function CategoryBrowser() {
-  const [selectedId, setSelectedId] = useState(groups[0].id);
+  const [selectedId, setSelectedId] = useState("mali-featured");
   const paneRef = useRef<HTMLDivElement>(null);
-  const active = groups.find((g) => g.id === selectedId) ?? groups[0];
+  const active = groups.find((g) => g.id === selectedId);
 
   useEffect(() => {
     paneRef.current?.scrollTo({ top: 0 });
   }, [selectedId]);
+
+  if (!active) return null;
 
   return (
     <section

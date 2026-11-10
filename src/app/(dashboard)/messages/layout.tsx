@@ -1,5 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getUserChats } from "@/services/chat-service";
+import { prisma } from "@/lib/prisma";
+import { NOTIFICATION_GROUPS } from "@/lib/notifications/groups";
 import { MessagesShell } from "@/components/messaging/messages-shell";
 
 /**
@@ -24,8 +26,22 @@ export default async function MessagesLayout({ children }: { children: React.Rea
 
   const chats = await getUserChats(user.id);
 
+  const unreadByType = await prisma.notification.groupBy({
+    by: ["type"],
+    where: { userId: user.id, isRead: false },
+    _count: { _all: true },
+  });
+  const countFor = (types: readonly string[]) =>
+    unreadByType.filter((r) => types.includes(r.type)).reduce((n, r) => n + r._count._all, 0);
+  const unread = {
+    system: countFor(NOTIFICATION_GROUPS.system.types),
+    orders: countFor(NOTIFICATION_GROUPS.orders.types),
+    promotions: countFor(NOTIFICATION_GROUPS.promotions.types),
+    comments: countFor(NOTIFICATION_GROUPS.comments.types),
+  };
+
   return (
-    <MessagesShell chats={chats} currentUserId={user.id}>
+    <MessagesShell chats={chats} currentUserId={user.id} unread={unread}>
       {children}
     </MessagesShell>
   );

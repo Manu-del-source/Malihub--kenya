@@ -1,5 +1,5 @@
 import {
-  MessageCircle, Heart, CheckCircle2, ShieldCheck, ShieldX, Star, CreditCard, Package, Info,
+  MessageCircle, Heart, CheckCircle2, ShieldCheck, ShieldX, Star, CreditCard, Package, Info, Tag,
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationType } from "@/types";
@@ -16,4 +16,5 @@ export const NOTIFICATION_ICONS: Record<NotificationType, LucideIcon> = {
   WISHLIST_ALERT: Heart,
   LISTING_STATUS: Info,
   SYSTEM: Info,
+  PROMOTION: Tag,
 };

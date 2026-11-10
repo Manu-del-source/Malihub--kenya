@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { BadgeCheck, PackageSearch, Search, ShieldCheck, Truck, SlidersHorizontal } from "lucide-react";
+import { PackageSearch, Search, Store, Truck, SlidersHorizontal } from "lucide-react";
 import { SearchFiltersSidebar } from "@/components/marketplace/search-filters-sidebar";
 import { SearchResultsGrid } from "@/components/marketplace/search-results-grid";
 import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrapper";
@@ -148,16 +148,16 @@ export async function MarketplaceBrowser({
 
       {!compact && <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-foreground/10 bg-card p-4 sm:grid sm:p-5 lg:mt-10">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300"><BadgeCheck className="h-5 w-5" aria-hidden /></div>
-          <div><p className="text-sm font-semibold text-foreground">Verified sellers</p><p className="text-xs text-muted-foreground">Look for seller verification</p></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300"><Store className="h-5 w-5" aria-hidden /></div>
+          <div><p className="text-sm font-semibold text-foreground">Seller information</p><p className="text-xs text-muted-foreground">Review the details on each listing</p></div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Truck className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold text-foreground">Shop across Kenya</p><p className="text-xs text-muted-foreground">Browse listings by county</p></div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-5 w-5" aria-hidden /></div>
-          <div><p className="text-sm font-semibold text-foreground">Know the seller</p><p className="text-xs text-muted-foreground">Review seller information</p></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><PackageSearch className="h-5 w-5" aria-hidden /></div>
+          <div><p className="text-sm font-semibold text-foreground">Compare listings</p><p className="text-xs text-muted-foreground">Check prices and product condition</p></div>
         </div>
       </div>}
     </div>

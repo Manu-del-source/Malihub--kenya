@@ -27,7 +27,7 @@ export default async function MarketplacePage({ searchParams }: MarketplacePageP
   return (
     <main className="min-h-svh bg-background text-foreground">
       <Container className="py-6 sm:py-10">
-        <MarketplaceBrowser rawParams={rawParams} />
+        <MarketplaceBrowser rawParams={rawParams} categoryLanding />
       </Container>
     </main>
   );

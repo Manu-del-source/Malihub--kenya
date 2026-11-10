@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { ConsentGatedAnalytics, CookieBanner } from "@/components/cookie-consent";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 /**
@@ -20,18 +21,13 @@ import "./globals.css";
  *
  * The fonts are self-hosted (src/app/fonts, see the README there) rather than
  * loaded through next/font/google. That loader downloads from Google at build
- * time and crashes (`Cannot read properties of null (reading '1')`) whenever
- * Google answers with an extensionless /l/font?kit= URL — an intermittent
- * upstream failure (vercel/next.js#99114) that broke production builds.
- * Do not switch these back to next/font/google.
+ * time and crashes whenever Google answers with an extensionless /l/font?kit=
+ * URL. Do not switch these back to next/font/google.
  */
 const fraunces = localFont({
   src: "./fonts/fraunces-latin-variable.woff2",
   variable: "--font-display",
   display: "swap",
-  // Full variable file: wght 100–900 plus opsz 9–144, SOFT 0–100, WONK 0–1.
-  // opsz tracks font size automatically (font-optical-sizing: auto). No CSS
-  // sets font-variation-settings, so SOFT and WONK stay at the font's defaults.
   weight: "100 900",
   style: "normal",
   adjustFontFallback: "Times New Roman",
@@ -49,7 +45,6 @@ const jetbrainsMono = localFont({
   src: "./fonts/jetbrains-mono-latin-variable.woff2",
   variable: "--font-mono",
   display: "swap",
-  // Variable file (100–800) clamped to the two weights previously requested.
   weight: "400 500",
   style: "normal",
 });
@@ -65,6 +60,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "MaliHub",
   },
   keywords: [
     "Kenya marketplace",
@@ -91,10 +91,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F2EFEA" },
-    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
-  ],
+  themeColor: "#0A0A0A",
   width: "device-width",
   initialScale: 1,
 };
@@ -126,6 +123,7 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             {children}
+            <PwaInstallPrompt />
             <Toaster
               position="top-center"
               richColors

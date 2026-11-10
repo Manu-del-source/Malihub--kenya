@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  BadgePercent, Footprints, Smartphone, Headphones, Cable, ShieldCheck,
-  Armchair, CookingPot, Sparkles, WashingMachine, Shirt, BriefcaseBusiness,
+  BadgePercent, Footprints, Smartphone, Headphones, Cable,
+  Armchair, CookingPot, Sparkles, WashingMachine, Shirt,
   Laptop, Monitor, Watch, Gem, ShoppingBag, House, HeartPulse, Package,
   type LucideIcon,
 } from "lucide-react";

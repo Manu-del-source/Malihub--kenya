@@ -10,60 +10,62 @@ import {
 } from "lucide-react";
 
 type CategoryItem = { name: string; slug: string; icon: LucideIcon };
-type CategoryGroup = { name: string; icon: LucideIcon; items: CategoryItem[] };
+type CategoryGroup = { id: string; name: string; icon: LucideIcon; items: CategoryItem[] };
 
 const groups: CategoryGroup[] = [
-  { name: "Mali Featured", icon: BadgePercent, items: [
+  { id: "mali-featured", name: "Mali Featured", icon: BadgePercent, items: [
     { name: "Popular products", slug: "/marketplace?sort=most_viewed", icon: BadgePercent },
     { name: "Latest arrivals", slug: "/marketplace?sort=newest", icon: Package },
   ] },
-  { name: "Shoes", icon: Footprints, items: [
+  { id: "shoes", name: "Shoes", icon: Footprints, items: [
     { name: "Shoes & Footwear", slug: "shoes-footwear", icon: Footprints },
   ] },
-  { name: "Phones & Accessories", icon: Smartphone, items: [
+  { id: "phones-accessories", name: "Phones & Accessories", icon: Smartphone, items: [
     { name: "Smart Phones", slug: "phones", icon: Smartphone },
     { name: "Electronics", slug: "electronics", icon: Headphones },
   ] },
-  { name: "Home & Kitchen", icon: House, items: [
+  { id: "home-kitchen", name: "Home & Kitchen", icon: House, items: [
     { name: "Furniture", slug: "furniture", icon: Armchair },
     { name: "Home Appliances", slug: "home-appliances", icon: CookingPot },
   ] },
-  { name: "Health & Beauty", icon: HeartPulse, items: [
+  { id: "health-beauty", name: "Health & Beauty", icon: HeartPulse, items: [
     { name: "Beauty", slug: "beauty", icon: Sparkles },
   ] },
-  { name: "Appliances", icon: WashingMachine, items: [
+  { id: "appliances", name: "Appliances", icon: WashingMachine, items: [
     { name: "Home Appliances", slug: "home-appliances", icon: WashingMachine },
     { name: "Electronics", slug: "electronics", icon: Cable },
   ] },
-  { name: "Bags", icon: ShoppingBag, items: [
+  { id: "bags", name: "Bags", icon: ShoppingBag, items: [
     { name: "Fashion", slug: "fashion", icon: ShoppingBag },
   ] },
-  { name: "Computers & Accessories", icon: Laptop, items: [
+  { id: "computers-accessories", name: "Computers & Accessories", icon: Laptop, items: [
     { name: "Electronics", slug: "electronics", icon: Monitor },
   ] },
-  { name: "Clothes", icon: Shirt, items: [
+  { id: "clothes", name: "Clothes", icon: Shirt, items: [
     { name: "Fashion", slug: "fashion", icon: Shirt },
   ] },
-  { name: "Watches & Jewellery", icon: Watch, items: [
+  { id: "watches-jewellery", name: "Watches & Jewellery", icon: Watch, items: [
     { name: "Fashion", slug: "fashion", icon: Gem },
   ] },
 ];
 
 export function CategoryBrowser() {
-  const [selected, setSelected] = useState(0);
-  const active = groups[selected] ?? groups[0];
+  const [selectedCategoryId, setSelectedCategoryId] = useState("mali-featured");
+  const active = groups.find((group) => group.id === selectedCategoryId);
+
+  if (!active) return null;
 
   return (
     <section aria-label="Shop by category" className="grid min-h-[min(680px,calc(100svh-230px))] grid-cols-[minmax(112px,30%)_1fr] overflow-hidden rounded-xl border border-foreground/10 bg-card sm:rounded-2xl">
       <nav aria-label="Main categories" className="max-h-[680px] overflow-y-auto border-r border-foreground/10 bg-background/70">
         {groups.map((group, index) => {
           const Icon = group.icon;
-          const isActive = selected === index;
+          const isActive = selectedCategoryId === group.id;
           return (
             <button
               key={group.name}
               type="button"
-              onClick={() => setSelected(index)}
+              onClick={() => setSelectedCategoryId(group.id)}
               aria-pressed={isActive}
               className={`flex min-h-[68px] w-full items-center gap-2 border-b border-foreground/5 px-2.5 py-3 text-left text-xs transition sm:min-h-[72px] sm:gap-3 sm:px-4 sm:text-sm ${isActive ? "bg-amber-400 font-semibold text-black" : "text-foreground/85 hover:bg-amber-400/10"}`}
             >

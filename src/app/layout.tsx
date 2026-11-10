@@ -19,10 +19,8 @@ import "./globals.css";
  * - JetBrains Mono (data) — tabular figures for prices and stat counters,
  *   so numbers align and feel deliberately "data-like" rather than prose.
  *
- * The fonts are self-hosted (src/app/fonts, see the README there) rather than
- * loaded through next/font/google. That loader downloads from Google at build
- * time and crashes whenever Google answers with an extensionless /l/font?kit=
- * URL. Do not switch these back to next/font/google.
+ * * The fonts are self-hosted (src/app/fonts, see the README there) rather than
+ * loaded through next/font/google. Do not switch these back to next/font/google.
  */
 const fraunces = localFont({
   src: "./fonts/fraunces-latin-variable.woff2",
@@ -59,7 +57,12 @@ export const metadata: Metadata = {
     "Discover products on MaliHub, a Kenyan online marketplace connecting buyers with independent sellers. Browse fashion, electronics, home items, books and more, with listings from across Kenya.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: "/pwa-icon-192", type: "image/png", sizes: "192x192" },
+      { url: "/pwa-icon-512", type: "image/png", sizes: "512x512" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,

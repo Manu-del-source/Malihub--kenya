@@ -134,11 +134,7 @@ export default async function AccountPage() {
             <p className="mt-0.5 truncate text-sm text-white/65">{user.email}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant="primary">{ROLE_LABEL[user.role] ?? user.role}</Badge>
-              {seller && (
-                <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-white/75">
-                  Seller · {seller.verificationStatus.toLowerCase().replaceAll("_", " ")}
-                </span>
-              )}
+
             </div>
           </div>
         </div>
@@ -198,7 +194,7 @@ export default async function AccountPage() {
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Your store</p>
             <h2 className="mt-1 truncate font-display text-lg font-semibold">{seller.businessName}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{listingCount} listing{listingCount === 1 ? "" : "s"} · {seller.verificationStatus.toLowerCase().replaceAll("_", " ")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{listingCount} listing{listingCount === 1 ? "" : "s"}</p>
           </div>
           <Link href="/seller-center" className="rounded-full border border-primary/40 px-4 py-2 text-sm font-medium text-primary-300 transition hover:bg-primary/10">Open Seller Centre</Link>
         </section>

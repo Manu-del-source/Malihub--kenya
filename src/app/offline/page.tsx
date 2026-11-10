@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function OfflinePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6 py-16 text-center text-white">
@@ -10,12 +12,12 @@ export default function OfflinePage() {
           We can’t reach MaliHub right now. Check your internet connection and try again.
           Your account and order information are not stored for offline access.
         </p>
-        <a
+        <Link
           href="/"
           className="mt-8 inline-flex rounded-xl bg-[#B8934A] px-5 py-3 text-sm font-semibold text-[#0A0A0A] transition hover:bg-[#E6C98B]"
         >
           Try again
-        </a>
+        </Link>
       </section>
     </main>
   );

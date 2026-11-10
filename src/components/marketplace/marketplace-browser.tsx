@@ -9,6 +9,7 @@ import { searchListings } from "@/services/search-service";
 import { toListingCardData } from "@/lib/mappers";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
 import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back-button";
+import { CategoryBrowser } from "@/components/marketplace/category-browser";
 
 /**
  * Shared marketplace browser: database-backed catalogue with search,
@@ -18,10 +19,12 @@ export async function MarketplaceBrowser({
   rawParams,
   heading,
   compact = false,
+  categoryLanding = false,
 }: {
   rawParams: Record<string, string | string[] | undefined>;
   heading?: string;
   compact?: boolean;
+  categoryLanding?: boolean;
 }) {
   const flatParams = Object.fromEntries(
     Object.entries(rawParams).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
@@ -35,6 +38,8 @@ export async function MarketplaceBrowser({
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
   ).toString();
   const activeCategory = flatParams.category;
+  const hasActiveFilters = ["q", "category", "county", "town", "brand", "condition", "minPrice", "maxPrice"].some((key) => Boolean(flatParams[key]));
+  const showCategoryLanding = categoryLanding && !hasActiveFilters;
 
   return (
     <div className="mx-auto max-w-[1440px] min-w-0 text-foreground">
@@ -73,7 +78,9 @@ export async function MarketplaceBrowser({
         </form>
       </section>}
 
-      {!compact && <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
+      {showCategoryLanding ? <CategoryBrowser /> : null}
+
+      {!showCategoryLanding && !compact && <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Categories</h2>
           <span className="hidden text-xs text-muted-foreground sm:inline">Shop by category</span>
@@ -95,6 +102,7 @@ export async function MarketplaceBrowser({
         </div>
       </nav>}
 
+      {!showCategoryLanding && (
       <div className="mb-4 flex items-end justify-between gap-3 border-b border-foreground/10 pb-3 sm:mb-5 sm:pb-4">
         <div className="min-w-0">
           <h2 className="font-display text-lg font-semibold tracking-tight sm:text-2xl">
@@ -110,6 +118,9 @@ export async function MarketplaceBrowser({
         </div>
       </div>
 
+      )}
+
+      {!showCategoryLanding && (
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:gap-7">
         {!compact && <div className="lg:hidden">
           <details className="group rounded-xl border border-foreground/10 bg-card">
@@ -142,7 +153,9 @@ export async function MarketplaceBrowser({
         </div>
       </div>
 
-      {!compact && <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-foreground/10 bg-card p-4 sm:grid sm:p-5 lg:mt-10">
+      )}
+
+      {!compact && !showCategoryLanding && <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-foreground/10 bg-card p-4 sm:grid sm:p-5 lg:mt-10">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300"><Store className="h-5 w-5" aria-hidden /></div>
           <div><p className="text-sm font-semibold text-foreground">Seller information</p><p className="text-xs text-muted-foreground">Review the details on each listing</p></div>

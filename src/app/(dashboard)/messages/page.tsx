@@ -1,28 +1,46 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Bell, MessageCircle, Package } from "lucide-react";
+import { Bell, Bot, Headset, Package } from "lucide-react";
+import { supportWhatsAppUrl } from "@/lib/support";
 
 export const metadata: Metadata = { title: "Message Centre" };
 
 export default function MessagesIndexPage() {
+  const actions = [
+    { title: "Chat with MaliBot", description: "Get instant help with orders, payments, delivery and your account.", href: "/messages/assistant", icon: Bot },
+    { title: "My orders", description: "Review your orders and check the latest available status.", href: "/buyer/orders", icon: Package },
+    { title: "Notifications", description: "View order updates and important account messages.", href: "/notifications", icon: Bell },
+  ];
+
   return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-10 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary-300">
-        <MessageCircle className="h-6 w-6" aria-hidden />
-      </div>
-      <p className="mt-4 font-display text-xl font-semibold">Message Centre</p>
-      <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-        Select an existing conversation from your inbox. Order and account notifications are available in their own centre.
-      </p>
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link href="/notifications" className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:border-primary/40 hover:text-primary-300">
-          <Bell className="h-4 w-4" aria-hidden />
-          Notifications
-        </Link>
-        <Link href="/buyer/orders" className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:border-primary/40 hover:text-primary-300">
-          <Package className="h-4 w-4" aria-hidden />
-          My orders
-        </Link>
+    <div className="flex h-full flex-col justify-center px-5 py-8">
+      <div className="mx-auto w-full max-w-lg">
+        <p className="font-display text-2xl font-semibold">Message Centre</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Get help from MaliBot, review order updates or contact the MaliHub support team.
+        </p>
+        <div className="mt-6 space-y-3">
+          {actions.map(({ title, description, href, icon: Icon }) => (
+            <Link key={title} href={href} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition hover:border-primary/40">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-300">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{title}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+              </span>
+            </Link>
+          ))}
+          <a href={supportWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition hover:border-primary/40">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-300">
+              <Headset className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Contact MaliHub Support</span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">Speak to a person on WhatsApp if you need further help.</span>
+            </span>
+          </a>
+        </div>
       </div>
     </div>
   );

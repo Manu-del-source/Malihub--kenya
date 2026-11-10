@@ -22,7 +22,7 @@ export async function GET() {
             position: "absolute",
             inset: "4%",
             borderRadius: "22%",
-            border: "2.2% solid #B8934A",
+            border: `${size * 0.022}px solid #B8934A`,
             background: "#111111",
           }}
         />
@@ -42,7 +42,7 @@ export async function GET() {
             width: "26%",
             height: "28%",
             top: "20%",
-            border: "8px solid #E6C98B",
+            border: `${size * 0.042}px solid #E6C98B`,
             borderBottom: "0",
             borderRadius: "50% 50% 0 0",
           }}

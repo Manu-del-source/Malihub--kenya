@@ -51,7 +51,7 @@ const groups: CategoryGroup[] = [
 
 export function CategoryBrowser() {
   const [selected, setSelected] = useState(0);
-  const active = groups[selected];
+  const active = groups[selected] ?? groups[0];
 
   return (
     <section aria-label="Shop by category" className="grid min-h-[min(680px,calc(100svh-230px))] grid-cols-[minmax(112px,30%)_1fr] overflow-hidden rounded-xl border border-foreground/10 bg-card sm:rounded-2xl">

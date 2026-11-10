@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { MapPin } from "lucide-react";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
 import { formatKes, cn } from "@/utils";
 
@@ -59,14 +58,8 @@ export function ListingCard({
         <FavoriteButton
           productId={listing.id}
           initialFavorited={listing.isFavorited ?? false}
-          className="absolute right-2 top-2 sm:right-3 sm:top-3"
+          className="absolute right-2 top-2 border border-black/10 bg-black/65 text-white shadow-lg backdrop-blur-md hover:bg-black/80 hover:text-white sm:right-3 sm:top-3"
         />
-        {listing.isVerifiedSeller && (
-          <Badge variant="verified" className="absolute left-2 top-2 max-w-[calc(100%-3.5rem)] glass-sm sm:left-3 sm:top-3">
-            <ShieldCheck className="h-3 w-3" aria-hidden />
-            <span className="hidden sm:inline">Verified</span>
-          </Badge>
-        )}
       </div>
 
       <div className="flex min-w-0 flex-col gap-1.5 p-2.5 sm:gap-2.5 sm:p-3.5">
@@ -92,9 +85,9 @@ export function ListingCard({
 
         <div className="flex min-w-0 items-center justify-between gap-1 border-t border-border pt-2 text-[10px] sm:pt-2.5 sm:text-xs">
           <span className="min-w-0 truncate text-muted-foreground">{listing.sellerName}</span>
-          <Badge variant="default" className="max-w-[48%] shrink-0 truncate px-1.5 text-[9px] sm:px-2 sm:text-[10px]">
+          <span className="max-w-[48%] shrink-0 truncate rounded-full border border-border bg-muted px-2 py-1 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
             {CONDITION_LABEL[listing.condition]}
-          </Badge>
+          </span>
         </div>
       </div>
     </motion.article>

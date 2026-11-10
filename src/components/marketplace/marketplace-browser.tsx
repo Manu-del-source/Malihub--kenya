@@ -51,10 +51,6 @@ export async function MarketplaceBrowser({
           <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-base sm:leading-6">
             Discover products from sellers across Kenya. Compare prices and shop with confidence.
           </p>
-          <div className="mt-3 hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <ShieldCheck className="h-4 w-4 text-amber-300" aria-hidden />
-            Seller details on every listing
-          </div>
         </div>
         <form action="/marketplace" method="get" role="search" className="border-t border-foreground/10 bg-card p-3 sm:p-4">
           <div className="flex gap-2">

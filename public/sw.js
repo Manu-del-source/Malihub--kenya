@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "malihub-";
-const STATIC_CACHE = "malihub-static-v1";
+const STATIC_CACHE = "malihub-static-v2";
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {
@@ -54,9 +54,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache only Next.js immutable build assets and the public app icon.
+  // Cache only immutable Next.js assets and public PWA icons.
   const isImmutableAsset = url.pathname.startsWith("/_next/static/");
-  const isAppIcon = url.pathname === "/icon.svg";
+  const isAppIcon = [
+    "/icon.svg",
+    "/pwa-icon-192",
+    "/pwa-icon-512",
+    "/apple-icon.png",
+  ].includes(url.pathname);
   if (!isImmutableAsset && !isAppIcon) return;
 
   event.respondWith(

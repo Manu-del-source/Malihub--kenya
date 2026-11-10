@@ -406,6 +406,7 @@ enum NotificationType {
   LISTING_REJECTED
   NEW_REVIEW
   SYSTEM
+  PROMOTION
 }
 
 enum NotificationChannel {

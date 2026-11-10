@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { NOTIFICATION_VIEW_SELECT, toNotificationView } from "@/lib/notifications/notification-view";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
+import { NOTIFICATION_GROUPS, isGroupKey } from "@/lib/notifications/groups";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -20,11 +21,17 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Notifications" };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ group?: string }>;
+}) {
   const { user } = await requireUser();
+  const { group } = await searchParams;
+  const active = isGroupKey(group) ? NOTIFICATION_GROUPS[group] : null;
 
   const notifications = await prisma.notification.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, ...(active ? { type: { in: [...active.types] } } : {}) },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: NOTIFICATION_VIEW_SELECT,
@@ -35,7 +42,7 @@ export default async function NotificationsPage() {
   return (
     <Container className="max-w-2xl py-12">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="font-display text-3xl font-medium">Notifications</h1>
+        <h1 className="font-display text-3xl font-medium">{active?.label ?? "Notifications"}</h1>
         {hasUnread && <MarkAllReadButton />}
       </div>
 

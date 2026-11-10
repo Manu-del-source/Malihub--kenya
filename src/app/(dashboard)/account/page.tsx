@@ -5,8 +5,6 @@ import {
   ChevronRight,
   Clock3,
   Heart,
-  Headphones,
-  MapPin,
   MessageCircle,
   Package,
   PackageCheck,
@@ -96,8 +94,9 @@ export default async function AccountPage() {
     { label: "Wishlist", detail: `${wishlistCount} saved items`, href: "/buyer/wishlist", icon: Heart },
     { label: "Notifications", detail: "Order and account updates", href: "/notifications", icon: Bell },
     { label: "Messages", detail: "Your conversations", href: "/messages", icon: MessageCircle },
-    { label: "Address & delivery", detail: profile?.county || "Delivery details", href: "/buyer/checkout", icon: MapPin },
-    { label: "Customer support", detail: "Get help with your account", href: "/notifications", icon: Headphones },
+    { label: "Recently viewed", detail: "Continue browsing", href: "/buyer", icon: Clock3 },
+    { label: "My orders", detail: "Track your purchases", href: "/buyer/orders", icon: Package },
+    { label: "Profile", detail: "Personal information", href: "/complete-profile", icon: UserRound },
     ...(seller
       ? [{ label: "Seller Centre", detail: seller.businessName, href: "/seller-center", icon: Store }]
       : []),
@@ -186,13 +185,24 @@ export default async function AccountPage() {
             <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{wishlistCount}</p>
             <p className="text-xs text-muted-foreground">Wishlist</p>
           </Link>
-          <Link href="/seller-center" className="rounded-xl bg-muted/70 p-3 text-center transition hover:bg-muted">
-            <Store className="mx-auto h-5 w-5 text-primary-300" aria-hidden />
-            <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{listingCount}</p>
-            <p className="text-xs text-muted-foreground">Listings</p>
+          <Link href="/buyer/orders" className="rounded-xl bg-muted/70 p-3 text-center transition hover:bg-muted">
+            <Package className="mx-auto h-5 w-5 text-primary-300" aria-hidden />
+            <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{orderCounts.reduce((total, row) => total + row._count._all, 0)}</p>
+            <p className="text-xs text-muted-foreground">Orders</p>
           </Link>
         </div>
       </section>
+
+      {seller && (
+        <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Your store</p>
+            <h2 className="mt-1 truncate font-display text-lg font-semibold">{seller.businessName}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{listingCount} listing{listingCount === 1 ? "" : "s"} · {seller.verificationStatus.toLowerCase().replaceAll("_", " ")}</p>
+          </div>
+          <Link href="/seller-center" className="rounded-full border border-primary/40 px-4 py-2 text-sm font-medium text-primary-300 transition hover:bg-primary/10">Open Seller Centre</Link>
+        </section>
+      )}
 
       <section className="mt-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
         <h2 className="mb-3 font-display text-lg font-semibold">My services</h2>

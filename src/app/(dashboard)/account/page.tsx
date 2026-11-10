@@ -83,11 +83,11 @@ export default async function AccountPage() {
   const initial = displayName[0]?.toUpperCase() ?? user.email[0]?.toUpperCase() ?? "M";
 
   const orderShortcuts = [
-    { label: "Unpaid", count: count(["PENDING"]), icon: Package, href: "/buyer/orders" },
-    { label: "To be shipped", count: count(["CONFIRMED", "PAID"]), icon: PackageCheck, href: "/buyer/orders" },
-    { label: "Shipped", count: count(["SHIPPED"]), icon: Truck, href: "/buyer/orders" },
-    { label: "To be reviewed", count: toReviewCount, icon: Star, href: "/buyer/orders" },
-    { label: "Returns / refunds", count: protectionCaseCount, icon: RotateCcw, href: "/buyer/orders" },
+    { label: "Unpaid", count: count(["PENDING"]), icon: Package,  href: "/buyer/orders?status=unpaid" },
+    { label: "To be shipped", count: count(["CONFIRMED", "PAID"]), icon: PackageCheck, href: "/buyer/orders?status=to-ship" },
+    { label: "Shipped", count: count(["SHIPPED"]), icon: Truck, href: "/buyer/orders?status=shipped" },
+    { label: "To be reviewed", count: toReviewCount, icon: Star, href: "/buyer/orders?status=to-review" },
+    { label: "Returns / refunds", count: protectionCaseCount, icon: RotateCcw, href: "/buyer/orders?status=returns" },
   ];
 
   const services = [

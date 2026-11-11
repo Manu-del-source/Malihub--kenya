@@ -69,8 +69,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   });
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-border bg-card">
+    <div className="pwa-dashboard-shell min-h-svh bg-background text-foreground">
+      <header className="pwa-dashboard-header sticky top-0 z-50 border-b border-border bg-card">
         <Container className="flex flex-wrap items-center gap-3 py-3 sm:gap-5 sm:py-4">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
             <span aria-hidden className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-extrabold text-primary-foreground">M</span>
@@ -108,7 +108,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <div className="border-t border-border bg-card">
           <Container>
-            <nav className="hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
+            <nav className="pwa-dashboard-links hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
               <DashboardNavLinks items={primary} />
               <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-foreground/10" />
               <DashboardNavLinks items={account} />
@@ -121,7 +121,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 </form>
               </div>
             </nav>
-            <nav className="flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
+            <nav className="pwa-dashboard-links flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
               <DashboardNavLinks items={[...primary, ...account.filter((i) => i.label !== "Profile")]} mobile />
               <form action={signOutAction} className="shrink-0">
                 <button type="submit" className="flex items-center gap-2 rounded-full border border-red-400/20 bg-card px-3.5 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">

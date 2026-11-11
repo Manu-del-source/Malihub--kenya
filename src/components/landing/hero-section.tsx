@@ -28,7 +28,7 @@ export function HeroSection() {
             <div className="absolute -right-4 -top-16 h-48 w-48 rounded-full border border-gold/10" aria-hidden />
             <div className="relative max-w-2xl">
               <h1 className="mt-4 max-w-xl font-display text-3xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">Find something <span className="text-gold">worth keeping.</span></h1>
-              <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">Discover products from Kenyan sellers. Compare prices, explore categories and find your next great deal.</p>
+              <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">Browse local listings, compare item details and connect with sellers across Kenya.</p>
               <div className="mt-6"><HeroSearchBar /></div>
             </div>
           </div>

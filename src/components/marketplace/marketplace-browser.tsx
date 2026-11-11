@@ -45,19 +45,27 @@ export async function MarketplaceBrowser({
     <div className="mx-auto max-w-[1440px] min-w-0 text-foreground">
       {!compact && <MarketplaceBackButton />}
       {!compact && <section className="mb-4 overflow-hidden rounded-xl border border-foreground/10 bg-card shadow-2xl shadow-black/20 sm:mb-6 sm:rounded-2xl">
-        <div className="bg-[radial-gradient(ellipse_at_top_right,rgba(201,151,70,0.16),transparent_55%),linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))] px-4 py-5 sm:p-8 lg:p-10">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 sm:mb-3 sm:px-3 sm:text-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-            MaliHub Marketplace
+        {categoryLanding ? (
+          <div className="px-4 pb-1 pt-4 sm:px-5 sm:pt-5">
+            <h1 className="font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Browse categories
+            </h1>
           </div>
-          <h1 className="max-w-2xl font-display text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {heading ?? (flatParams.q ? `Results for “${flatParams.q}”` : "Find your next great deal")}
-          </h1>
-          <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-base sm:leading-6">
-            Discover products from sellers across Kenya. Compare prices and shop with confidence.
-          </p>
-        </div>
-        <form action="/marketplace" method="get" role="search" className="border-t border-foreground/10 bg-card p-3 sm:p-4">
+        ) : (
+          <div className="bg-[radial-gradient(ellipse_at_top_right,rgba(201,151,70,0.16),transparent_55%),linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))] px-4 py-5 sm:p-8 lg:p-10">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 sm:mb-3 sm:px-3 sm:text-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              MaliHub Marketplace
+            </div>
+            <h1 className="max-w-2xl font-display text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {heading ?? (flatParams.q ? `Results for “${flatParams.q}”` : "Find your next great deal")}
+            </h1>
+            <p className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:mt-2 sm:text-base sm:leading-6">
+              Discover products from sellers across Kenya. Compare prices and shop with confidence.
+            </p>
+          </div>
+        )}
+        <form action="/marketplace" method="get" role="search" className={categoryLanding ? "bg-card px-3 pb-3 pt-2 sm:px-5 sm:pb-4" : "border-t border-foreground/10 bg-card p-3 sm:p-4"}>
           <div className="flex gap-2">
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">Search products</span>

@@ -12,11 +12,15 @@ export function SearchResultsGrid({
   initialItems,
   initialNextCursor,
   initialHasMore,
+  emptyTitle = "No listings match your search",
+  emptyDescription = "Try adjusting your filters or searching a broader term.",
 }: {
   searchParamsString: string;
   initialItems: ListingCardData[];
   initialNextCursor: string | null;
   initialHasMore: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useSearchListings(
@@ -49,8 +53,8 @@ export function SearchResultsGrid({
     return (
       <EmptyState
         icon={SearchX}
-        title="No listings match your search"
-        description="Try adjusting your filters or searching a broader term."
+        title={emptyTitle}
+        description={emptyDescription}
       />
     );
   }

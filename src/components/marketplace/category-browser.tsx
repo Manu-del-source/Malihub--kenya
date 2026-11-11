@@ -89,10 +89,10 @@ export function CategoryBrowser() {
   return (
     <section
       aria-label="Shop by category"
-      className="grid h-[calc(100svh-120px)] min-h-[480px] grid-cols-[92px_1fr] overflow-hidden rounded-xl border border-foreground/10 bg-card sm:grid-cols-[180px_1fr] sm:rounded-2xl"
+      className="pwa-category-browser grid h-[calc(100svh-120px)] min-h-[480px] grid-cols-[92px_1fr] overflow-hidden rounded-xl border border-foreground/10 bg-card sm:grid-cols-[180px_1fr] sm:rounded-2xl"
     >
       {/* Left rail */}
-      <nav aria-label="Main categories" role="tablist" aria-orientation="vertical" className="overflow-y-auto overscroll-contain bg-background/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="Main categories" role="tablist" aria-orientation="vertical" className="pwa-category-nav overflow-y-auto overscroll-contain bg-background/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {groups.map((group) => {
           const isActive = group.id === selectedId;
           return (
@@ -102,11 +102,11 @@ export function CategoryBrowser() {
               role="tab"
               aria-selected={isActive}
               onClick={() => setSelectedId(group.id)}
-              className={`relative flex min-h-[56px] w-full items-center px-3 py-3 text-left text-[12px] leading-4 transition-colors sm:min-h-[60px] sm:px-4 sm:text-sm ${
+              className={`pwa-category-tab relative flex min-h-[56px] w-full items-center px-3 py-3 text-left text-[12px] leading-4 transition-colors sm:min-h-[60px] sm:px-4 sm:text-sm ${
                 isActive ? "bg-card font-semibold text-amber-400" : "text-foreground/70 hover:text-foreground"
               }`}
             >
-              {isActive && <span aria-hidden className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-amber-400" />}
+              {isActive && <span aria-hidden className="pwa-category-indicator absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-amber-400" />}
               <span className="line-clamp-2">{group.name}</span>
             </button>
           );
@@ -114,10 +114,10 @@ export function CategoryBrowser() {
       </nav>
 
       {/* Right pane */}
-      <div ref={paneRef} role="tabpanel" className="min-w-0 overflow-y-auto overscroll-contain bg-card px-3 pb-6 pt-3 sm:px-5 sm:pt-4">
+      <div ref={paneRef} role="tabpanel" className="pwa-category-panel min-w-0 overflow-y-auto overscroll-contain bg-card px-3 pb-6 pt-3 sm:px-5 sm:pt-4">
         <Link
           href="/marketplace?sort=newest"
-          className="relative mb-4 flex h-[84px] items-center justify-between overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-4 text-black sm:h-[110px] sm:px-6"
+          className="pwa-category-banner relative mb-4 flex h-[84px] items-center justify-between overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-4 text-black sm:h-[110px] sm:px-6"
         >
           <div className="min-w-0">
             <p className="font-display text-base font-bold leading-tight sm:text-2xl">{active.banner.title}</p>
@@ -136,11 +136,11 @@ export function CategoryBrowser() {
                 </Link>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-4">
+            <div className="pwa-category-items grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-4">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link key={item.name} href={item.href} className="group flex min-w-0 flex-col items-center gap-1.5 text-center focus-visible:outline-none">
+                  <Link key={item.name} href={item.href} className="pwa-category-item group flex min-w-0 flex-col items-center gap-1.5 text-center focus-visible:outline-none">
                     <span className="flex aspect-square w-full max-w-[84px] items-center justify-center rounded-full border border-foreground/10 bg-background text-amber-400 transition group-hover:border-amber-400/60 group-hover:bg-amber-400/10 group-focus-visible:ring-2 group-focus-visible:ring-amber-400 sm:max-w-[96px]">
                       <Icon className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} aria-hidden />
                     </span>

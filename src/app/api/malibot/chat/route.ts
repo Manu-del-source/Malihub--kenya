@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { verifySameOrigin } from "@/lib/csrf";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
-import { logServerError } from "@/lib/safe-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (!response.ok) {
-      logServerError("MaliBot Gemini request failed", new Error(`gemini_status_${response.status}`));
+      console.error("MaliBot Gemini request failed", { httpStatus: response.status });
       const status = response.status === 429 ? 503 : 502;
       return NextResponse.json(
         { success: false, error: status === 503
@@ -108,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, reply });
   } catch (error) {
-    logServerError("POST /api/malibot/chat failed", error);
+    console.error("POST /api/malibot/chat failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
     return NextResponse.json(
       { success: false, error: "MaliBot is temporarily unavailable. Please try again." },
       { status: 502 },

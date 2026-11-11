@@ -146,17 +146,21 @@ export async function MarketplaceBrowser({
           <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
         </aside>}
         <div className="min-w-0 flex-1">
-          <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              <span className="font-semibold text-foreground">{result.items.length}</span> listings on this page
-            </p>
-            <Suspense fallback={null}><SortDropdownWrapper currentSort={params.sort} /></Suspense>
-          </div>
+          {(!compact || result.items.length > 0) && (
+            <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                <span className="font-semibold text-foreground">{result.items.length}</span> listings on this page
+              </p>
+              <Suspense fallback={null}><SortDropdownWrapper currentSort={params.sort} /></Suspense>
+            </div>
+          )}
           <SearchResultsGrid
             searchParamsString={clientParamsString}
             initialItems={initialItems}
             initialNextCursor={result.nextCursor}
             initialHasMore={result.hasMore}
+            emptyTitle={compact ? "New listings are on the way" : undefined}
+            emptyDescription={compact ? "Check back soon for fresh finds from sellers across Kenya, or explore a category to get started." : undefined}
           />
         </div>
       </div>

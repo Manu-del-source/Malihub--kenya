@@ -30,7 +30,7 @@ export function SiteFooter() {
               <span className="font-display text-xl font-semibold tracking-tight">Mali<span className="text-primary-400">Hub</span></span>
             </Link>
             <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-              A marketplace for discovering listings and connecting with sellers across Kenya.
+              Discover products and local listings from independent sellers across Kenya.
             </p>
             <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm font-medium text-primary-400 transition-colors hover:text-primary-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               Explore the marketplace <ArrowUpRight className="h-4 w-4" aria-hidden />

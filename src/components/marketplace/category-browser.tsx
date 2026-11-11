@@ -106,7 +106,7 @@ export function CategoryBrowser() {
                 isActive ? "bg-card font-semibold text-amber-400" : "text-foreground/70 hover:text-foreground"
               }`}
             >
-              {isActive && <span aria-hidden className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-amber-400" />}
+              {isActive && <span aria-hidden className="pwa-category-indicator absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-amber-400" />}
               <span className="line-clamp-2">{group.name}</span>
             </button>
           );

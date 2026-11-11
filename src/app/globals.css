@@ -278,3 +278,93 @@
   :root .text-orange-300:not(.keep-tone), :root .text-orange-400:not(.keep-tone), :root .text-orange-500:not(.keep-tone) { color: hsl(22 88% 30%); }
   :root .hover\:text-red-300:hover { color: hsl(6 70% 38%); }
 }
+
+
+/*
+ * Installed MaliHub app navigation.
+ * Keep the website's sidebar category browser unchanged in normal browsers;
+ * only standalone/fullscreen app windows get the compact, native-style layout.
+ */
+@media (display-mode: standalone) and (max-width: 767px),
+       (display-mode: fullscreen) and (max-width: 767px) {
+  .pwa-category-browser {
+    display: flex;
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .pwa-category-nav {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid hsl(var(--foreground) / 0.1);
+    background: transparent;
+    padding: 0 0 0.65rem;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pwa-category-tab {
+    width: auto;
+    min-width: max-content;
+    min-height: 2.65rem;
+    flex: 0 0 auto;
+    justify-content: center;
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    border-radius: 9999px;
+    background: hsl(var(--card));
+    padding: 0.55rem 0.9rem;
+    text-align: center;
+    scroll-snap-align: start;
+  }
+
+  .pwa-category-tab[aria-selected="true"] {
+    border-color: hsl(var(--primary) / 0.75);
+    background: hsl(var(--primary) / 0.14);
+    color: hsl(var(--gold));
+  }
+
+  .pwa-category-tab > span {
+    white-space: nowrap;
+  }
+
+  .pwa-category-tab > span:first-child {
+    display: none;
+  }
+
+  .pwa-category-panel {
+    overflow: visible;
+    padding: 1rem 0 6.5rem;
+    background: transparent;
+  }
+
+  .pwa-category-banner {
+    min-height: 5.5rem;
+    height: auto;
+    margin-bottom: 1.25rem;
+    border-radius: 1rem;
+    padding: 1rem 1.15rem;
+  }
+
+  .pwa-category-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem 0.75rem;
+  }
+
+  .pwa-category-item > span:first-child {
+    width: min(100%, 5rem);
+    border-radius: 1.25rem;
+  }
+
+  .pwa-category-item > span:first-child svg {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+}

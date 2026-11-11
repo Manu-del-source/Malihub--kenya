@@ -33,13 +33,34 @@ export function HeroSection() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {quickCategories.map(({ label, slug, icon: Icon }) => (
-              <Link key={slug} href={`/categories/${slug}`} className="group flex min-h-28 flex-col justify-between rounded-xl border border-foreground/10 bg-card p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-gold/50 hover:bg-card sm:min-h-32 sm:p-4">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold"><Icon className="h-4.5 w-4.5" aria-hidden /></span>
-                <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">{label}<ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-gold" aria-hidden /></span>
+          <div className="flex min-w-0 flex-col">
+            <div className="mb-3 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Explore MaliHub</p>
+                <h2 className="mt-1 font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">Start with a category</h2>
+              </div>
+              <Link href="/categories" className="mb-0.5 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-gold">
+                View all <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Link>
-            ))}
+            </div>
+            <div className="grid flex-1 grid-cols-2 gap-2.5 sm:gap-3">
+              {quickCategories.map(({ label, slug, icon: Icon }) => (
+                <Link
+                  key={slug}
+                  href={`/categories/${slug}`}
+                  className="group relative isolate flex min-h-[112px] min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-gold/15 bg-[linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] p-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_12px_35px_rgba(184,147,74,0.09)] sm:min-h-[126px] sm:p-4"
+                >
+                  <span aria-hidden className="pointer-events-none absolute -right-5 -top-7 -z-10 h-24 w-24 rounded-full border border-gold/10 transition-transform duration-300 group-hover:scale-125" />
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold transition-colors group-hover:bg-gold/15">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-gold" aria-hidden />
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </Container>

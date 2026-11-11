@@ -335,7 +335,7 @@
     white-space: nowrap;
   }
 
-  .pwa-category-tab > span:first-child {
+  .pwa-category-indicator {
     display: none;
   }
 

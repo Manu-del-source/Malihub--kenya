@@ -39,7 +39,7 @@ export function HeroSection() {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Explore MaliHub</p>
                 <h2 className="mt-1 font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">Start with a category</h2>
               </div>
-              <Link href="/categories" className="mb-0.5 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-gold">
+              <Link href="/marketplace" className="mb-0.5 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-gold">
                 View all <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </div>

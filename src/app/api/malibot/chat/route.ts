@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Please send a shorter message and try again." }, { status: 400 });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { success: false, error: "MaliBot AI is not configured yet. Please contact MaliHub support." },
@@ -56,41 +56,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: parsed.data.messages.map((message) => ({
+            role: message.role === "assistant" ? "model" : "user",
+            parts: [{ text: message.content }],
+          })),
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 450,
+          },
+        }),
+        signal: AbortSignal.timeout(25000),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        temperature: 0.3,
-        max_tokens: 450,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...parsed.data.messages.map((message) => ({ role: message.role, content: message.content })),
-        ],
-      }),
-      signal: AbortSignal.timeout(25000),
-      cache: "no-store",
-    });
+    );
 
     if (!response.ok) {
-      logServerError("MaliBot provider request failed", new Error(`provider_status_${response.status}`));
+      logServerError("MaliBot Gemini request failed", new Error(`gemini_status_${response.status}`));
       const status = response.status === 429 ? 503 : 502;
       return NextResponse.json(
         { success: false, error: status === 503
-          ? "MaliBot is temporarily busy. Please try again shortly."
+          ? "MaliBot has reached its current usage limit. Please try again later."
           : "MaliBot could not respond just now. Please try again." },
         { status },
       );
     }
 
     const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | null } }>;
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
-    const reply = payload.choices?.[0]?.message?.content?.trim();
+    const reply = payload.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text || "")
+      .join("")
+      .trim();
+
     if (!reply) {
       return NextResponse.json({ success: false, error: "MaliBot returned an empty response. Please try again." }, { status: 502 });
     }

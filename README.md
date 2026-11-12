@@ -260,8 +260,9 @@ writing to a column that does not exist; `tests/test_logging.py` asserts on
 secrets that must *not* appear rather than fields that must, because the failure
 mode there is silent; and `tests/test_payments.py` pins the payment boundary
 (no collection adapter is registered on this service; every provider name
-answers a 404 with an honest reason — Paystack "lives in the Next.js app",
-PayHero "retired" — and no payment or webhook route is mounted).
+answers a 404 for collection-provider requests because payment collection is
+owned by the Next.js application; the backend exposes no payment webhook or
+collection adapter).
 
 As of Phase 10 (verified on 2026-10-12; `npm test`, `npx tsc --noEmit`,
 `npm run lint`, `npm run build` all run in this environment and recorded in
@@ -303,13 +304,14 @@ issue, just staleness.
 
 ## Status
 
-**Phases 1–5 complete.** Phase 6 (Messaging, Payments, Orders, Reviews,
-Analytics, Moderation) is **partially** complete: the schema, RLS/Realtime
-setup, the full notification system and **Messaging** (Realtime chat,
-typing/presence, image sharing, read receipts, edit/delete, block/archive,
-conversation search, rate limiting) are done and verified. Orders, reviews,
-analytics and moderation are not built — their dashboard directories are still
-placeholders.
+**Phases 1–5 complete.** Phase 6 is **partially** complete. Messaging
+(Realtime chat, typing/presence, image sharing, read receipts, edit/delete,
+block/archive, conversation search and rate limiting) is implemented. The
+marketplace also has buyer cart/checkout, order creation and order history,
+plus Paystack payment initialization, signed webhook settlement and server-side
+payment verification. Product/person reviews, analytics and the full moderation
+workflow remain separate, incomplete areas; do not infer completion from the
+presence of their schema models.
 
 **Phase 7 (security hardening) complete** — CSRF protection, rate limiting, a
 shared Redis client, upload content validation, the audit service, and
@@ -328,20 +330,21 @@ rewritten — Phase 7's security files and every working feature are untouched,
 and the only removals are the Daraja route handlers that the provider-agnostic
 design replaces.
 
-**Phase 9 → PayHero (retired, removed).** PayHero was the first provider, but
-its integration has since been removed from this repository. No code path
-creates a new `PAYHERO` row; the enum value, migrations and historical `Payment`
-rows are retained for reconciliation. See `docs/PAYMENTS-PAYHERO.md` for the
-retirement record.
-
-**Phase 10 (payments, live) — Paystack is the active provider.** Buyer
-collection is implemented in the Next.js app: `POST
-/api/payments/paystack/initialize` (hosted checkout), `POST
-/api/payments/paystack/webhook` (signed `charge.success` settlement — HMAC-SHA512
-over the raw body, verified against `PAYSTACK_SECRET_KEY`), and `GET/POST
-/api/payments/paystack/verify` (server-authoritative status the buyer's screens
-poll). Settlement is idempotent and concurrency-safe: a payment becomes `PAID`
-only after a provider-verified claim passes ownership, exact amount/currency,
-and duplicate/replay gates. There is no PayHero fallback.
+**Payments — Paystack only.** Paystack is the sole supported payment
+provider for buyer checkout. The Next.js application owns the integration:
+`POST /api/payments/paystack/initialize` creates a hosted checkout transaction
+in KES using the amount in minor units (kobo/cents), `POST
+/api/payments/paystack/webhook` verifies Paystack's HMAC-SHA512 signature over
+the raw request body using `PAYSTACK_SECRET_KEY`, and `GET/POST
+/api/payments/paystack/verify` performs server-side transaction verification.
+Webhook settlement is idempotent and concurrency-safe: a payment becomes
+`PAID` only after provider verification and ownership, exact amount/currency,
+and duplicate/replay checks pass. The FastAPI backend deliberately does not
+collect payments or host payment webhooks; it retains a provider interface and
+registry for backend service boundaries, while Paystack collection remains in
+Next.js. Configure `PAYSTACK_SECRET_KEY` and `PAYSTACK_CALLBACK_URL` in the
+Next.js environment and configure the webhook destination in the Paystack
+Dashboard as `https://<your-domain>/api/payments/paystack/webhook`. There is no
+PayHero integration or fallback.
 
 See the checklist in `ARCHITECTURE.md` §13.

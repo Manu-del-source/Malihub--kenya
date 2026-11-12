@@ -9,6 +9,7 @@ import { ReportListingDialog } from "@/components/marketplace/report-listing-dia
 import { SimilarListings } from "@/components/marketplace/similar-listings";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { AddToCartButton } from "@/components/marketplace/add-to-cart-button";
+import { StartChatButton } from "@/components/marketplace/start-chat-button";
 import { getSimilarListings } from "@/services/search-service";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -66,7 +67,7 @@ export async function ProductDetail({
         <span className="max-w-[min(55vw,24rem)] truncate font-medium text-foreground" aria-current="page">{product.title}</span>
       </nav>
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-7">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 pb-24 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-7 lg:pb-0">
         <section className="min-w-0 rounded-2xl border border-border/80 bg-card p-2.5 shadow-sm sm:p-4">
           <ListingGallery images={product.images.map(({ url }) => ({ url }))} title={product.title} />
         </section>
@@ -106,7 +107,14 @@ export async function ProductDetail({
 
             <div className="mt-4">
               {!isOwnListing ? (
-                <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="min-w-0 flex-1">
+                    <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />
+                  </div>
+                </div>
               ) : (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">This is your listing.</p>
               )}
@@ -117,8 +125,8 @@ export async function ProductDetail({
           <SellerInfoCard seller={product.seller} contactPreference={product.contactPreference} whatsapp={sellerProfile?.whatsapp} isOwnListing={isOwnListing} />
 
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-primary" aria-hidden />Shop thoughtfully</div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the item and seller details before paying. Confirm delivery arrangements before completing your purchase.</p>
+            <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-primary" aria-hidden />Pay through MaliHub checkout</div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Available payment methods are shown at checkout. Payment status is verified with the payment provider. Your delivery fee is shown for your selected county before you confirm the order. Returns and refunds follow MaliHub's published terms; MaliHub does not provide escrow.</p>
           </div>
         </div>
       </div>
@@ -148,6 +156,20 @@ export async function ProductDetail({
       </section>
 
       <SimilarListings listings={similar} />
+
+      {!isOwnListing && !isSold && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-lg pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden">
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[10px] text-muted-foreground">{product.title}</p>
+              <p className="font-mono text-base font-bold tabular-nums text-primary">{formatKes(product.priceCents)}</p>
+            </div>
+            <div className="w-[48%] max-w-[13rem]">
+              <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} intent="checkout" />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

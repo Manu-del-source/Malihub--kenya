@@ -14,7 +14,6 @@ import { signOutAction } from "@/app/(auth)/actions";
 const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
   { label: "Categories", href: "/#categories" },
-  { label: "How it works", href: "/#why-malihub" },
 ];
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
@@ -31,7 +30,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-5 xl:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
             {NAV_LINKS.map((link) => (
               <Link key={link.href} href={link.href} className="nav-link text-sm font-medium text-muted-foreground transition-colors hover:text-primary-400">
                 {link.label}
@@ -72,7 +71,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="px-4 pt-2 xl:hidden"
+            className="px-4 pt-2 lg:hidden"
           >
             <div className="site-header-surface mx-auto flex max-w-7xl flex-col gap-1 rounded-2xl p-3">
               {NAV_LINKS.map((link) => (

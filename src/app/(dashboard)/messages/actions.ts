@@ -54,7 +54,7 @@ export async function startChatAction(input: StartChatInput): Promise<ApiResult<
     const buyerId = await requireUser();
     if (parsed.data.productId) {
       const matchingListing = await prisma.product.findFirst({
-        where: { id: parsed.data.productId, sellerId: parsed.data.sellerId },
+        where: { id: parsed.data.productId, ownerId: parsed.data.sellerId },
         select: { id: true },
       });
       if (!matchingListing) {

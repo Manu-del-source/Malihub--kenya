@@ -187,10 +187,9 @@ npm run backend:format   # ruff format
 > (`/api/payments/paystack/*`), which owns `PAYSTACK_SECRET_KEY`. This FastAPI
 > service holds no payment-provider credentials, registers no collection
 > adapters, and mounts no webhook route; `GET /api/v1/payments/providers` is
-> the only payment route and it reports that state honestly. The retired PayHero
-> integration (Phase 9) has been removed from this repository; historical
-> `Payment` rows with `provider='PAYHERO'` are still read through the schema
-> for reconciliation. See §7 of ARCHITECTURE.md for the full boundary.
+> the only payment route and it reports that state honestly. No payment
+> provider credentials or collection adapters are configured in FastAPI.
+> See §7 of ARCHITECTURE.md for the full boundary.
 
 > **Security note:** this project pins `next@15.5.27`. Do not downgrade to
 > `15.1.x` — those versions are vulnerable to CVE-2025-66478, a critical

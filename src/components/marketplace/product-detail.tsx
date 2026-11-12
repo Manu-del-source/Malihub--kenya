@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Package, ShieldCheck, Truck, ChevronDown } from "lucide-react";
+import { MapPin, Package, ShieldCheck, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ListingGallery } from "@/components/marketplace/listing-gallery";
 import { SellerInfoCard } from "@/components/marketplace/seller-info-card";
@@ -126,7 +126,7 @@ export async function ProductDetail({
 
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-primary" aria-hidden />Pay through MaliHub checkout</div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Available payment methods are shown at checkout. Payment status is verified with the payment provider. Your delivery fee is shown for your selected county before you confirm the order. Returns and refunds follow MaliHub's published terms; MaliHub does not provide escrow.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Available payment methods are shown at checkout. Payment status is verified with the payment provider. Your delivery fee is shown for your selected county before you confirm the order. Returns and refunds follow MaliHub&apos;s published terms; MaliHub does not provide escrow.</p>
           </div>
         </div>
       </div>

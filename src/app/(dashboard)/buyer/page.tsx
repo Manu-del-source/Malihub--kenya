@@ -217,29 +217,21 @@ export default async function BuyerDashboardPage() {
         ))}
       </div>
 
-      {/* ── Recent orders ────────────────────────────────────────────────── */}
-      <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-medium">Recent orders</h2>
-          {orderCount > 0 && (
-            <Link
-              href="/buyer/orders"
-              className="text-sm text-primary-400 hover:underline"
-            >
-              View all orders
-            </Link>
-          )}
-        </div>
+      {/* Recent orders: hidden until the buyer has an order */}
+      {recentOrders.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-xl font-medium">Recent orders</h2>
+            {orderCount > 0 && (
+              <Link
+                href="/buyer/orders"
+                className="text-sm text-primary-400 hover:underline"
+              >
+                View all orders
+              </Link>
+            )}
+          </div>
 
-        {recentOrders.length === 0 ? (
-          <EmptyState
-            icon={Package}
-            title="No orders yet."
-            description="When you buy something, your orders and their status will appear here."
-            actionLabel="Discover products →"
-            actionHref="/marketplace"
-          />
-        ) : (
           <div className="glass flex flex-col divide-y divide-border rounded-2xl">
             {recentOrders.map((order) => (
               <Link
@@ -279,8 +271,8 @@ export default async function BuyerDashboardPage() {
               </Link>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* ── Discover ─────────────────────────────────────────────────────── */}
       <section className="mt-10">

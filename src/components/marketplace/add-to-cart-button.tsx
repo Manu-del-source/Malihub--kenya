@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Check } from "lucide-react";
+import { ShoppingCart, Check, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -21,12 +21,14 @@ export function AddToCartButton({
   stock,
   isLoggedIn,
   redirectTo,
+  intent = "cart",
 }: {
   productId: string;
   status: string;
   stock: number;
   isLoggedIn: boolean;
   redirectTo: string;
+  intent?: "cart" | "checkout";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -40,7 +42,7 @@ export function AddToCartButton({
       <Button asChild className="w-full" size="lg">
         <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}`}>
           <ShoppingCart className="h-4 w-4" aria-hidden />
-          Sign in to buy
+          {intent === "checkout" ? "Sign in to buy" : "Sign in to add to cart"}
         </Link>
       </Button>
     );
@@ -74,6 +76,10 @@ export function AddToCartButton({
           return;
         }
 
+        if (intent === "checkout") {
+          router.push("/checkout");
+          return;
+        }
         setAdded(true);
         toast.success("Added to cart");
         router.refresh();
@@ -93,8 +99,8 @@ export function AddToCartButton({
         </>
       ) : (
         <>
-          <ShoppingCart className="h-4 w-4" aria-hidden />
-          {isPending ? "Adding…" : "Add to cart"}
+          {intent === "checkout" ? <Zap className="h-4 w-4" aria-hidden /> : <ShoppingCart className="h-4 w-4" aria-hidden />}
+          {isPending ? "Please wait…" : intent === "checkout" ? "Buy now" : "Add to cart"}
         </>
       )}
     </Button>

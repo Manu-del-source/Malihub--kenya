@@ -52,6 +52,15 @@ export async function startChatAction(input: StartChatInput): Promise<ApiResult<
 
   return toResult(async () => {
     const buyerId = await requireUser();
+    if (parsed.data.productId) {
+      const matchingListing = await prisma.product.findFirst({
+        where: { id: parsed.data.productId, ownerId: parsed.data.sellerId },
+        select: { id: true },
+      });
+      if (!matchingListing) {
+        throw new ChatServiceError("This listing is not available for this seller conversation.");
+      }
+    }
     const chat = await getOrCreateChat(buyerId, parsed.data.sellerId, parsed.data.productId);
     return { chatId: chat.id };
   });

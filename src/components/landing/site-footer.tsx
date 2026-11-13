@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Instagram, Mail } from "lucide-react";
+import { ArrowUpRight, Facebook, Instagram, Mail } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CookieSettingsButton } from "@/components/cookie-consent";
 
@@ -47,6 +47,15 @@ export function SiteFooter() {
                 className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Instagram className="h-3.5 w-3.5" aria-hidden /> Instagram · @malihubke
+              </a>
+              <a
+                href="https://www.facebook.com/share/1ZiYTdJ5X3/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow MaliHub on Facebook"
+                className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Facebook className="h-3.5 w-3.5" aria-hidden /> Facebook
               </a>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
@@ -64,8 +64,8 @@ export function CompleteProfileForm({
     }
   }
 
-  function onInvalid() {
-    const firstError = Object.values(errors)[0];
+  function onInvalid(validationErrors: FieldErrors<CompleteProfileInput>) {
+    const firstError = Object.values(validationErrors)[0];
     toast.error(
       typeof firstError?.message === "string"
         ? firstError.message

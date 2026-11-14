@@ -94,6 +94,22 @@ async function check(limiter: Ratelimit | null, key: string): Promise<RateLimitR
   return limiter.limit(key);
 }
 
+/**
+ * Fail-closed variant for money-moving / provider-costing limiters. When Redis
+ * is unavailable in production the request is denied instead of allowed, so a
+ * missing Upstash config cannot silently remove the cross-order payment bound.
+ * Local dev keeps the permissive behaviour.
+ */
+async function checkStrict(limiter: Ratelimit | null, key: string): Promise<RateLimitResult> {
+  if (!limiter) {
+    if (process.env.NODE_ENV === "production") {
+      return { success: false, limit: 0, remaining: 0, reset: Date.now() + 60_000 };
+    }
+    return { success: true, limit: Infinity, remaining: Infinity, reset: 0 };
+  }
+  return limiter.limit(key);
+}
+
 export const rateLimit = {
   login: (email: string) => check(limiters.login(), email.toLowerCase()),
   signup: (ip: string) => check(limiters.signup(), ip),
@@ -101,9 +117,9 @@ export const rateLimit = {
   listingCreate: (sellerId: string) => check(limiters.listingCreate(), sellerId),
   listingImageUpload: (sellerId: string) => check(limiters.listingImageUpload(), sellerId),
   messageImageUpload: (userId: string) => check(limiters.messageImageUpload(), userId),
-  orderCreate: (buyerId: string) => check(limiters.orderCreate(), buyerId),
-  paymentInitiate: (buyerId: string) => check(limiters.paymentInitiate(), buyerId),
-  paymentStatusCheck: (buyerId: string) => check(limiters.paymentStatusCheck(), buyerId),
+  orderCreate: (buyerId: string) => checkStrict(limiters.orderCreate(), buyerId),
+  paymentInitiate: (buyerId: string) => checkStrict(limiters.paymentInitiate(), buyerId),
+  paymentStatusCheck: (buyerId: string) => checkStrict(limiters.paymentStatusCheck(), buyerId),
   cartMutate: (buyerId: string) => check(limiters.cartMutate(), buyerId),
   avatarUpload: (userId: string) => check(limiters.avatarUpload(), userId),
   chatWsTicket: (userId: string) => check(limiters.chatWsTicket(), userId),

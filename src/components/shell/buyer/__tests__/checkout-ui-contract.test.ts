@@ -100,7 +100,8 @@ describe("checkout UI — payment states and copy", () => {
 
   it("gates the checkout CTA on server data and blocks an unavailable cart", () => {
     const source = read(CHECKOUT_VIEW);
-    assert.match(source, /Pay securely · \$\{formatKes\(summary\.totalCents\)\}/);
+    assert.match(source, /Pay securely · \$\{formatKes\(checkoutTotalCents\)\}/, "the CTA includes the accepted delivery estimate");
+    assert.match(source, /const checkoutTotalCents = summary\.subtotalCents \+ deliveryTotalCents/);
     assert.match(source, /blockedByStock/, "unavailable items must block payment");
     assert.match(source, /PAYMENT_METHODS\.map/, "payment methods render from the extensible list");
     assert.match(source, /createSerializedTask\(/, "creation is single-flighted");

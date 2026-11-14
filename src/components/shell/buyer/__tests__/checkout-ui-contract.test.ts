@@ -179,7 +179,7 @@ describe("checkout UI — credentials never reach the browser", () => {
     assert.match(route, /checkoutCart\(prisma, user\.id, \{/);
     assert.match(service, /deliveryCounty: delivery\.county/);
     assert.match(service, /deliveryAddress: delivery\.address/);
-    assert.match(route, /acceptedFeeCents: 0/);
+    assert.equal(route.includes("acceptedFeeCents"), false, "checkout no longer accepts or requires a delivery fee");
     assert.equal(read(CHECKOUT_VIEW).includes("deliveryEstimate"), false);
     assert.equal(read(CHECKOUT_VIEW).includes("deliveryFeeAccepted"), false);
   });

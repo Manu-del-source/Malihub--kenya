@@ -42,11 +42,16 @@ export const metadata: Metadata = { title: "Checkout" };
 export default async function CheckoutPage() {
   const { user } = await requireUser();
 
-  const [cart, profile] = await Promise.all([
+  const [cart, addresses] = await Promise.all([
     getCart(prisma, user.id),
-    prisma.profile.findUnique({
+    prisma.deliveryAddress.findMany({
       where: { userId: user.id },
-      select: { fullName: true, county: true },
+      orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+      select: {
+        id: true, label: true, recipientName: true, phone: true, county: true,
+        subCounty: true, town: true, area: true, building: true, landmark: true,
+        isDefault: true,
+      },
     }),
   ]);
 
@@ -77,17 +82,13 @@ export default async function CheckoutPage() {
     <Container className="py-6 sm:py-10">
       <h1 className="mb-1 font-display text-2xl font-medium sm:text-3xl">Checkout</h1>
       <p className="mb-5 text-sm text-muted-foreground sm:mb-8">
-        Confirm your delivery details, review your items and pay securely.
+        Choose where to receive your order and pay securely.
       </p>
 
       <CheckoutView
         summary={summary}
-        buyer={{
-          name: profile?.fullName ?? null,
-          email: user.email,
-          phone: user.phone ?? null,
-        }}
-        initialDeliveryCounty={profile?.county}
+        addresses={addresses}
+        initialAddressId={addresses.find((address) => address.isDefault)?.id ?? addresses[0]?.id ?? null}
       />
     </Container>
   );

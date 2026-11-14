@@ -10,6 +10,7 @@ import {
   PackageCheck,
   RotateCcw,
   ShoppingCart,
+  ShieldCheck,
   Star,
   Store,
   Truck,
@@ -144,6 +145,27 @@ export default async function AccountPage() {
           <span>{profile?.onboarded ? "Profile complete" : "Profile incomplete"}</span>
         </div>
       </section>
+
+      {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (
+        <section className="mt-5 rounded-2xl border border-primary/30 bg-[linear-gradient(110deg,rgba(184,147,74,0.12),rgba(17,17,17,0.96))] p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-300">
+              <ShieldCheck className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-lg font-semibold">Admin dashboard</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Review seller applications, manage users and moderate MaliHub.</p>
+            </div>
+          </div>
+          <Link
+            href="/admin"
+            className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          >
+            Open admin dashboard
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </section>
+      )}
 
       <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex items-center justify-between px-4 pb-2 pt-4 sm:px-5">

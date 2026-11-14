@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getBuyerOrder } from "@/services/order-service";
 import { readBuyerPaymentSnapshot } from "@/services/payment-status-service";
 import { CancelOrderButton } from "@/components/shell/buyer/cancel-order-button";
+import { ConfirmOrderReceipt } from "@/components/shell/buyer/confirm-order-receipt";
 import { SupplierReturnForm } from "@/components/shell/buyer/supplier-return-form";
 import { BUYER_FULFILMENT_SELECT } from "@/lib/dropshipping/selects";
 import { BUYER_FULFILMENT_MESSAGE, SUPPLIER_FULFILMENT_LABEL } from "@/lib/dropshipping/fulfilment-state-machine";
@@ -139,6 +140,52 @@ export default async function BuyerOrderDetailPage({
             </div>
           </div>
         </section>
+
+        {(order.shipment || order.status === "SHIPPED") && (
+          <section className="glass rounded-2xl p-5 text-sm">
+            <h2 className="font-display text-base font-medium">Shipment tracking</h2>
+            {order.shipment ? (
+              <dl className="mt-3 space-y-2">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <dt className="text-muted-foreground">Courier</dt>
+                  <dd className="font-medium">{order.shipment.carrierName}</dd>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <dt className="text-muted-foreground">Tracking number</dt>
+                  <dd className="font-mono">{order.shipment.trackingNumber}</dd>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <dt className="text-muted-foreground">Shipment status</dt>
+                  <dd>{order.shipment.status.replaceAll("_", " ").toLowerCase()}</dd>
+                </div>
+                {order.shipment.dispatchedAt && (
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <dt className="text-muted-foreground">Dispatched</dt>
+                    <dd>{timeAgo(order.shipment.dispatchedAt)}</dd>
+                  </div>
+                )}
+                {order.shipment.trackingUrl && (
+                  <a
+                    href={order.shipment.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex text-primary-400 hover:underline"
+                  >
+                    Track with courier →
+                  </a>
+                )}
+              </dl>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                The seller has marked this order as shipped but has not provided tracking details.
+              </p>
+            )}
+          </section>
+        )}
+
+        {order.status === "DELIVERED" && (
+          <ConfirmOrderReceipt orderId={order.id} />
+        )}
 
         {supplierFulfilments.length > 0 && (
           <section className="glass rounded-2xl p-5 text-sm">

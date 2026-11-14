@@ -30,7 +30,7 @@ export function MobileBottomNav({ sellerDashboardHref, adminDashboardHref }: { s
       aria-label="Primary mobile navigation"
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgb(0_0_0/0.18)] backdrop-blur-xl md:hidden"
     >
-      <ul className={`mx-auto grid max-w-xl ${items.length > 5 ? `grid-cols-${items.length}` : "grid-cols-5"}`}>
+      <ul className={`mx-auto grid max-w-xl ${items.length === 7 ? "grid-cols-7" : items.length === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
         {items.map(({ label, href, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href

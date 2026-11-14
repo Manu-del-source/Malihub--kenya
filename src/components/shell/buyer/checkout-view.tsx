@@ -44,7 +44,7 @@ import { formatKes } from "@/utils";
  *
  * ─── What the browser never sends ───────────────────────────────────────────
  * No prices, subtotal, total, seller or buyer id, amount, currency or
- * provider setting. The order call sends delivery county/address only; the
+ * provider setting. The order call sends a saved delivery address id only; the
  * initialization call sends `{ orderId }`. Everything else is server-derived.
  *
  * ─── Duplicate safety ───────────────────────────────────────────────────────
@@ -60,14 +60,15 @@ type Stage = "review" | "creating" | "paying";
 
 export type CheckoutViewProps = {
   summary: CheckoutSummary;
-  buyer: { name: string | null; email: string; phone: string | null };
-  initialDeliveryCounty?: string | null;
+  addresses: Array<{ id: string; label: string; recipientName: string; phone: string; county: string; subCounty: string | null; town: string; area: string | null; building: string | null; landmark: string | null; isDefault: boolean }>;
+  initialAddressId?: string | null;
 };
 
-export function CheckoutView({ summary, buyer, initialDeliveryCounty }: CheckoutViewProps) {
+export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutViewProps) {
   const [stage, setStage] = useState<Stage>("review");
-  const [deliveryCounty, setDeliveryCounty] = useState(initialDeliveryCounty ?? "");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [selectedAddressId, setSelectedAddressId] = useState(initialAddressId ?? addresses[0]?.id ?? "");
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId) ?? null;
+  const deliveryCounty = selectedAddress?.county ?? "";
   const [deliveryEstimate, setDeliveryEstimate] = useState<{ feeCents: number; county: string } | null>(null);
   const [deliveryEstimateError, setDeliveryEstimateError] = useState<string | null>(null);
   const [deliveryFeeAccepted, setDeliveryFeeAccepted] = useState(false);
@@ -82,14 +83,15 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
     () =>
       createSerializedTask(() =>
         createCheckoutOrders({
-          county: deliveryCounty.trim(),
-          address: deliveryAddress.trim(),
+          addressId: selectedAddressId,
           acceptedFeeCents: deliveryEstimate?.feeCents ?? -1,
         })
       ),
-    [deliveryCounty, deliveryAddress, deliveryEstimate]
+    [selectedAddressId, deliveryEstimate]
   );
 
+  const deliveryTotalCents = (deliveryEstimate?.feeCents ?? 0) * summary.sellerCount;
+  const checkoutTotalCents = summary.subtotalCents + deliveryTotalCents;
   const blockedByStock = summary.unavailableCount > 0;
 
   useEffect(() => {
@@ -124,9 +126,8 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
     if (stage !== "review") return;
 
     const county = deliveryCounty.trim();
-    const address = deliveryAddress.trim();
-    if (!county || !address || address.length < 5) {
-      setError("Enter your delivery county and a full delivery address before continuing.");
+    if (!selectedAddress || !county) {
+      setError("Add or select a delivery address before continuing.");
       return;
     }
     if (!deliveryEstimate || deliveryEstimate.county.toLowerCase() !== county.toLowerCase() || !deliveryFeeAccepted) {
@@ -196,78 +197,87 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
       />
       <div className="flex min-w-0 flex-col gap-4 sm:gap-6 lg:flex-row lg:items-start lg:gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-6">
-          {/* ── Delivery / buyer information ───────────────────────────────── */}
-          <section className="glass rounded-xl p-4 sm:rounded-2xl sm:p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <MapPin className="h-4 w-4" aria-hidden />
+          {/* ── Delivery address ─────────────────────────────────────────── */}
+          <section className="glass rounded-xl p-4 sm:rounded-2xl sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <MapPin className="h-4 w-4" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-lg font-medium">Delivery address</h2>
+                  <p className="text-xs text-muted-foreground">Where should we deliver your order?</p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-display text-lg font-medium">Delivery details</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">Tell the seller where to deliver your order.</p>
-              </div>
+              <Link href="/account/addresses?returnTo=%2Fcheckout" className="shrink-0 text-xs font-semibold text-primary-300 hover:underline">
+                {addresses.length ? "Manage" : "Add address"}
+              </Link>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block text-sm font-medium">
-                County <span className="text-destructive">*</span>
-                <input
-                  value={deliveryCounty}
-                  onChange={(event) => setDeliveryCounty(event.target.value)}
-                  maxLength={80}
-                  autoComplete="address-level1"
-                  placeholder="e.g. Uasin Gishu"
-                  required
-                  className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
-                />
-              </label>
-              <label className="block text-sm font-medium sm:col-span-2">
-                Delivery address / pickup details <span className="text-destructive">*</span>
-                <textarea
-                  value={deliveryAddress}
-                  onChange={(event) => setDeliveryAddress(event.target.value)}
-                  minLength={5}
-                  maxLength={300}
-                  autoComplete="street-address"
-                  placeholder="Town, estate, street, building or agreed pickup point"
-                  required
-                  rows={3}
-                  className="mt-1.5 w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
-                />
-                <span className="mt-1 block text-xs font-normal text-muted-foreground">Up to 300 characters. Do not enter your M-Pesa PIN or payment credentials.</span>
-              </label>
-            </div>
-            <div className="mt-3 rounded-lg border border-border p-3 text-sm" aria-live="polite">
-              {deliveryEstimate ? (
-                <>
-                  <p>Estimated delivery fee: <strong>{formatKes(deliveryEstimate.feeCents)}</strong></p>
-                  <label className="mt-2 flex items-start gap-2">
-                    <input type="checkbox" checked={deliveryFeeAccepted} onChange={(event) => setDeliveryFeeAccepted(event.target.checked)} />
-                    <span>I accept this delivery estimate. The final fee may be replaced by a confirmed seller/courier quote, which must be accepted before payment.</span>
+
+            {addresses.length ? (
+              <div className="mt-4 space-y-2">
+                {addresses.length > 1 && (
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    Choose saved address
+                    <select
+                      value={selectedAddressId}
+                      onChange={(event) => setSelectedAddressId(event.target.value)}
+                      className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+                    >
+                      {addresses.map((address) => (
+                        <option key={address.id} value={address.id}>
+                          {address.label} - {address.town}, {address.county}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-                </>
-              ) : <p className="text-muted-foreground">{deliveryEstimateError ?? "Enter your county to calculate the delivery estimate."}</p>}
-            </div>
-            <div className="mt-5 border-t border-border pt-4">
-              <h3 className="text-sm font-medium">Your contact details</h3>
-              <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Name</dt>
-                <dd className="mt-0.5">{buyer.name ?? "Not set"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
-                <dd className="mt-0.5 break-all">{buyer.email}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Phone
-                  </dt>
-                  <dd className="mt-0.5">{buyer.phone || "Not set"}</dd>
-                </div>
-              </dl>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Delivery cost and timing are confirmed with the seller before dispatch; they are not included in this total yet.
+                )}
+                {selectedAddress && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{selectedAddress.recipientName} <span className="ml-1 text-xs font-normal text-muted-foreground">· {selectedAddress.label}</span></p>
+                        <p className="mt-1 text-xs text-muted-foreground">{selectedAddress.phone}</p>
+                        <p className="mt-1 text-sm">
+                          {[selectedAddress.building, selectedAddress.area, selectedAddress.town, selectedAddress.subCounty, selectedAddress.county].filter(Boolean).join(", ")}
+                        </p>
+                        {selectedAddress.landmark && <p className="mt-1 text-xs text-muted-foreground">Near {selectedAddress.landmark}</p>}
+                      </div>
+                      <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary-300">Selected</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-5 text-center">
+                <p className="text-sm font-medium">No delivery address saved</p>
+                <p className="mt-1 text-xs text-muted-foreground">Add an address to continue to payment.</p>
+                <Link href="/account/addresses?returnTo=%2Fcheckout" className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
+                  + Add delivery address
+                </Link>
+              </div>
+            )}
+
+            {selectedAddress && (
+              <div className="mt-3 text-xs" aria-live="polite">
+                {deliveryEstimate ? (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
+                    <span className="text-muted-foreground">Estimated delivery</span>
+                    <strong>{formatKes(deliveryEstimate.feeCents)}</strong>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">{deliveryEstimateError ?? "Checking delivery fee…"}</p>
+                )}
+                {deliveryEstimate && (
+                  <label className="mt-2 flex items-start gap-2 text-muted-foreground">
+                    <input type="checkbox" checked={deliveryFeeAccepted} onChange={(event) => setDeliveryFeeAccepted(event.target.checked)} />
+                    <span>I accept this delivery estimate. Any confirmed change will be shared before dispatch.</span>
+                  </label>
+                )}
+              </div>
+            )}
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Pickup stations will appear when MaliHub has verified collection locations in your area.
             </p>
           </section>
 
@@ -326,12 +336,12 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Delivery</dt>
-                <dd className="text-xs text-muted-foreground">Arranged with the seller</dd>
+                <dd className="font-mono tabular-nums">{deliveryEstimate ? formatKes(deliveryTotalCents) : "Confirming…"}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 text-base font-medium">
                 <dt>Total</dt>
                 <dd className="font-mono tabular-nums text-primary-400">
-                  {formatKes(summary.totalCents)}
+                  {formatKes(checkoutTotalCents)}
                 </dd>
               </div>
             </dl>
@@ -448,10 +458,10 @@ export function CheckoutView({ summary, buyer, initialDeliveryCounty }: Checkout
                 type="button"
                 className="mt-5 w-full"
                 onClick={() => void handlePay()}
-                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !deliveryCounty.trim() || deliveryAddress.trim().length < 5}
+                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId || !deliveryEstimate || !deliveryFeeAccepted}
               >
                 {paystackReady
-                  ? `Pay securely · ${formatKes(summary.totalCents)}`
+                  ? `Pay securely · ${formatKes(checkoutTotalCents)}`
                   : "Loading secure checkout…"}
               </Button>
             )}

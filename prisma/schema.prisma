@@ -485,6 +485,7 @@ model User {
   products        Product[]        @relation("ProductOwner")
   campaignsCreated Campaign[]      @relation("CampaignCreator")
   orders          Order[]          @relation("BuyerOrders")
+  deliveryAddresses DeliveryAddress[]
   wishlists       Wishlist[]
   reviews         Review[]         @relation("ReviewAuthor")
   notifications   Notification[]
@@ -549,6 +550,32 @@ model AuthSessionActivity {
 
   @@index([authUserId])
   @@map("auth_session_activity")
+}
+
+/// Customer-owned delivery destinations. Checkout reads these rows by both
+/// address id and authenticated user id; order rows keep immutable text snapshots.
+model DeliveryAddress {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  label         String   @default("Home")
+  recipientName String   @map("recipient_name")
+  phone         String
+  county        String
+  subCounty     String?  @map("sub_county")
+  town          String
+  area          String?
+  building      String?  @map("building")
+  landmark      String?
+  instructions  String?
+  isDefault     Boolean  @default(false) @map("is_default")
+  defaultKey    String?  @unique @map("default_key")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("delivery_addresses")
 }
 
 model Profile {

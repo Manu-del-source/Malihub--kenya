@@ -159,8 +159,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     });
 
     const result = await createCheckoutOrders({
-      county: "Nairobi",
-      address: "Moi Avenue",
+      addressId: "address-uuid",
       acceptedFeeCents: 0,
     });
 
@@ -168,7 +167,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     assert.equal(calls[0]!.init.method, "POST");
     assert.deepEqual(
       bodyOf(calls[0]!),
-      { deliveryCounty: "Nairobi", deliveryAddress: "Moi Avenue", acceptedDeliveryFeeCents: 0 },
+      { deliveryAddressId: "address-uuid", acceptedDeliveryFeeCents: 0 },
       "prices, ids and totals are never sent",
     );
     assert.equal(result.ok, true);
@@ -186,8 +185,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     });
 
     const result = await createCheckoutOrders({
-      county: "Nairobi",
-      address: "Moi Avenue",
+      addressId: "address-uuid",
       acceptedFeeCents: 0,
     });
 
@@ -205,8 +203,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     }) as typeof fetch;
 
     const result = await createCheckoutOrders({
-      county: "Nairobi",
-      address: "Moi Avenue",
+      addressId: "address-uuid",
       acceptedFeeCents: 0,
     });
     assert.equal(result.ok, false);
@@ -385,7 +382,7 @@ describe("duplicate safety and multi-seller sequencing", () => {
     };
 
     const once = createSerializedTask(() =>
-      createCheckoutOrders({ county: "Nairobi", address: "Moi Avenue", acceptedFeeCents: 0 }),
+      createCheckoutOrders({ addressId: "address-uuid", acceptedFeeCents: 0 }),
     );
     const [first, second] = await Promise.all([once(), once()]);
 

@@ -10,7 +10,7 @@ import type {
  * ─── What a request may carry ───────────────────────────────────────────────
  * Exactly what the existing route handlers accept and nothing else:
  *
- *   POST /api/orders                        → saved delivery address id + accepted fee
+ *   POST /api/orders                        → saved delivery address id
  *   POST /api/payments/paystack/initialize  → `{ orderId }`
  *   GET  /api/payments/paystack/verify      → `?orderId=…`
  *   POST /api/payments/paystack/verify      → `{ orderId }`
@@ -150,13 +150,12 @@ function failureFrom(
 /**
  * `POST /api/orders` — creates PENDING order(s) for the session's cart.
  *
- * Only a saved address id and the accepted fee are supplied by the buyer.
+ * Only a saved address id is supplied by the buyer.
  * The server resolves the address against the authenticated owner. Prices,
  * sellers, inventory and ownership remain server-derived.
  */
 export async function createCheckoutOrders(delivery: {
   addressId: string;
-  acceptedFeeCents: number;
 }): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
   try {
@@ -165,7 +164,6 @@ export async function createCheckoutOrders(delivery: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         deliveryAddressId: delivery.addressId,
-        acceptedDeliveryFeeCents: delivery.acceptedFeeCents,
       }),
     });
   } catch {

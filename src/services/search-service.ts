@@ -114,14 +114,16 @@ export async function searchListings(
   const whereSql = Prisma.join(conditions, " AND ");
   const orderDirection = Prisma.raw(sortConfig.direction);
 
-  const rows = await withTransientReadRetry(() => prisma.$queryRaw<{ id: string; sort_value: string }[]>`
-    SELECT p.id, ${sortColumnSql}::text AS sort_value
-    FROM products p
-    JOIN categories c ON c.id = p.category_id
-    WHERE ${whereSql}
-    ORDER BY ${sortColumnSql} ${orderDirection}, p.id ASC
-    LIMIT ${pageSize + 1}
-  `));
+  const rows = await withTransientReadRetry(() =>
+    prisma.$queryRaw<{ id: string; sort_value: string }[]>(Prisma.sql`
+      SELECT p.id, ${sortColumnSql}::text AS sort_value
+      FROM products p
+      JOIN categories c ON c.id = p.category_id
+      WHERE ${whereSql}
+      ORDER BY ${sortColumnSql} ${orderDirection}, p.id ASC
+      LIMIT ${pageSize + 1}
+    `)
+  );
 
   const hasMore = rows.length > pageSize;
   const pageRows = hasMore ? rows.slice(0, pageSize) : rows;

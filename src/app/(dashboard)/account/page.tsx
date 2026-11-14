@@ -6,6 +6,7 @@ import {
   Clock3,
   Heart,
   MessageCircle,
+  MapPin,
   Package,
   PackageCheck,
   RotateCcw,
@@ -98,6 +99,7 @@ export default async function AccountPage() {
     { label: "Recently viewed", detail: "Continue browsing", href: "/buyer", icon: Clock3 },
     { label: "My orders", detail: "Track your purchases", href: "/buyer/orders", icon: Package },
     { label: "Profile", detail: "Personal information", href: "/complete-profile", icon: UserRound },
+    { label: "My addresses", detail: "Delivery destinations", href: "/account/addresses", icon: MapPin },
     ...(seller
       ? [{ label: "Seller Centre", detail: seller.businessName, href: "/seller-center", icon: Store }]
       : []),

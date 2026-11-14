@@ -182,6 +182,16 @@ export async function cancelOrder(
     const from = order.status as OrderStatus;
 
 
+    // 2. An order you already cancelled is a conflict, answered before the
+    //    claim so the message is specific rather than a generic race failure.
+    if (from === "CANCELLED") {
+      throw new OrderTransitionError(
+        "This order has already been cancelled.",
+        "already_cancelled",
+        from
+      );
+    }
+
     // A PENDING/PROCESSING attempt may still collect money, and a SUCCESS payment can be
     // between payment claim and order transition. Do not cancel and
     // release inventory while that transaction can still collect money.
@@ -197,16 +207,6 @@ export async function cancelOrder(
       throw new OrderTransitionError(
         "This order has a payment attempt that is still being processed. Check its payment status before cancelling.",
         "invalid_transition",
-        from
-      );
-    }
-
-    // 2. An order you already cancelled is a conflict, answered before the
-    //    claim so the message is specific rather than a generic race failure.
-    if (from === "CANCELLED") {
-      throw new OrderTransitionError(
-        "This order has already been cancelled.",
-        "already_cancelled",
         from
       );
     }

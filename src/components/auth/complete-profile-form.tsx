@@ -39,7 +39,7 @@ export function CompleteProfileForm({
     defaultValues: {
       fullName: defaultFullName ?? "",
       phone: "",
-      // A registration started from /seller-center carries /seller/onboarding\n      // through verification and profile completion. Preserve that intent here\n      // so the transaction provisions the seller row instead of a buyer-only\n      // account that later gets redirected away from seller routes.\n      accountIntent: redirectTo?.startsWith("/seller/") ? "SELLER" : "BUYER",
+      accountIntent: redirectTo?.startsWith("/seller/") ? "SELLER" : "BUYER",
       avatarUrl: defaultAvatarUrl ?? "",
     },
   });
@@ -47,18 +47,41 @@ export function CompleteProfileForm({
   const avatarUrl = watch("avatarUrl") ?? "";
 
   async function onSubmit(input: CompleteProfileInput) {
-    const result = await completeProfileAction(input, redirectTo);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
+    try {
+      const result = await completeProfileAction(input, redirectTo);
+      if (!result.success) {
+        toast.error(result.error || "We couldn't save your profile. Please try again.");
+        return;
+      }
+
+      toast.success("Profile complete — welcome to MaliHub!");
+      router.replace(result.data.redirectTo);
+      router.refresh();
+    } catch {
+      // A rejected Server Action must never leave the form appearing unresponsive.
+      // Keep the user's entries in place so they can retry without retyping.
+      toast.error("We couldn't save your profile. Check your connection and try again.");
     }
-    toast.success("Profile complete — welcome to MaliHub!");
-    router.push(result.data.redirectTo);
-    router.refresh();
+  }
+
+  function onInvalid() {
+    const firstError = Object.values(errors)[0];
+    toast.error(
+      typeof firstError?.message === "string"
+        ? firstError.message
+        : "Please check the required profile details and try again."
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+    <form
+      onSubmit={handleSubmit(onSubmit, onInvalid)}
+      noValidate
+      aria-busy={isSubmitting}
+      className="flex flex-col gap-5"
+    >
+      <input type="hidden" {...register("accountIntent")} />
+
       <FormField id="avatar" label="Profile photo">
         <AvatarUpload
           value={avatarUrl}

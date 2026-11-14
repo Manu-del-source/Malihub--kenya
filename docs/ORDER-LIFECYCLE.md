@@ -181,9 +181,11 @@ and has already committed correctly.
 - **No refunds.** `REFUNDED` has no inbound transition (§ above).
 - **No settlements or payouts.** Those belong to later phases; a settlement is
   a *paid* order's concern and this phase only reaches `PENDING`.
-- **No fulfilment UI.** `PAID → SHIPPED → DELIVERED → COMPLETED` is implemented
-  and tested at the service layer, but the seller order screens have no
-  fulfilment controls to attach it to yet.
+- **Fulfilment UI is now connected.** A verified seller records the courier,
+  tracking number and optional HTTPS tracking link in the same transaction as
+  `PAID → SHIPPED`. The seller can then record delivery; the buyer alone can
+  confirm receipt and complete the order. Tracking is visible to the buyer and
+  admin. These workflow updates do not move money or release a payout.
 - **No schema change.** Every model, index and constraint Phase 9.1 needs
   already exists in `prisma/schema.prisma`. The compare-and-swap relies on
   `orders.status` being filterable, which the existing `@@index([status])`

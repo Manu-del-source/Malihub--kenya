@@ -8,7 +8,7 @@ import { KENYA_COUNTIES } from "@/lib/constants";
 const schema = z.object({
   label: z.string().trim().min(1).max(40).default("Home"),
   recipientName: z.string().trim().min(2).max(100),
-  phone: z.string().trim().min(9).max(16).regex(/^\\+?[0-9\\s()-]+$/),
+  phone: z.string().trim().min(9).max(16).regex(/^\+?[0-9\s()-]+$/),
   county: z.string().refine((value) => (KENYA_COUNTIES as readonly string[]).includes(value), "Choose a valid county."),
   subCounty: z.string().trim().max(100).optional().default(""),
   town: z.string().trim().min(2).max(100),

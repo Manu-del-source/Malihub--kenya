@@ -10,7 +10,7 @@ import { checkoutCart, listBuyerOrders, OrderError } from "@/services/order-serv
  * Buyer orders endpoint — the checkout boundary for this phase.
  *
  * `POST /api/orders` converts the caller's cart into PENDING orders (one per
- * seller). The only accepted client fields are delivery county and address;
+ * seller). The only accepted client fields are a saved delivery address id and the accepted fee;
  * prices, inventory, seller ids and ownership remain server-derived. Payment
  * collection is NOT part of this route —
  * an order is created in `PENDING` and the future payment flow attaches to
@@ -59,17 +59,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const county = typeof body?.deliveryCounty === "string" ? body.deliveryCounty.trim() : "";
-  const address = typeof body?.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
+  const addressId = typeof body?.deliveryAddressId === "string" ? body.deliveryAddressId : "";
   const acceptedFeeCents = body?.acceptedDeliveryFeeCents;
 
-  if (!county || county.length > 80 || !address || address.length < 5 || address.length > 300) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(addressId)) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "Enter a county and a delivery address (5–300 characters) before continuing.",
-        code: "invalid_delivery_details",
-      },
+      { success: false, error: "Add or select a valid delivery address before continuing.", code: "invalid_delivery_address" },
       { status: 400 }
     );
   }
@@ -82,7 +77,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await checkoutCart(prisma, user.id, { county, address, acceptedFeeCents });
+    const savedAddress = await prisma.deliveryAddress.findFirst({
+      where: { id: addressId, userId: user.id },
+      select: {
+        recipientName: true, phone: true, county: true, subCounty: true, town: true,
+        area: true, building: true, landmark: true, instructions: true,
+      },
+    });
+    if (!savedAddress) {
+      return NextResponse.json(
+        { success: false, error: "That delivery address is no longer available. Choose another address.", code: "delivery_address_not_found" },
+        { status: 404 }
+      );
+    }
+    const address = [
+      savedAddress.recipientName,
+      savedAddress.phone,
+      savedAddress.building,
+      savedAddress.area,
+      savedAddress.town,
+      savedAddress.subCounty,
+      savedAddress.county,
+      savedAddress.landmark ? "Near " + savedAddress.landmark : "",
+      savedAddress.instructions,
+    ].filter(Boolean).join(", ");
+    const result = await checkoutCart(prisma, user.id, {
+      county: savedAddress.county,
+      address,
+      acceptedFeeCents,
+    });
     return NextResponse.json(
       {
         success: true,

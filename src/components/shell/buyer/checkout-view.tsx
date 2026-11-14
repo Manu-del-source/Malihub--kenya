@@ -92,8 +92,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
   async function handlePay() {
     if (stage !== "review") return;
 
-    const county = deliveryCounty.trim();
-    if (!selectedAddress || !county) {
+    if (!selectedAddress) {
       setError("Add or select a delivery address before continuing.");
       return;
     }
@@ -395,7 +394,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
                 type="button"
                 className="mt-5 w-full"
                 onClick={() => void handlePay()}
-                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId || !deliveryEstimate || !deliveryFeeAccepted}
+                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId}
               >
                 {paystackReady
                   ? `Pay securely · ${formatKes(checkoutTotalCents)}`

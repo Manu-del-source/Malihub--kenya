@@ -185,7 +185,6 @@ describe("POST /api/orders — server-authoritative order creation", () => {
 
     const result = await createCheckoutOrders({
       addressId: "address-uuid",
-      acceptedFeeCents: 0,
     });
 
     assert.equal(result.ok, false);
@@ -203,7 +202,6 @@ describe("POST /api/orders — server-authoritative order creation", () => {
 
     const result = await createCheckoutOrders({
       addressId: "address-uuid",
-      acceptedFeeCents: 0,
     });
     assert.equal(result.ok, false);
     if (!result.ok) assert.match(result.message, /reach the server/i);
@@ -381,7 +379,7 @@ describe("duplicate safety and multi-seller sequencing", () => {
     };
 
     const once = createSerializedTask(() =>
-      createCheckoutOrders({ addressId: "address-uuid", acceptedFeeCents: 0 }),
+      createCheckoutOrders({ addressId: "address-uuid" }),
     );
     const [first, second] = await Promise.all([once(), once()]);
 

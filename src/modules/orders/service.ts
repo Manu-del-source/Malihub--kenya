@@ -2,7 +2,6 @@ import "server-only";
 
 import { customAlphabet } from "nanoid";
 import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
-import { estimateCountyDelivery } from "@/modules/orders/delivery-pricing";
 
 /**
  * Orders — the buyer → cart → order → order-items → seller foundation.
@@ -87,6 +86,16 @@ const ORDER_BASE_SELECT = {
   deliveryAddress: true,
   deliveredAt: true,
   inspectionEndsAt: true,
+  shipment: {
+    select: {
+      carrierName: true,
+      trackingNumber: true,
+      trackingUrl: true,
+      status: true,
+      dispatchedAt: true,
+      deliveredAt: true,
+    },
+  },
   createdAt: true,
   items: {
     select: {
@@ -134,6 +143,16 @@ function orderFields(order: OrderBaseRow) {
     deliveryAddress: order.deliveryAddress,
     deliveredAt: order.deliveredAt,
     inspectionEndsAt: order.inspectionEndsAt,
+    shipment: order.shipment
+      ? {
+          carrierName: order.shipment.carrierName,
+          trackingNumber: order.shipment.trackingNumber,
+          trackingUrl: order.shipment.trackingUrl,
+          status: order.shipment.status,
+          dispatchedAt: order.shipment.dispatchedAt,
+          deliveredAt: order.shipment.deliveredAt,
+        }
+      : null,
     createdAt: order.createdAt,
     items: order.items.map((item) => ({
       id: item.id,
@@ -206,7 +225,6 @@ export type CheckoutResult = {
 export type CheckoutDeliveryDetails = {
   county: string;
   address: string;
-  acceptedFeeCents?: number;
 };
 
 export async function checkoutCart(
@@ -223,19 +241,9 @@ export async function checkoutCart(
     throw new OrderError("Your cart is empty.", "empty_cart");
   }
 
-  let deliveryFeeCents = 0;
-  if (delivery) {
-    let estimate;
-    try {
-      estimate = estimateCountyDelivery(delivery.county);
-    } catch (error) {
-      throw new OrderError(error instanceof Error ? error.message : "Delivery pricing is unavailable.", "unavailable");
-    }
-    if (!Number.isSafeInteger(delivery.acceptedFeeCents) || delivery.acceptedFeeCents !== estimate.feeCents) {
-      throw new OrderError("Delivery fee changed or was not accepted. Review the delivery estimate and try again.", "unavailable");
-    }
-    deliveryFeeCents = estimate.feeCents;
-  }
+  // Delivery pricing is intentionally disabled while checkout is being tested.
+  // Keep the saved destination on the order, but do not invent or charge a fee.
+  const deliveryFeeCents = 0;
 
   for (const row of cartRows) {
     if (!Number.isInteger(row.quantity) || row.quantity < 1) {

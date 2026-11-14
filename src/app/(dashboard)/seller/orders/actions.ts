@@ -17,12 +17,23 @@ import {
 export async function updateSellerOrderFulfilment(input: {
   orderId: string;
   step: FulfillmentStep;
+  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string };
 }): Promise<{ success: boolean; status?: string; error?: string }> {
   if (
     !input ||
     typeof input.orderId !== "string" ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.orderId) ||
-    (input.step !== "SHIPPED" && input.step !== "DELIVERED")
+    (input.step !== "SHIPPED" && input.step !== "DELIVERED") ||
+    (input.step === "SHIPPED" &&
+      (!input.shipment ||
+        typeof input.shipment.carrierName !== "string" ||
+        typeof input.shipment.trackingNumber !== "string" ||
+        input.shipment.carrierName.trim().length === 0 ||
+        input.shipment.carrierName.trim().length > 80 ||
+        input.shipment.trackingNumber.trim().length === 0 ||
+        input.shipment.trackingNumber.trim().length > 100 ||
+        (input.shipment.trackingUrl !== undefined &&
+          typeof input.shipment.trackingUrl !== "string")))
   ) {
     return { success: false, error: "Invalid order update." };
   }
@@ -42,6 +53,7 @@ export async function updateSellerOrderFulfilment(input: {
       orderId: input.orderId,
       actorUserId: user.id,
       actorSellerId: seller.id,
+      ...(input.step === "SHIPPED" ? { shipment: input.shipment } : {}),
     });
 
     revalidatePath("/seller");

@@ -71,7 +71,7 @@ import { notifyUser } from "@/services/notification-service";
 
 export type OrderTransitionStore = Pick<
   PrismaClient,
-  "order" | "orderItem" | "product" | "seller" | "$transaction"
+  "order" | "orderItem" | "product" | "seller" | "payment" | "$transaction"
 >;
 
 /** Why a transition was refused, in terms a route can map to a status code. */
@@ -136,11 +136,12 @@ export type CancelOrderParams = {
 /**
  * Cancels a buyer's own unpaid order and returns its reserved inventory.
  *
- * Only `PENDING → CANCELLED` exists, and a `PENDING` order by definition has
- * collected no money (payment collection is Phase 9.2), so there is no
- * financial side effect to unwind here. Refund-adjacent concerns — reversing a
- * settlement, clawing back a payout — belong to later phases and are explicitly
- * out of this function's remit.
+ * Only `PENDING → CANCELLED` exists. However, a PENDING order can have an
+ * unresolved provider transaction or a SUCCESS payment in the short window
+ * before the order transition commits. Those states are checked under the
+ * shared Paystack order lock before cancellation or inventory release. Refund-
+ * adjacent concerns — reversing a settlement or clawing back a payout — remain
+ * outside this function's remit.
  *
  * **A repeat request is a controlled conflict, not a silent success.** The
  * second caller gets `already_cancelled` (409) and, critically, no second
@@ -162,6 +163,10 @@ export async function cancelOrder(
   }
 
   const outcome = await db.$transaction(async (tx) => {
+    // Serialize cancellation with Paystack attempt reservation and payment settlement.
+    // The lock is transaction-scoped and has no effect beyond this order.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orderId}))`;
+
     // 1. Read, scoped to the caller. An order that exists but belongs to
     //    someone else is indistinguishable from one that does not exist, so
     //    this id can never be used to probe for other buyers' orders.
@@ -176,12 +181,32 @@ export async function cancelOrder(
 
     const from = order.status as OrderStatus;
 
+
     // 2. An order you already cancelled is a conflict, answered before the
     //    claim so the message is specific rather than a generic race failure.
     if (from === "CANCELLED") {
       throw new OrderTransitionError(
         "This order has already been cancelled.",
         "already_cancelled",
+        from
+      );
+    }
+
+    // A PENDING/PROCESSING attempt may still collect money, and a SUCCESS payment can be
+    // between payment claim and order transition. Do not cancel and
+    // release inventory while that transaction can still collect money.
+    const unresolvedPayment = await tx.payment.findFirst({
+      where: {
+        orderId,
+        provider: "PAYSTACK",
+        status: { in: ["PENDING", "PROCESSING", "SUCCESS"] },
+      },
+      select: { id: true },
+    });
+    if (unresolvedPayment) {
+      throw new OrderTransitionError(
+        "This order has a payment attempt that is still being processed. Check its payment status before cancelling.",
+        "invalid_transition",
         from
       );
     }

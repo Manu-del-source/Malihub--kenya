@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, ShoppingCart, UserRound } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, ShoppingCart, Store, UserRound } from "lucide-react";
 
 const ITEMS = [
   { label: "Home", href: "/", icon: Home, exact: true },
@@ -12,8 +12,15 @@ const ITEMS = [
   { label: "Account", href: "/account", icon: UserRound, exact: false },
 ] as const;
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ sellerDashboardHref }: { sellerDashboardHref?: string }) {
   const pathname = usePathname();
+  const items = sellerDashboardHref
+    ? [
+        ...ITEMS.slice(0, 2),
+        { label: "Seller", href: sellerDashboardHref, icon: Store, exact: false },
+        ...ITEMS.slice(2),
+      ]
+    : ITEMS;
 
   return (
     <nav

@@ -40,7 +40,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import WebSocket
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 
 from app.core.redis import RedisGateway
 from app.models.chat import Chat
@@ -345,6 +345,14 @@ def get_chat_realtime_hub() -> ChatRealtimeHub:
             )
             try:
                 async with database.session() as session:
+                    # RLS reads the MaliHub application id from a transaction-
+                    # local setting. Set it on this same session/transaction
+                    # before the participant query; never use session-level
+                    # state that could leak through the connection pool.
+                    await session.execute(
+                        text("SELECT set_config('app.user_id', :user_id, true)"),
+                        {"user_id": user_uuid(user_id).hex},
+                    )
                     row = (await session.execute(statement)).first()
                 return row is not None
             except Exception as exc:

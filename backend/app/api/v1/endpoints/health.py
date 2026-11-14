@@ -146,7 +146,7 @@ async def readiness(
 async def _check_database(settings: Settings) -> DependencyHealth:
     database = get_database()
     if not database.is_configured:
-        return DependencyHealth(state="not_configured", detail="DATABASE_URL is not set")
+        return DependencyHealth(state="not_configured", detail="BACKEND_DATABASE_URL and DATABASE_URL are not set")
     try:
         reachable, latency = await asyncio.wait_for(database.ping(), timeout=_PROBE_TIMEOUT_SECONDS)
     except TimeoutError:

@@ -135,7 +135,7 @@ class DatabaseIdentityResolver:
                 "identity_resolver_unconfigured",
                 extra={
                     "event": "identity_resolver_unconfigured",
-                    "detail": "DATABASE_URL is not set; application identity cannot be resolved.",
+                    "detail": "BACKEND_DATABASE_URL and DATABASE_URL are not set; application identity cannot be resolved.",
                 },
             )
             raise ServiceUnavailableError(

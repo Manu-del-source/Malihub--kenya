@@ -90,7 +90,23 @@ def test_database_url_is_normalized_for_asyncpg(raw: str, expected_prefix: str) 
     """The same DSN the Next.js app uses works here without edits."""
     settings = build_settings(database_url=raw)
     assert settings.database_url is not None
+    assert settings.runtime_database_url == settings.database_url
     assert settings.database_url.get_secret_value() == expected_prefix
+
+
+def test_backend_database_url_is_normalized_and_takes_precedence() -> None:
+    settings = build_settings(
+        database_url="postgresql://legacy:legacy@h:5432/db",
+        backend_database_url="postgresql://runtime:runtime@h:5432/db",
+    )
+    assert settings.backend_database_url is not None
+    assert settings.runtime_database_url == settings.backend_database_url
+    assert settings.runtime_database_url.get_secret_value() == "postgresql+asyncpg://runtime:runtime@h:5432/db"
+
+
+def test_backend_database_url_falls_back_to_legacy_url() -> None:
+    settings = build_settings(database_url="postgresql://legacy:p@h:5432/db")
+    assert settings.runtime_database_url == settings.database_url
 
 
 def test_non_postgres_database_url_is_rejected() -> None:

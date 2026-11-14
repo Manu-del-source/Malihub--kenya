@@ -184,7 +184,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "cors_origin_count": len(settings.cors_origins),
             "cors_allow_credentials": settings.cors_allow_credentials,
             "docs_enabled": settings.enable_docs,
-            "database_configured": bool(settings.database_url),
+            "database_configured": bool(settings.runtime_database_url),
             "redis_configured": bool(settings.redis_url),
             "auth_mode": getattr(verifier, "mode", "unconfigured"),
             "payment_providers": [provider.name.value for provider in registry],

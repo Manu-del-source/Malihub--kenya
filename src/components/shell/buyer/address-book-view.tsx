@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { KENYA_COUNTIES } from "@/lib/constants";
@@ -18,7 +18,7 @@ const emptyDraft: Draft = {
   town: "", area: "", building: "", landmark: "", instructions: "", isDefault: false,
 };
 
-export function AddressBookView({ initialAddresses }: { initialAddresses: Address[] }) {
+export function AddressBookView({ initialAddresses, returnTo = "/account" }: { initialAddresses: Address[]; returnTo?: string }) {
   const router = useRouter();
   const [addresses, setAddresses] = useState(initialAddresses);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function AddressBookView({ initialAddresses }: { initialAddresses: Addres
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
-  async function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -95,7 +95,7 @@ export function AddressBookView({ initialAddresses }: { initialAddresses: Addres
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24 sm:py-9">
-      <Link href="/account" className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <Link href={returnTo} className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" aria-hidden /> Account
       </Link>
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -185,6 +185,11 @@ export function AddressBookView({ initialAddresses }: { initialAddresses: Addres
           <p className="mt-1 text-sm text-muted-foreground">Add a delivery address once and use it whenever you shop.</p>
           <Button className="mt-4" onClick={startAdd}><Plus className="mr-1 h-4 w-4" /> Add your first address</Button>
         </div>
+      )}
+      {returnTo === "/checkout" && (
+        <Link href="/checkout" className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          Continue to checkout
+        </Link>
       )}
       <p className="mt-5 text-xs text-muted-foreground">Pickup stations will appear here only when MaliHub has verified collection locations in your area.</p>
     </div>

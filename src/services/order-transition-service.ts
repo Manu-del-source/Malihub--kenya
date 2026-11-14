@@ -180,14 +180,14 @@ export async function cancelOrder(
 
     const from = order.status as OrderStatus;
 
-    // A PENDING/PROCESSING Paystack attempt may already have been accepted by
-    // the provider, including an ambiguous network timeout. Do not cancel and
+    // A PENDING/PROCESSING attempt may still collect money, and a SUCCESS payment can be
+    // between payment claim and order transition. Do not cancel and
     // release inventory while that transaction can still collect money.
     const unresolvedPayment = await tx.payment.findFirst({
       where: {
         orderId,
         provider: "PAYSTACK",
-        status: { in: ["PENDING", "PROCESSING"] },
+        status: { in: ["PENDING", "PROCESSING", "SUCCESS"] },
       },
       select: { id: true },
     });

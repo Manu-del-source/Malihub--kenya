@@ -1,7 +1,7 @@
 """PostgreSQL access for the backend.
 
 The application database is independent, standard PostgreSQL. Nothing here
-assumes a Supabase-specific extension, role, or API — `DATABASE_URL` can point
+assumes a Supabase-specific extension, role, or API — `BACKEND_DATABASE_URL` (or the legacy `DATABASE_URL`) can point
 at Neon, RDS, Cloud SQL, Supabase, or a laptop, and this module behaves
 identically. Supabase is MaliHub's *authentication* provider only; it happens
 to also be where Postgres currently runs, which is a deployment fact and not an
@@ -57,7 +57,7 @@ class Database:
 
     @property
     def is_configured(self) -> bool:
-        return bool(self._settings.database_url)
+        return bool(self._settings.runtime_database_url)
 
     @property
     def engine(self) -> AsyncEngine | None:
@@ -68,14 +68,14 @@ class Database:
         # `python -O` — a flag production images commonly set — leaving
         # `None.get_secret_value()` to raise AttributeError and turn a
         # clean "database not configured" 503 into an unhandled 500.
-        database_url = self._settings.database_url
+        database_url = self._settings.runtime_database_url
         if database_url is None:
             if not self._unavailable_logged:
                 logger.warning(
                     "database_unconfigured",
                     extra={
                         "event": "database_unconfigured",
-                        "detail": "DATABASE_URL is not set; database-dependent routes return 503.",
+                        "detail": "BACKEND_DATABASE_URL and DATABASE_URL are not set; database-dependent routes return 503.",
                     },
                 )
                 self._unavailable_logged = True
@@ -103,7 +103,7 @@ class Database:
             "database_configured",
             extra={
                 "event": "database_configured",
-                "host": _redact_dsn(self._settings.database_url.get_secret_value()),
+                "host": _redact_dsn(database_url.get_secret_value()),
                 "pool_size": self._settings.database_pool_size,
             },
         )

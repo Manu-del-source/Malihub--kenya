@@ -44,7 +44,7 @@ import { formatKes } from "@/utils";
  *
  * ─── What the browser never sends ───────────────────────────────────────────
  * No prices, subtotal, total, seller or buyer id, amount, currency or
- * provider setting. The order call sends delivery county/address only; the
+ * provider setting. The order call sends a saved delivery address id only; the
  * initialization call sends `{ orderId }`. Everything else is server-derived.
  *
  * ─── Duplicate safety ───────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
           acceptedFeeCents: deliveryEstimate?.feeCents ?? -1,
         })
       ),
-    [deliveryCounty, deliveryAddress, deliveryEstimate]
+    [selectedAddressId, deliveryEstimate]
   );
 
   const blockedByStock = summary.unavailableCount > 0;
@@ -456,7 +456,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
                 type="button"
                 className="mt-5 w-full"
                 onClick={() => void handlePay()}
-                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId}
+                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId || !deliveryEstimate || !deliveryFeeAccepted}
               >
                 {paystackReady
                   ? `Pay securely · ${formatKes(summary.totalCents)}`

@@ -552,9 +552,9 @@ export type FulfillmentParams = {
 };
 
 /**
- * Applies one fulfilment transition. Exposed for the service layer and its
- * tests; deliberately not wired to a route or a button in this phase, because
- * the seller order screens have no fulfilment UI to attach it to yet.
+ * Applies one fulfilment transition. Seller dispatch stores courier tracking
+ * atomically with PAID → SHIPPED; delivery updates the shipment and order
+ * timestamps; only the owning buyer may complete DELIVERED → COMPLETED.
  */
 export async function markOrderFulfilled(
   db: OrderTransitionStore,

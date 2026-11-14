@@ -144,7 +144,7 @@ describe("error mapping — safe, friendly, no internals", () => {
 });
 
 describe("POST /api/orders — server-authoritative order creation", () => {
-  it("sends the accepted delivery fee and reads the created orders from the response", async () => {
+  it("sends only the saved delivery address and reads the created orders from the response", async () => {
     responder = () => ({
       status: 201,
       body: {
@@ -160,14 +160,13 @@ describe("POST /api/orders — server-authoritative order creation", () => {
 
     const result = await createCheckoutOrders({
       addressId: "address-uuid",
-      acceptedFeeCents: 0,
     });
 
     assert.equal(calls[0]!.url, ORDERS_ENDPOINT);
     assert.equal(calls[0]!.init.method, "POST");
     assert.deepEqual(
       bodyOf(calls[0]!),
-      { deliveryAddressId: "address-uuid", acceptedDeliveryFeeCents: 0 },
+      { deliveryAddressId: "address-uuid" },
       "prices, ids and totals are never sent",
     );
     assert.equal(result.ok, true);

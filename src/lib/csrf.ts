@@ -20,7 +20,12 @@ export function verifySameOrigin(request: NextRequest): NextResponse | null {
     return NextResponse.json({ success: false, error: "Missing Origin header." }, { status: 403 });
   }
 
-  const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL ?? `https://${request.headers.get("host")}`;
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL;
+  if (!configuredOrigin && process.env.NODE_ENV === "production") {
+    // Never derive the trusted origin from the request's own Host header.
+    return NextResponse.json({ success: false, error: "Server misconfigured." }, { status: 503 });
+  }
+  const allowedOrigin = configuredOrigin ?? `https://${request.headers.get("host")}`;
 
   let originHost: string;
   let allowedHost: string;

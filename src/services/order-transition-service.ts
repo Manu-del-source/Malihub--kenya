@@ -570,23 +570,6 @@ export async function markOrderFulfilled(
       }
     : null;
 
-  if (step === "SHIPPED") {
-    if (!shipmentInput?.carrierName || shipmentInput.carrierName.length > 80) {
-      throw new OrderTransitionError("Enter a valid courier or delivery provider.", "invalid_transition");
-    }
-    if (!shipmentInput.trackingNumber || shipmentInput.trackingNumber.length > 100) {
-      throw new OrderTransitionError("Enter a valid tracking number.", "invalid_transition");
-    }
-    if (shipmentInput.trackingUrl) {
-      try {
-        const trackingUrl = new URL(shipmentInput.trackingUrl);
-        if (trackingUrl.protocol !== "https:") throw new Error("HTTPS required");
-      } catch {
-        throw new OrderTransitionError("Tracking links must be valid HTTPS URLs.", "invalid_transition");
-      }
-    }
-  }
-
   if (authority === "seller" && !params.actorSellerId) {
     throw new OrderTransitionError(
       "Only the seller who owns this order can record fulfilment.",
@@ -609,6 +592,26 @@ export async function markOrderFulfilled(
         : order.buyerId === params.actorUserId;
     if (!owns) {
       throw new OrderTransitionError("Order not found.", "not_found");
+    }
+
+    if (step === "SHIPPED") {
+      if (!shipmentInput?.carrierName || shipmentInput.carrierName.length > 80) {
+        throw new OrderTransitionError("Enter a valid courier or delivery provider.", "invalid_transition");
+      }
+      if (!shipmentInput.trackingNumber || shipmentInput.trackingNumber.length > 100) {
+        throw new OrderTransitionError("Enter a valid tracking number.", "invalid_transition");
+      }
+      if (shipmentInput.trackingUrl) {
+        if (shipmentInput.trackingUrl.length > 500) {
+          throw new OrderTransitionError("Tracking links must be 500 characters or fewer.", "invalid_transition");
+        }
+        try {
+          const trackingUrl = new URL(shipmentInput.trackingUrl);
+          if (trackingUrl.protocol !== "https:") throw new Error("HTTPS required");
+        } catch {
+          throw new OrderTransitionError("Tracking links must be valid HTTPS URLs.", "invalid_transition");
+        }
+      }
     }
 
     const from = order.status as OrderStatus;

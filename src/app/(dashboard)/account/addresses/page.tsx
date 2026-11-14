@@ -6,8 +6,9 @@ import { AddressBookView } from "@/components/shell/buyer/address-book-view";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "My addresses" };
 
-export default async function AddressesPage() {
-  const { user } = await requireUser();
+export default async function AddressesPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
+  const [{ user }, params] = await Promise.all([requireUser(), searchParams]);
+  const returnTo = params.returnTo === "/checkout" ? "/checkout" : "/account";
   const addresses = await prisma.deliveryAddress.findMany({
     where: { userId: user.id },
     orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
@@ -17,5 +18,5 @@ export default async function AddressesPage() {
       instructions: true, isDefault: true,
     },
   });
-  return <AddressBookView initialAddresses={addresses} />;
+  return <AddressBookView initialAddresses={addresses} returnTo={returnTo} />;
 }

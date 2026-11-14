@@ -14,6 +14,27 @@ const SORT_COLUMNS = {
 
 type Cursor = { value: string; id: string };
 
+function isTransientDatabaseReadError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const message = typeof candidate.message === "string" ? candidate.message : "";
+  return ["P1001", "P1002", "P1017", "P2024"].includes(code) ||
+    /server has closed the connection|connection reset|socket hang up|connection timed out/i.test(message);
+}
+
+async function withTransientReadRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isTransientDatabaseReadError(error)) throw error;
+    const code = (error as { code?: string }).code ?? "connection_error";
+    console.warn("Transient marketplace database read failure; retrying once.", { code });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return operation();
+  }
+}
+
 function encodeCursor(value: string | number, id: string): string {
   return Buffer.from(JSON.stringify({ value: String(value), id })).toString("base64url");
 }
@@ -100,7 +121,7 @@ export async function searchListings(
     WHERE ${whereSql}
     ORDER BY ${sortColumnSql} ${orderDirection}, p.id ASC
     LIMIT ${pageSize + 1}
-  `;
+  `));
 
   const hasMore = rows.length > pageSize;
   const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
@@ -110,12 +131,12 @@ export async function searchListings(
     return { items: [], nextCursor: null, hasMore: false };
   }
 
-  const products = await prisma.product.findMany({
+  const products = await withTransientReadRetry(() => prisma.product.findMany({
     // Re-check visibility when hydrating: a listing/seller may have changed
     // since the raw search query ran.
     where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { slug: { notIn: ["vehicles", "property"] } } },
     select: PUBLIC_PRODUCT_SELECT,
-  });
+  }));
 
   const byId = new Map<string, (typeof products)[number]>(
     products.map((p: { id: string }) => [p.id, p as (typeof products)[number]])

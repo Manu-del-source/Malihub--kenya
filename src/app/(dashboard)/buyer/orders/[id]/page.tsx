@@ -262,9 +262,15 @@ export default async function BuyerOrderDetailPage({
             <p className="mt-2 text-muted-foreground">
               {order.status === "PENDING"
                 ? "This order is awaiting payment — nothing has been charged yet. Pay with M-Pesa above, or cancel the order."
-                : isPaidOrderStatus(order.status)
-                  ? "This order has been paid. The seller will arrange delivery with you."
-                  : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
+                : order.status === "PAID"
+                  ? "Payment confirmed. The seller is preparing your order for dispatch."
+                  : order.status === "SHIPPED"
+                    ? "Your order has been dispatched. Use the courier tracking details to follow its progress."
+                    : order.status === "DELIVERED"
+                      ? "The seller has marked this order delivered. Confirm receipt only after you have physically received and checked it."
+                      : order.status === "COMPLETED"
+                        ? "You confirmed receipt. This order is complete."
+                        : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
             </p>
 
             {paymentSnapshot?.payment && (

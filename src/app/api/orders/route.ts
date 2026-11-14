@@ -60,18 +60,10 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const addressId = typeof body?.deliveryAddressId === "string" ? body.deliveryAddressId : "";
-  const acceptedFeeCents = body?.acceptedDeliveryFeeCents;
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(addressId)) {
     return NextResponse.json(
       { success: false, error: "Add or select a valid delivery address before continuing.", code: "invalid_delivery_address" },
-      { status: 400 }
-    );
-  }
-
-  if (!Number.isSafeInteger(acceptedFeeCents) || acceptedFeeCents < 0) {
-    return NextResponse.json(
-      { success: false, error: "Review and accept the delivery fee before continuing.", code: "delivery_fee_not_accepted" },
       { status: 400 }
     );
   }
@@ -104,7 +96,7 @@ export async function POST(request: NextRequest) {
     const result = await checkoutCart(prisma, user.id, {
       county: savedAddress.county,
       address,
-      acceptedFeeCents,
+      acceptedFeeCents: 0,
     });
     return NextResponse.json(
       {

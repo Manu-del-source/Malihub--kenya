@@ -13,8 +13,8 @@ CREATE TABLE "delivery_addresses" (
   "instructions" TEXT,
   "is_default" BOOLEAN NOT NULL DEFAULT false,
   "default_key" TEXT,
-  "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated_at" TIMESTAMPTZ NOT NULL,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "delivery_addresses_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id")

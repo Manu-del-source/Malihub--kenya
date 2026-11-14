@@ -96,7 +96,11 @@ export default async function SellerOrdersPage() {
                   {formatKes(order.totalCents)}
                 </p>
               </div>
-              <SellerOrderActions orderId={order.id} status={order.status} />
+              <SellerOrderActions
+                orderId={order.id}
+                status={order.status}
+                shipment={order.shipment}
+              />
             </div>
           ))}
         </div>

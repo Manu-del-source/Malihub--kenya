@@ -12,6 +12,7 @@ CREATE TABLE "delivery_addresses" (
   "landmark" TEXT,
   "instructions" TEXT,
   "is_default" BOOLEAN NOT NULL DEFAULT false,
+  "default_key" TEXT,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMPTZ NOT NULL,
   CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id"),
@@ -23,7 +24,6 @@ CREATE TABLE "delivery_addresses" (
 CREATE INDEX "delivery_addresses_user_id_created_at_idx"
   ON "delivery_addresses"("user_id", "created_at");
 
--- At most one default destination per customer.
-CREATE UNIQUE INDEX "delivery_addresses_one_default_per_user_idx"
-  ON "delivery_addresses"("user_id")
-  WHERE "is_default" = true;
+-- A nullable key allows many non-default addresses but only one default per user.
+CREATE UNIQUE INDEX "delivery_addresses_default_key_key"
+  ON "delivery_addresses"("default_key");

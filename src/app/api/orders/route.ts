@@ -96,7 +96,6 @@ export async function POST(request: NextRequest) {
     const result = await checkoutCart(prisma, user.id, {
       county: savedAddress.county,
       address,
-      acceptedFeeCents: 0,
     });
     return NextResponse.json(
       {

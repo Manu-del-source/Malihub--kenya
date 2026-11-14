@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySameOrigin } from "@/lib/csrf";
 import { initiatePaystackSchema } from "@/lib/validations/payment";
 import { formatRetryAfter, rateLimit } from "@/lib/rate-limit";
+import { MAX_PAYMENT_ATTEMPTS_PER_ORDER } from "@/services/payment-service";
 import {
   createPaystackClient,
   resolvePaystackConfig,
@@ -121,6 +122,14 @@ export async function POST(request: NextRequest) {
         return { kind: "initializing" as const };
       }
 
+      const attempts = await tx.payment.findMany({
+        where: { orderId: order.id },
+        select: { id: true },
+      });
+      if (attempts.length >= MAX_PAYMENT_ATTEMPTS_PER_ORDER) {
+        return { kind: "attempt_limit" as const };
+      }
+
       const reference = `MH-${randomUUID().replace(/-/g, "")}`;
       const payment = await tx.payment.create({
         data: {
@@ -150,6 +159,9 @@ export async function POST(request: NextRequest) {
     }
     if (reservation.kind === "invalid_amount") {
       return NextResponse.json({ success: false, error: "This order amount cannot be collected." }, { status: 409 });
+    }
+    if (reservation.kind === "attempt_limit") {
+      return NextResponse.json({ success: false, error: "This order has reached its payment attempt limit. Contact support before trying again.", code: "payment_attempt_limit" }, { status: 409 });
     }
     if (reservation.kind === "existing") {
       return NextResponse.json({ success: true, data: { accessCode: reservation.accessCode, reference: reservation.reference, reused: true } });

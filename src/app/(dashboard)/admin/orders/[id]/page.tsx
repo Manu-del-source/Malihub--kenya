@@ -236,6 +236,28 @@ export default async function AdminOrderDetailPage({
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">Buyer notes</dt>
                 <dd className="whitespace-pre-line">{order.notes ?? "—"}</dd>
               </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Courier</dt>
+                <dd>{order.shipment?.carrierName ?? "Not recorded"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Tracking number</dt>
+                <dd className="font-mono">{order.shipment?.trackingNumber ?? "Not recorded"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Shipment status</dt>
+                <dd>{order.shipment?.status.replaceAll("_", " ").toLowerCase() ?? "Not dispatched"}</dd>
+              </div>
+              {order.shipment?.trackingUrl && (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Tracking link</dt>
+                  <dd>
+                    <a href={order.shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">
+                      Open courier tracking →
+                    </a>
+                  </dd>
+                </div>
+              )}
             </dl>
           </section>
         </div>

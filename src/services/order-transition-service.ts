@@ -136,11 +136,12 @@ export type CancelOrderParams = {
 /**
  * Cancels a buyer's own unpaid order and returns its reserved inventory.
  *
- * Only `PENDING → CANCELLED` exists, and a `PENDING` order by definition has
- * collected no money (payment collection is Phase 9.2), so there is no
- * financial side effect to unwind here. Refund-adjacent concerns — reversing a
- * settlement, clawing back a payout — belong to later phases and are explicitly
- * out of this function's remit.
+ * Only `PENDING → CANCELLED` exists. However, a PENDING order can have an
+ * unresolved provider transaction or a SUCCESS payment in the short window
+ * before the order transition commits. Those states are checked under the
+ * shared Paystack order lock before cancellation or inventory release. Refund-
+ * adjacent concerns — reversing a settlement or clawing back a payout — remain
+ * outside this function's remit.
  *
  * **A repeat request is a controlled conflict, not a silent success.** The
  * second caller gets `already_cancelled` (409) and, critically, no second
@@ -179,6 +180,7 @@ export async function cancelOrder(
     }
 
     const from = order.status as OrderStatus;
+
 
     // A PENDING/PROCESSING attempt may still collect money, and a SUCCESS payment can be
     // between payment claim and order transition. Do not cancel and

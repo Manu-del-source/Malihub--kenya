@@ -68,7 +68,6 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
   const [stage, setStage] = useState<Stage>("review");
   const [selectedAddressId, setSelectedAddressId] = useState(initialAddressId ?? addresses[0]?.id ?? "");
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) ?? null;
-  const deliveryCounty = selectedAddress?.county ?? "";
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
 
   const [error, setError] = useState<string | null>(null);

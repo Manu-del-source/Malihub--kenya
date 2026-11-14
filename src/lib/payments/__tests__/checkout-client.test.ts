@@ -185,8 +185,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     });
 
     const result = await createCheckoutOrders({
-      county: "Nairobi",
-      address: "Moi Avenue",
+      addressId: "address-uuid",
       acceptedFeeCents: 0,
     });
 

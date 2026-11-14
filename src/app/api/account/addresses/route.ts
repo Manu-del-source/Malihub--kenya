@@ -49,11 +49,12 @@ export async function POST(request: NextRequest) {
   const data = parsed.data;
   const address = await prisma.$transaction(async (tx) => {
     if (data.isDefault) {
-      await tx.deliveryAddress.updateMany({ where: { userId: user.id, isDefault: true }, data: { isDefault: false } });
+      await tx.deliveryAddress.updateMany({ where: { userId: user.id, isDefault: true }, data: { isDefault: false, defaultKey: null } });
     }
     const existingCount = await tx.deliveryAddress.count({ where: { userId: user.id } });
+    const makeDefault = data.isDefault || existingCount === 0;
     return tx.deliveryAddress.create({
-      data: { ...data, isDefault: data.isDefault || existingCount === 0, userId: user.id },
+      data: { ...data, isDefault: makeDefault, defaultKey: makeDefault ? user.id : null, userId: user.id },
       select: {
         id: true, label: true, recipientName: true, phone: true, county: true,
         subCounty: true, town: true, area: true, building: true, landmark: true,

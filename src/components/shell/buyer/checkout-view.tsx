@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,10 +68,6 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
   const [stage, setStage] = useState<Stage>("review");
   const [selectedAddressId, setSelectedAddressId] = useState(initialAddressId ?? addresses[0]?.id ?? "");
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) ?? null;
-  const deliveryCounty = selectedAddress?.county ?? "";
-  const [deliveryEstimate, setDeliveryEstimate] = useState<{ feeCents: number; county: string } | null>(null);
-  const [deliveryEstimateError, setDeliveryEstimateError] = useState<string | null>(null);
-  const [deliveryFeeAccepted, setDeliveryFeeAccepted] = useState(false);
   const [orders, setOrders] = useState<CheckoutOrder[]>([]);
 
   const [error, setError] = useState<string | null>(null);
@@ -84,57 +80,21 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
       createSerializedTask(() =>
         createCheckoutOrders({
           addressId: selectedAddressId,
-          acceptedFeeCents: deliveryEstimate?.feeCents ?? -1,
         })
       ),
-    [selectedAddressId, deliveryEstimate]
+    [selectedAddressId]
   );
 
-  const deliveryTotalCents = (deliveryEstimate?.feeCents ?? 0) * summary.sellerCount;
-  const checkoutTotalCents = summary.subtotalCents + deliveryTotalCents;
+  const checkoutTotalCents = summary.subtotalCents;
   const blockedByStock = summary.unavailableCount > 0;
-
-  useEffect(() => {
-    let cancelled = false;
-    setDeliveryEstimate(null);
-    setDeliveryFeeAccepted(false);
-    setDeliveryEstimateError(null);
-    const county = deliveryCounty.trim();
-    if (!county) return;
-    const timer = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/orders/delivery-estimate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ county }),
-        });
-        const body = await response.json().catch(() => null);
-        if (cancelled) return;
-        if (!response.ok || body?.success !== true || !Number.isSafeInteger(body?.data?.feeCents) || body.data.feeCents < 0) {
-          setDeliveryEstimateError(typeof body?.error === "string" ? body.error : "Delivery estimate is unavailable.");
-          return;
-        }
-        setDeliveryEstimate({ feeCents: body.data.feeCents, county: body.data.county });
-      } catch {
-        if (!cancelled) setDeliveryEstimateError("Could not load the delivery estimate. Please try again.");
-      }
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [deliveryCounty]);
 
   async function handlePay() {
     if (stage !== "review") return;
 
-    const county = deliveryCounty.trim();
-    if (!selectedAddress || !county) {
+    if (!selectedAddress) {
       setError("Add or select a delivery address before continuing.");
       return;
     }
-    if (!deliveryEstimate || deliveryEstimate.county.toLowerCase() !== county.toLowerCase() || !deliveryFeeAccepted) {
-      setError("Review and accept the current delivery estimate before continuing.");
-      return;
-    }
-
     setError(null);
     setStage("creating");
 
@@ -258,27 +218,6 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
               </div>
             )}
 
-            {selectedAddress && (
-              <div className="mt-3 text-xs" aria-live="polite">
-                {deliveryEstimate ? (
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
-                    <span className="text-muted-foreground">Estimated delivery</span>
-                    <strong>{formatKes(deliveryEstimate.feeCents)}</strong>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">{deliveryEstimateError ?? "Checking delivery fee…"}</p>
-                )}
-                {deliveryEstimate && (
-                  <label className="mt-2 flex items-start gap-2 text-muted-foreground">
-                    <input type="checkbox" checked={deliveryFeeAccepted} onChange={(event) => setDeliveryFeeAccepted(event.target.checked)} />
-                    <span>I accept this delivery estimate. Any confirmed change will be shared before dispatch.</span>
-                  </label>
-                )}
-              </div>
-            )}
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              Pickup stations will appear when MaliHub has verified collection locations in your area.
-            </p>
           </section>
 
           {/* ── Your order (server cart, grouped per seller) ───────────────── */}
@@ -333,10 +272,6 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Subtotal</dt>
                 <dd className="font-mono tabular-nums">{formatKes(summary.subtotalCents)}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Delivery</dt>
-                <dd className="font-mono tabular-nums">{deliveryEstimate ? formatKes(deliveryTotalCents) : "Confirming…"}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 text-base font-medium">
                 <dt>Total</dt>
@@ -458,7 +393,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
                 type="button"
                 className="mt-5 w-full"
                 onClick={() => void handlePay()}
-                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId || !deliveryEstimate || !deliveryFeeAccepted}
+                disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId}
               >
                 {paystackReady
                   ? `Pay securely · ${formatKes(checkoutTotalCents)}`

@@ -41,6 +41,7 @@ import {
   seedCartItem,
   seedCategory,
   seedProduct,
+  seedPayment,
   seedProfile,
   seedSeller,
   seedUser,
@@ -121,6 +122,30 @@ describe("cancelOrder — cancelling your own unpaid order", () => {
     // INVARIANT 1: both halves held.
     assert.equal(orderRow(order.id).status, "CANCELLED");
     assert.equal(stockOf(product.id), 5);
+  });
+
+  it("refuses cancellation while a Paystack attempt is unresolved and preserves reserved stock", async () => {
+    const { product } = seedListing(SELLER_1, { quantity: 5 });
+    const order = await placeOrder(BUYER_A, product.id, 2);
+    seedPayment(store, {
+      orderId: order.id,
+      customerReference: `MH-${order.id.replace(/-/g, "").slice(0, 24)}`,
+      provider: "PAYSTACK",
+      status: "PENDING",
+      amountCents: order.totalCents,
+      metadata: { paystack: { initialization: "unknown" } },
+    });
+
+    await assert.rejects(
+      () => service.cancelOrder(db, { actorUserId: BUYER_A, orderId: order.id }),
+      (error: unknown) =>
+        error instanceof service.OrderTransitionError &&
+        error.code === "invalid_transition" &&
+        error.message.includes("payment attempt")
+    );
+
+    assert.equal(orderRow(order.id).status, "PENDING");
+    assert.equal(stockOf(product.id), 3, "inventory must remain reserved while provider collection is unresolved");
   });
 
   it("returns the listing to the stock it had before checkout", async () => {

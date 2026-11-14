@@ -205,7 +205,6 @@ export type CheckoutResult = {
 export type CheckoutDeliveryDetails = {
   county: string;
   address: string;
-  acceptedFeeCents?: number;
 };
 
 export async function checkoutCart(

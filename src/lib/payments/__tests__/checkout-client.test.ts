@@ -203,8 +203,7 @@ describe("POST /api/orders — server-authoritative order creation", () => {
     }) as typeof fetch;
 
     const result = await createCheckoutOrders({
-      county: "Nairobi",
-      address: "Moi Avenue",
+      addressId: "address-uuid",
       acceptedFeeCents: 0,
     });
     assert.equal(result.ok, false);

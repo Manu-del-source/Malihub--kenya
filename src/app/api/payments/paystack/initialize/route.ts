@@ -92,49 +92,73 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const order = await prisma.order.findFirst({
-      where: { id: orderId, buyerId: user.id },
-      select: { id: true, orderNumber: true, status: true, totalCents: true },
+    const reservation = await prisma.$transaction(async (tx) => {
+      // The same order-keyed transaction lock is acquired by cancelOrder and
+      // payment settlement. It serializes reservation creation against both.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orderId}))`;
+
+      const order = await tx.order.findFirst({
+        where: { id: orderId, buyerId: user.id },
+        select: { id: true, orderNumber: true, status: true, totalCents: true },
+      });
+      if (!order) return { kind: "not_found" as const };
+      if (order.status === "PAID") return { kind: "already_paid" as const };
+      if (order.status !== "PENDING") return { kind: "not_payable" as const };
+      if (!Number.isSafeInteger(order.totalCents) || order.totalCents <= 0) {
+        return { kind: "invalid_amount" as const };
+      }
+
+      const existing = await tx.payment.findFirst({
+        where: { orderId: order.id, provider: "PAYSTACK", status: { in: ["PENDING", "PROCESSING"] } },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, customerReference: true, metadata: true },
+      });
+      if (existing) {
+        const meta = existing.metadata as { paystack?: { authorizationUrl?: string; accessCode?: string } } | null;
+        if (isPaystackAccessCode(meta?.paystack?.accessCode) && isPaystackReference(existing.customerReference)) {
+          return { kind: "existing" as const, accessCode: meta.paystack.accessCode, reference: existing.customerReference };
+        }
+        return { kind: "initializing" as const };
+      }
+
+      const reference = `MH-${randomUUID().replace(/-/g, "")}`;
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          provider: "PAYSTACK",
+          method: "MOBILE_MONEY",
+          status: "PENDING",
+          amountCents: order.totalCents,
+          currency: "KES",
+          customerReference: reference,
+          retryCount: 0,
+          metadata: { paystack: { initialization: "pending" } },
+        },
+        select: { id: true },
+      });
+      return { kind: "created" as const, order, paymentId: payment.id, reference };
     });
-    if (!order) return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
-    if (order.status === "PAID") return NextResponse.json({ success: false, error: "This order has already been paid." }, { status: 409 });
-    if (order.status !== "PENDING") return NextResponse.json({ success: false, error: "This order is not awaiting payment." }, { status: 409 });
-    if (!Number.isSafeInteger(order.totalCents) || order.totalCents <= 0) {
+
+    if (reservation.kind === "not_found") {
+      return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
+    }
+    if (reservation.kind === "already_paid") {
+      return NextResponse.json({ success: false, error: "This order has already been paid." }, { status: 409 });
+    }
+    if (reservation.kind === "not_payable") {
+      return NextResponse.json({ success: false, error: "This order is not awaiting payment." }, { status: 409 });
+    }
+    if (reservation.kind === "invalid_amount") {
       return NextResponse.json({ success: false, error: "This order amount cannot be collected." }, { status: 409 });
     }
-
-    // Reuse an in-flight attempt so a double-click does not create a second
-    // provider transaction. The webhook and verify endpoint still decide payment.
-    const existing = await prisma.payment.findFirst({
-      where: { orderId: order.id, provider: "PAYSTACK", status: { in: ["PENDING", "PROCESSING"] } },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, customerReference: true, metadata: true },
-    });
-    if (existing) {
-      const meta = existing.metadata as { paystack?: { authorizationUrl?: string; accessCode?: string } } | null;
-      if (isPaystackAccessCode(meta?.paystack?.accessCode) && isPaystackReference(existing.customerReference)) {
-        return NextResponse.json({ success: true, data: { accessCode: meta.paystack.accessCode, reference: existing.customerReference, reused: true } });
-      }
-      // An earlier request may have timed out after Paystack accepted it. Do not
-      // blindly create another charge; ask the buyer to retry status/support.
+    if (reservation.kind === "existing") {
+      return NextResponse.json({ success: true, data: { accessCode: reservation.accessCode, reference: reservation.reference, reused: true } });
+    }
+    if (reservation.kind === "initializing") {
       return NextResponse.json({ success: false, error: "This payment is still being initialized. Please wait a moment and check again.", code: "payment_initializing" }, { status: 409 });
     }
 
-    const reference = `MH-${randomUUID().replace(/-/g, "")}`;
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        provider: "PAYSTACK",
-        method: "MOBILE_MONEY",
-        status: "PENDING",
-        amountCents: order.totalCents,
-        currency: "KES",
-        customerReference: reference,
-        retryCount: 0,
-        metadata: { paystack: { initialization: "pending" } },
-      },
-      select: { id: true },
-    });
+    const { order, paymentId, reference } = reservation;
 
     try {
       const client = createPaystackClient(config.config);
@@ -156,7 +180,7 @@ export async function POST(request: NextRequest) {
       // settlement lookups (webhook service) fall back to this value instead of
       // silently failing to match.
       await prisma.payment.updateMany({
-        where: { id: payment.id, status: "PENDING" },
+        where: { id: paymentId, status: "PENDING" },
         data: {
           status: "PROCESSING",
           metadata: {

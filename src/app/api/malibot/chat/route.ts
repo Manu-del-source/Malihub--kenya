@@ -55,32 +55,44 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "x-goog-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: parsed.data.messages.map((message) => ({
-            role: message.role === "assistant" ? "model" : "user",
-            parts: [{ text: message.content }],
-          })),
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 450,
+    const requestGeneration = (modelId: string) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": apiKey,
+            "Content-Type": "application/json",
           },
-        }),
-        signal: AbortSignal.timeout(25000),
-        cache: "no-store",
-      },
-    );
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: parsed.data.messages.map((message) => ({
+              role: message.role === "assistant" ? "model" : "user",
+              parts: [{ text: message.content }],
+            })),
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 450,
+            },
+          }),
+          signal: AbortSignal.timeout(25000),
+          cache: "no-store",
+        },
+      );
+
+    let response = await requestGeneration(model);
+
+    // Gemini 2.5 generation access is restricted for projects without prior
+    // usage. A 404 from a configured legacy 2.5 model gets one fallback attempt
+    // on Google's current Flash-Lite model; other failures are not retried.
+    if (response.status === 404 && /^gemini-2\\.5-/.test(model)) {
+      const fallbackModel = "gemini-3.5-flash-lite";
+      console.warn("MaliBot legacy Gemini model returned 404; trying supported fallback.");
+      response = await requestGeneration(fallbackModel);
+    }
 
     if (!response.ok) {
       console.error("MaliBot Gemini request failed", { httpStatus: response.status });

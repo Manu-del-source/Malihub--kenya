@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
       // Preserve the reserved row/reference: a timeout can be ambiguous, so
       // never create a fresh reference automatically in this request.
       await prisma.payment.updateMany({
-        where: { id: payment.id, status: "PENDING" },
+        where: { id: paymentId, status: "PENDING" },
         data: { metadata: { paystack: { initialization: "unknown" } } },
       }).catch(() => undefined);
       if (error instanceof PaystackClientError) {

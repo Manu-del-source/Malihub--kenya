@@ -86,6 +86,16 @@ const ORDER_BASE_SELECT = {
   deliveryAddress: true,
   deliveredAt: true,
   inspectionEndsAt: true,
+  shipment: {
+    select: {
+      carrierName: true,
+      trackingNumber: true,
+      trackingUrl: true,
+      status: true,
+      dispatchedAt: true,
+      deliveredAt: true,
+    },
+  },
   createdAt: true,
   items: {
     select: {
@@ -133,6 +143,16 @@ function orderFields(order: OrderBaseRow) {
     deliveryAddress: order.deliveryAddress,
     deliveredAt: order.deliveredAt,
     inspectionEndsAt: order.inspectionEndsAt,
+    shipment: order.shipment
+      ? {
+          carrierName: order.shipment.carrierName,
+          trackingNumber: order.shipment.trackingNumber,
+          trackingUrl: order.shipment.trackingUrl,
+          status: order.shipment.status,
+          dispatchedAt: order.shipment.dispatchedAt,
+          deliveredAt: order.shipment.deliveredAt,
+        }
+      : null,
     createdAt: order.createdAt,
     items: order.items.map((item) => ({
       id: item.id,

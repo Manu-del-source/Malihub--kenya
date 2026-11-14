@@ -161,8 +161,7 @@ describe("checkout UI — credentials never reach the browser", () => {
   it("the browser sends only the fields the routes accept", () => {
     const source = read("src/lib/payments/checkout-client.ts");
     assert.match(source, /JSON\.stringify\(\{ orderId \}\)/, "payment calls send only the order id");
-    assert.match(source, /deliveryCounty: delivery\.county/, "order creation sends the delivery county");
-    assert.match(source, /deliveryAddress: delivery\.address/, "order creation sends the delivery address");
+    assert.match(source, /deliveryAddressId: delivery\.addressId/, "order creation sends only a saved address id");
     assert.equal(
       source.includes("amountCents:") && source.includes("body: JSON.stringify({ amountCents"),
       false,
@@ -173,8 +172,10 @@ describe("checkout UI — credentials never reach the browser", () => {
   it("requires and persists delivery details before creating seller orders", () => {
     const route = read("src/app/api/orders/route.ts");
     const service = read("src/modules/orders/service.ts");
-    assert.match(route, /invalid_delivery_details/, "invalid shipping information must be rejected");
-    assert.match(route, /checkoutCart\(prisma, user\.id, \{ county, address, acceptedFeeCents \}\)/);
+    assert.match(route, /invalid_delivery_address/, "invalid saved address identifiers must be rejected");
+    assert.match(route, /where: \{ id: addressId, userId: user\.id \}/, "the selected address must belong to the signed-in buyer");
+    assert.match(route, /county: savedAddress\.county/);
+    assert.match(route, /checkoutCart\(prisma, user\.id, \{/);
     assert.match(service, /deliveryCounty: delivery\.county/);
     assert.match(service, /deliveryAddress: delivery\.address/);
     assert.match(route, /acceptedDeliveryFeeCents/);

@@ -32,7 +32,7 @@ export function SellerOrderActions({ orderId, status }: { orderId: string; statu
         {status === "PENDING" && "Awaiting payment. Shipping actions unlock after payment is confirmed."}
         {status === "PAID" && "Payment confirmed. Prepare the parcel, then mark it as shipped."}
         {status === "SHIPPED" && "The order is marked as shipped. Mark it delivered once the buyer has received it."}
-        {status === "DELIVERED" && "Marked delivered. Waiting for the buyer to confirm completion."}
+        {status === "DELIVERED" && "Marked delivered. The final buyer completion step is not yet available in the app."}
         {status === "COMPLETED" && "This order is complete."}
         {status === "CANCELLED" && "This order was cancelled."}
         {status === "REFUNDED" && "This order has been refunded."}

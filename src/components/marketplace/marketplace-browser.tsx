@@ -32,7 +32,19 @@ export async function MarketplaceBrowser({
 
   const parsed = searchParamsSchema.safeParse(flatParams);
   const params = parsed.success ? parsed.data : { sort: "newest" as const };
-  const result = await searchListings(params);
+  let catalogUnavailable = false;
+  let result: Awaited<ReturnType<typeof searchListings>>;
+  try {
+    result = await searchListings(params);
+  } catch (error) {
+    if (!compact) throw error;
+    catalogUnavailable = true;
+    const code = error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code ?? "unknown")
+      : "unknown";
+    console.error("Homepage catalogue query failed; rendering the page without listings.", { code });
+    result = { items: [], nextCursor: null, hasMore: false };
+  }
   const initialItems = result.items.map((item) => toListingCardData(item));
   const clientParamsString = new URLSearchParams(
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
@@ -159,8 +171,8 @@ export async function MarketplaceBrowser({
             initialItems={initialItems}
             initialNextCursor={result.nextCursor}
             initialHasMore={result.hasMore}
-            emptyTitle={compact ? "New listings are on the way" : undefined}
-            emptyDescription={compact ? "Check back soon for fresh finds from sellers across Kenya, or explore a category to get started." : undefined}
+            emptyTitle={catalogUnavailable ? "Listings are temporarily unavailable" : compact ? "New listings are on the way" : undefined}
+            emptyDescription={catalogUnavailable ? "The marketplace catalogue could not be reached just now. Please refresh in a moment." : compact ? "Check back soon for fresh finds from sellers across Kenya, or explore a category to get started." : undefined}
           />
         </div>
       </div>

@@ -568,6 +568,7 @@ model DeliveryAddress {
   landmark      String?
   instructions  String?
   isDefault     Boolean  @default(false) @map("is_default")
+  defaultKey    String?  @unique @map("default_key")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

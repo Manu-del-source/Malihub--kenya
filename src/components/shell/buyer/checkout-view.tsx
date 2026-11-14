@@ -90,6 +90,8 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
     [selectedAddressId, deliveryEstimate]
   );
 
+  const deliveryTotalCents = (deliveryEstimate?.feeCents ?? 0) * summary.sellerCount;
+  const checkoutTotalCents = summary.subtotalCents + deliveryTotalCents;
   const blockedByStock = summary.unavailableCount > 0;
 
   useEffect(() => {
@@ -334,12 +336,12 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">Delivery</dt>
-                <dd className="text-xs text-muted-foreground">Arranged with the seller</dd>
+                <dd className="font-mono tabular-nums">{deliveryEstimate ? formatKes(deliveryTotalCents) : "Confirming…"}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2 text-base font-medium">
                 <dt>Total</dt>
                 <dd className="font-mono tabular-nums text-primary-400">
-                  {formatKes(summary.totalCents)}
+                  {formatKes(checkoutTotalCents)}
                 </dd>
               </div>
             </dl>
@@ -459,7 +461,7 @@ export function CheckoutView({ summary, addresses, initialAddressId }: CheckoutV
                 disabled={blockedByStock || summary.totalCents <= 0 || !paystackReady || !selectedAddressId || !deliveryEstimate || !deliveryFeeAccepted}
               >
                 {paystackReady
-                  ? `Pay securely · ${formatKes(summary.totalCents)}`
+                  ? `Pay securely · ${formatKes(checkoutTotalCents)}`
                   : "Loading secure checkout…"}
               </Button>
             )}

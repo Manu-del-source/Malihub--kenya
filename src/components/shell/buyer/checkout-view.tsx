@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";

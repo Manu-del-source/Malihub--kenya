@@ -120,6 +120,10 @@ class Settings(BaseSettings):
     #: extension. Accepts `postgres://`, `postgresql://`, and the SQLAlchemy
     #: async forms; normalized to `postgresql+asyncpg://` below.
     database_url: SecretStr | None = None
+    #: Optional least-privilege connection for FastAPI runtime. When unset,
+    #: the legacy DATABASE_URL remains the compatibility fallback. Set this
+    #: only after grants and RLS policies have been validated on staging.
+    backend_database_url: SecretStr | None = None
     database_pool_size: int = Field(default=5, ge=1, le=100)
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     database_pool_timeout_seconds: int = Field(default=30, ge=1, le=300)
@@ -339,7 +343,7 @@ class Settings(BaseSettings):
                 cleaned.append(normalized)
         return cleaned
 
-    @field_validator("database_url", mode="before")
+    @field_validator("database_url", "backend_database_url", mode="before")
     @classmethod
     def _normalize_database_url(cls, value: object) -> object:
         """Rewrite a plain Postgres DSN into SQLAlchemy's asyncpg dialect.
@@ -414,6 +418,11 @@ class Settings(BaseSettings):
         return self
 
     # ─── Convenience ────────────────────────────────────────────────────────
+
+    @property
+    def runtime_database_url(self) -> SecretStr | None:
+        """Least-privilege backend DSN, falling back for existing deployments."""
+        return self.backend_database_url or self.database_url
 
     @property
     def is_production(self) -> bool:
@@ -526,16 +535,16 @@ class Settings(BaseSettings):
                 raise ConfigurationError("DATABASE_ECHO must be false in production (it logs row data).")
             if self.active_auth_mode == "unconfigured":
                 raise ConfigurationError(self.describe_missing_auth_configuration())
-            if not self.database_url:
-                raise ConfigurationError("DATABASE_URL is required in production.")
+            if not self.runtime_database_url:
+                raise ConfigurationError("DATABASE_URL or BACKEND_DATABASE_URL is required in production.")
             if self.backend_public_url.startswith("http://localhost"):
                 raise ConfigurationError(
                     "BACKEND_PUBLIC_URL must be this backend's public https:// URL "
                     "in production — payment providers call back to it."
                 )
 
-        if not self.database_url:
-            warnings.append("DATABASE_URL is not set — database-dependent routes will return 503.")
+        if not self.runtime_database_url:
+            warnings.append("DATABASE_URL and BACKEND_DATABASE_URL are not set — database-dependent routes will return 503.")
         if not self.redis_url:
             warnings.append(
                 "REDIS_URL is not set — rate limiting and caching are disabled "

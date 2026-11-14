@@ -38,11 +38,11 @@ export async function PATCH(request: NextRequest, context: Context) {
     const owned = await tx.deliveryAddress.findFirst({ where: { id, userId: user.id }, select: { id: true } });
     if (!owned) return null;
     if (data.isDefault) {
-      await tx.deliveryAddress.updateMany({ where: { userId: user.id, isDefault: true, NOT: { id } }, data: { isDefault: false } });
+      await tx.deliveryAddress.updateMany({ where: { userId: user.id, isDefault: true, NOT: { id } }, data: { isDefault: false, defaultKey: null } });
     }
     return tx.deliveryAddress.update({
       where: { id },
-      data,
+      data: { ...data, defaultKey: data.isDefault ? user.id : null },
       select: {
         id: true, label: true, recipientName: true, phone: true, county: true,
         subCounty: true, town: true, area: true, building: true, landmark: true,
@@ -71,7 +71,7 @@ export async function DELETE(request: NextRequest, context: Context) {
         orderBy: { updatedAt: "desc" },
         select: { id: true },
       });
-      if (replacement) await tx.deliveryAddress.update({ where: { id: replacement.id }, data: { isDefault: true } });
+      if (replacement) await tx.deliveryAddress.update({ where: { id: replacement.id }, data: { isDefault: true, defaultKey: user.id } });
     }
     return true;
   });

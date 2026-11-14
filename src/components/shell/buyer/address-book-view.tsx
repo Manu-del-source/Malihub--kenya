@@ -96,7 +96,7 @@ export function AddressBookView({ initialAddresses, returnTo = "/account" }: { i
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24 sm:py-9">
       <Link href={returnTo} className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Account
+        <ArrowLeft className="h-4 w-4" aria-hidden /> {returnTo === "/checkout" ? "Back to checkout" : "Account"}
       </Link>
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>

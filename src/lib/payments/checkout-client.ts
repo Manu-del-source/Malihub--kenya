@@ -156,8 +156,7 @@ function failureFrom(
  * twice.
  */
 export async function createCheckoutOrders(delivery: {
-  county: string;
-  address: string;
+  addressId: string;
   acceptedFeeCents: number;
 }): Promise<ApiResult<CheckoutOrder[]>> {
   let response: Response;
@@ -166,8 +165,7 @@ export async function createCheckoutOrders(delivery: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        deliveryCounty: delivery.county,
-        deliveryAddress: delivery.address,
+        deliveryAddressId: delivery.addressId,
         acceptedDeliveryFeeCents: delivery.acceptedFeeCents,
       }),
     });

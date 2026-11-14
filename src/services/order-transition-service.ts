@@ -71,7 +71,7 @@ import { notifyUser } from "@/services/notification-service";
 
 export type OrderTransitionStore = Pick<
   PrismaClient,
-  "order" | "orderItem" | "product" | "seller" | "$transaction"
+  "order" | "orderItem" | "product" | "seller" | "payment" | "$transaction"
 >;
 
 /** Why a transition was refused, in terms a route can map to a status code. */
@@ -162,6 +162,10 @@ export async function cancelOrder(
   }
 
   const outcome = await db.$transaction(async (tx) => {
+    // Serialize cancellation with Paystack attempt reservation and payment settlement.
+    // The lock is transaction-scoped and has no effect beyond this order.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orderId}))`;
+
     // 1. Read, scoped to the caller. An order that exists but belongs to
     //    someone else is indistinguishable from one that does not exist, so
     //    this id can never be used to probe for other buyers' orders.
@@ -175,6 +179,25 @@ export async function cancelOrder(
     }
 
     const from = order.status as OrderStatus;
+
+    // A PENDING/PROCESSING Paystack attempt may already have been accepted by
+    // the provider, including an ambiguous network timeout. Do not cancel and
+    // release inventory while that transaction can still collect money.
+    const unresolvedPayment = await tx.payment.findFirst({
+      where: {
+        orderId,
+        provider: "PAYSTACK",
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+      select: { id: true },
+    });
+    if (unresolvedPayment) {
+      throw new OrderTransitionError(
+        "This order has a payment attempt that is still being processed. Check its payment status before cancelling.",
+        "invalid_transition",
+        from
+      );
+    }
 
     // 2. An order you already cancelled is a conflict, answered before the
     //    claim so the message is specific rather than a generic race failure.

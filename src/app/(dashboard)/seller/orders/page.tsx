@@ -14,6 +14,7 @@ import {
 } from "@/services/order-service";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
+import { SellerOrderActions } from "@/components/shell/seller/seller-order-actions";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -95,6 +96,7 @@ export default async function SellerOrdersPage() {
                   {formatKes(order.totalCents)}
                 </p>
               </div>
+              <SellerOrderActions orderId={order.id} status={order.status} />
             </div>
           ))}
         </div>

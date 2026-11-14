@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, ShoppingCart, Store, UserRound } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, ShieldCheck, ShoppingCart, Store, UserRound } from "lucide-react";
 
 const ITEMS = [
   { label: "Home", href: "/", icon: Home, exact: true },
@@ -12,23 +12,26 @@ const ITEMS = [
   { label: "Account", href: "/account", icon: UserRound, exact: false },
 ] as const;
 
-export function MobileBottomNav({ sellerDashboardHref }: { sellerDashboardHref?: string }) {
+export function MobileBottomNav({ sellerDashboardHref, adminDashboardHref }: { sellerDashboardHref?: string; adminDashboardHref?: string }) {
   const pathname = usePathname();
-  const items = sellerDashboardHref
-    ? [
-        ...ITEMS.slice(0, 2),
-        { label: "Seller", href: sellerDashboardHref, icon: Store, exact: false },
-        ...ITEMS.slice(2),
-      ]
-    : ITEMS;
+  const items = [
+    ...ITEMS.slice(0, 2),
+    ...(sellerDashboardHref
+      ? [{ label: "Seller", href: sellerDashboardHref, icon: Store, exact: false }]
+      : []),
+    ...(adminDashboardHref
+      ? [{ label: "Admin", href: adminDashboardHref, icon: ShieldCheck, exact: false }]
+      : []),
+    ...ITEMS.slice(2),
+  ];
 
   return (
     <nav
       aria-label="Primary mobile navigation"
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgb(0_0_0/0.18)] backdrop-blur-xl md:hidden"
     >
-      <ul className="mx-auto grid max-w-xl grid-cols-5">
-        {ITEMS.map(({ label, href, icon: Icon, exact }) => {
+      <ul className={`mx-auto grid max-w-xl ${items.length > 5 ? `grid-cols-${items.length}` : "grid-cols-5"}`}>
+        {items.map(({ label, href, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
             : pathname === href || pathname.startsWith(`${href}/`);

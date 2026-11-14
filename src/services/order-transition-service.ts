@@ -71,8 +71,10 @@ import { notifyUser } from "@/services/notification-service";
 
 export type OrderTransitionStore = Pick<
   PrismaClient,
-  "order" | "orderItem" | "orderShipment" | "product" | "seller" | "payment" | "$transaction"
+  "order" | "orderItem" | "product" | "seller" | "payment" | "$transaction"
 >;
+
+type OrderFulfillmentStore = OrderTransitionStore & Pick<PrismaClient, "orderShipment">;
 
 /** Why a transition was refused, in terms a route can map to a status code. */
 export type OrderTransitionErrorCode =
@@ -557,7 +559,7 @@ export type FulfillmentParams = {
  * timestamps; only the owning buyer may complete DELIVERED → COMPLETED.
  */
 export async function markOrderFulfilled(
-  db: OrderTransitionStore,
+  db: OrderFulfillmentStore,
   step: FulfillmentStep,
   params: FulfillmentParams
 ): Promise<OrderTransitionResult> {

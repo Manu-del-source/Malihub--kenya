@@ -286,35 +286,32 @@ def test_application_identity_is_immutable() -> None:
 # ─── The query it builds ─────────────────────────────────────────────────────
 
 
-async def test_the_lookup_is_text_equality_with_no_uuid_cast() -> None:
-    """`auth_user_id` is TEXT on purpose; the query must not assume otherwise.
-
-    Casting `sub` to a UUID would work against Neon's documented id format and
-    break the moment the service issued Better Auth's 32-character form — a
-    total authentication outage caused by an assumption nobody verified.
-    """
+async def test_the_lookup_calls_the_restricted_identity_function_with_text_subject() -> None:
+    """Provider subjects are opaque TEXT, never assumed to be UUIDs."""
     database = FakeDatabase(row=a_row())
     resolver = DatabaseIdentityResolver(database=database)  # type: ignore[arg-type]
-    await resolver.resolve("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")  # not a UUID
+    provider_subject = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+    await resolver.resolve(provider_subject)
 
-    compiled = str(database.statements[0].compile(dialect=postgresql.dialect()))
-    # Bound as a plain parameter against the TEXT column. Identifiers come back
-    # unquoted from `compile()` unless they need quoting, so the assertion is on
-    # the column reference and the absence of any cast — not on quoting style.
-    assert "users.auth_user_id =" in compiled
+    statement = database.statements[0]
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+    assert "public.resolve_malihub_identity" in compiled
+    assert "auth_user_id" in compiled
     assert "::uuid" not in compiled
     assert "CAST" not in compiled.upper()
+    assert statement.compile().params["auth_user_id"] == provider_subject
 
 
-async def test_the_query_left_joins_both_authorization_tables() -> None:
-    """`profiles` and `sellers` are LEFT joins, so absence is data, not an error."""
+async def test_identity_lookup_does_not_query_user_tables_directly() -> None:
+    """The restricted runtime role receives identity data only via EXECUTE."""
     database = FakeDatabase(row=a_row())
     await DatabaseIdentityResolver(database=database).resolve(PROVIDER_ID)  # type: ignore[arg-type]
 
     compiled = str(database.statements[0].compile(dialect=postgresql.dialect())).upper()
-    assert compiled.count("LEFT OUTER JOIN") == 2
-    assert "PROFILES" in compiled
-    assert "SELLERS" in compiled
+    assert "RESOLVE_MALIHUB_IDENTITY" in compiled
+    assert "FROM USERS" not in compiled
+    assert "JOIN PROFILES" not in compiled
+    assert "JOIN SELLERS" not in compiled
 
 
 async def test_exactly_one_query_is_issued_per_resolution() -> None:

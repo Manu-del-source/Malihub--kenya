@@ -179,7 +179,7 @@ class CloudinaryStorageProvider(StorageProvider):
         self._refuse(
             "upload",
             "Server-side Cloudinary uploads are not implemented. "
-            "User image uploads are handled by authenticated Next.js routes; "
+            "User image uploads are handled by the authenticated Next.js browser upload flow; "
             "the FastAPI Cloudinary transfer adapter is not implemented. "
             "Nothing was sent to Cloudinary.",
             filename=request.filename,

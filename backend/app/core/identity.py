@@ -37,7 +37,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from sqlalchemy import select
+from sqlalchemy import text
 
 from app.core.db import Database, get_database
 from app.core.errors import ServiceUnavailableError
@@ -143,26 +143,13 @@ class DatabaseIdentityResolver:
                 "Set DATABASE_URL on the backend."
             )
 
-        statement = (
-            select(
-                User.id,
-                User.role,
-                User.email,
-                User.phone,
-                User.email_verified,
-                User.is_active,
-                User.is_banned,
-                Profile.onboarded,
-                Seller.id.label("seller_id"),
-            )
-            .select_from(User)
-            .outerjoin(Profile, Profile.user_id == User.id)
-            .outerjoin(Seller, Seller.user_id == User.id)
-            # Equality on TEXT. `auth_user_id` is deliberately not a UUID column
-            # — see models/user.py — so no cast is involved and no assumption is
-            # made about the provider's id format.
-            .where(User.auth_user_id == auth_user_id)
-        )
+        # The dedicated database function is the only permitted bridge from a
+        # verified provider subject to a MaliHub identity. Its EXECUTE grant is
+        # scoped to the backend runtime role; direct table reads remain subject
+        # to RLS. Keep the provider subject as a bound TEXT parameter.
+        statement = text(
+            "SELECT * FROM public.resolve_malihub_identity(:auth_user_id)"
+        ).bindparams(auth_user_id=auth_user_id)
 
         try:
             async with database.session() as session:

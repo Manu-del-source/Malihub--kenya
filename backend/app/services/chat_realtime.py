@@ -351,7 +351,7 @@ def get_chat_realtime_hub() -> ChatRealtimeHub:
                     # state that could leak through the connection pool.
                     await session.execute(
                         text("SELECT set_config('app.user_id', :user_id, true)"),
-                        {"user_id": user_uuid(user_id).hex},
+                        {"user_id": str(user_uuid(user_id))},
                     )
                     row = (await session.execute(statement)).first()
                 return row is not None

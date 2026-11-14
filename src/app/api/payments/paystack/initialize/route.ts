@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         // this same value.
         amountSubunits: order.totalCents,
         reference,
-        metadata: { orderNumber: order.orderNumber, paymentId: payment.id },
+        metadata: { orderNumber: order.orderNumber, paymentId },
       });
       if (!isPaystackAccessCode(initialized.access_code) || !isPaystackReference(initialized.reference)) {
         throw new PaystackClientError("Paystack returned invalid transaction identifiers.", "invalid_response");

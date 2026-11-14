@@ -16,7 +16,8 @@ let providerBadUrl = false;
 let providerAccessCode = "synthetic_access_code";
 const originalFetch = globalThis.fetch;
 
-const db = {
+const transactionClient = {
+  $executeRaw: async () => 1,
   order: {
     findFirst: async ({ where }: { where: { id: string; buyerId: string } }) => {
       if (orderError) throw orderError;
@@ -27,10 +28,20 @@ const db = {
   },
   payment: {
     findFirst: async () => existing,
+    findMany: async () => [],
     create: async ({ data }: { data: Record<string, unknown> }) => {
       createData = data;
       return { id: "payment-a" };
     },
+  },
+};
+
+const db = {
+  ...transactionClient,
+  $transaction: async <T>(callback: (tx: typeof transactionClient) => Promise<T>) =>
+    callback(transactionClient),
+  payment: {
+    ...transactionClient.payment,
     updateMany: async () => ({ count: 1 }),
   },
 };

@@ -1045,6 +1045,20 @@ export async function listAdminOrders(
  * Payment rows are selected WITHOUT the payer handle, raw callback payload,
  * or provider metadata — the admin order screen has no need for any of them.
  */
+/**
+ * Append-only audit history for one order (seller dispatch, delivery, buyer
+ * receipt and admin overrides all log `targetType: "order"`). Read-only.
+ */
+export async function getAdminOrderAuditTrail(orderId: string, db: PrismaHandle = prisma) {
+  if (!isUuid(orderId)) return [];
+  return db.auditLog.findMany({
+    where: { targetType: "order", targetId: orderId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: { id: true, action: true, actorEmail: true, metadata: true, createdAt: true },
+  });
+}
+
 export async function getAdminOrderDetail(orderId: string, db: PrismaHandle = prisma) {
   if (!isUuid(orderId)) return null;
 

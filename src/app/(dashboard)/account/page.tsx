@@ -11,7 +11,6 @@ import {
   PackageCheck,
   RotateCcw,
   ShieldCheck,
-  ShoppingCart,
   Star,
   Store,
   Truck,
@@ -22,7 +21,6 @@ import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getCartSummary } from "@/services/cart-service";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your account" };
@@ -40,7 +38,6 @@ export default async function AccountPage() {
   const [
     profile,
     seller,
-    cartSummary,
     wishlistCount,
     orderCounts,
     toReviewCount,
@@ -55,7 +52,6 @@ export default async function AccountPage() {
       where: { userId: user.id },
       select: { businessName: true, verificationStatus: true, county: true, slug: true },
     }),
-    getCartSummary(prisma, user.id),
     prisma.wishlist.count({ where: { userId: user.id } }),
     prisma.order.groupBy({
       by: ["status"],
@@ -89,11 +85,10 @@ export default async function AccountPage() {
     { label: "Returns / refunds", count: protectionCaseCount, icon: RotateCcw, href: "/buyer/orders?status=returns" },
   ];
 
-  // Messages and Orders are bottom-bar tabs, Cart is in the header, and the order
-  // strip above covers purchases — none of them are repeated here.
+  // Cart and Messages are bottom-bar tabs and the order strip above covers
+  // purchases — none of them are repeated here.
   const services = [
     { label: "Wishlist", detail: `${wishlistCount} saved`, href: "/buyer/wishlist", icon: Heart },
-    { label: "Cart", detail: `${cartSummary.itemCount} item${cartSummary.itemCount === 1 ? "" : "s"}`, href: "/buyer/cart", icon: ShoppingCart },
     { label: "Notifications", detail: "Order and account updates", href: "/notifications", icon: Bell },
     { label: "Addresses", detail: "Delivery destinations", href: "/account/addresses", icon: MapPin },
     { label: "Recently viewed", detail: "Continue browsing", href: "/buyer", icon: Clock3 },

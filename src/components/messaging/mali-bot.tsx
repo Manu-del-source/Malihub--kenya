@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Bot, Send } from "lucide-react";
 import { supportWhatsAppUrl, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 
-type Message = { id: string; role: "user" | "assistant"; content: string };
+type Message = { id: string; role: "user" | "assistant"; content: string; sources?: string[] };
 
 const STORAGE_KEY = "malihub:malibot:conversation:v1";
 const SUGGESTIONS = [
@@ -78,13 +78,13 @@ export function MaliBot() {
             .map(({ role, content: text }) => ({ role, content: text })),
         }),
       });
-      const payload = await response.json() as { success?: boolean; reply?: string; error?: string };
+      const payload = await response.json() as { success?: boolean; reply?: string; error?: string; sources?: string[] };
       if (!response.ok || !payload.success || !payload.reply) {
         throw new Error(payload.error || "MaliBot could not respond. Please try again.");
       }
       setMessages((current) => [
         ...current,
-        { id: crypto.randomUUID(), role: "assistant", content: payload.reply! },
+        { id: crypto.randomUUID(), role: "assistant", content: payload.reply!, sources: payload.sources },
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection problem. Please try again.");
@@ -128,6 +128,11 @@ export function MaliBot() {
               message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
             }`}>
               {message.content}
+              {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                <p className="mt-2 border-t border-border/60 pt-1.5 text-[10px] text-muted-foreground">
+                  MaliHub guides: {message.sources.join(" · ")}
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -178,7 +183,7 @@ export function MaliBot() {
           </button>
         </form>
         <p className="pb-2 text-center text-[10px] text-muted-foreground">
-          Don’t share passwords, M-Pesa PINs, OTPs or card details. MaliBot cannot view live order or payment records.
+          Don’t share passwords, M-Pesa PINs, OTPs or card details. MaliBot can check your own order and shipment status when you provide the order number. It cannot change orders or approve refunds.
         </p>
       </div>
     </div>

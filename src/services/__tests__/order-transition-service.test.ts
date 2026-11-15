@@ -850,6 +850,62 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
     assert.equal(orderRow(order.id).status, "SHIPPED");
   });
 
+  it("lets only the owning buyer confirm receipt, once", async () => {
+    const { seller } = seedListing(SELLER_1, { quantity: 5 });
+    const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);
+    await service.markOrderPaid(db, { orderId: order.id, actor: { id: "sys", source: "test" } });
+    await service.markOrderFulfilled(db, "SHIPPED", {
+      orderId: order.id, actorUserId: SELLER_1, actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
+    });
+    await service.markOrderFulfilled(db, "DELIVERED", {
+      orderId: order.id, actorUserId: SELLER_1, actorSellerId: seller.id, deliveryEvidence: "Received by customer",
+    });
+
+    // Another buyer cannot confirm someone else's receipt.
+    await assert.rejects(service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: "someone-else" }));
+    assert.equal(orderRow(order.id).status, "DELIVERED");
+
+    // The seller cannot confirm receipt on the buyer's behalf.
+    await assert.rejects(
+      service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: SELLER_1, actorSellerId: seller.id })
+    );
+    assert.equal(orderRow(order.id).status, "DELIVERED");
+
+    await service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: BUYER_A });
+    assert.equal(orderRow(order.id).status, "COMPLETED");
+
+    // A second confirmation is an idempotent no-op: nothing changes, and with
+    // `changed: false` no second audit entry or notification is produced.
+    const again = await service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: BUYER_A });
+    assert.equal(again.changed, false);
+    assert.equal(orderRow(order.id).status, "COMPLETED");
+  });
+
+  it("does not let a seller dispatch an unpaid order, another seller's order, or a completed order", async () => {
+    const { seller } = seedListing(SELLER_1, { quantity: 5 });
+    const unpaid = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);
+    const ship = { carrierName: "Test Courier", trackingNumber: "TEST-123" };
+    await assert.rejects(
+      service.markOrderFulfilled(db, "SHIPPED", { orderId: unpaid.id, actorUserId: SELLER_1, actorSellerId: seller.id, shipment: ship })
+    );
+    assert.equal(orderRow(unpaid.id).status, "PENDING");
+
+    await service.markOrderPaid(db, { orderId: unpaid.id, actor: { id: "sys", source: "test" } });
+    await assert.rejects(
+      service.markOrderFulfilled(db, "SHIPPED", { orderId: unpaid.id, actorUserId: "other-user", actorSellerId: "other-seller", shipment: ship })
+    );
+    assert.equal(orderRow(unpaid.id).status, "PAID", "another seller must not be able to ship it");
+
+    await service.markOrderFulfilled(db, "SHIPPED", { orderId: unpaid.id, actorUserId: SELLER_1, actorSellerId: seller.id, shipment: ship });
+    await service.markOrderFulfilled(db, "DELIVERED", { orderId: unpaid.id, actorUserId: SELLER_1, actorSellerId: seller.id });
+    await service.markOrderFulfilled(db, "COMPLETED", { orderId: unpaid.id, actorUserId: BUYER_A });
+    await assert.rejects(
+      service.markOrderFulfilled(db, "SHIPPED", { orderId: unpaid.id, actorUserId: SELLER_1, actorSellerId: seller.id, shipment: ship })
+    );
+    assert.equal(orderRow(unpaid.id).status, "COMPLETED");
+  });
+
   it("refuses to ship an order that has not been paid", async () => {
     const { seller } = seedListing(SELLER_1, { quantity: 5 });
     const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);

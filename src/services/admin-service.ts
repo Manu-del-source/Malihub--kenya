@@ -1489,9 +1489,17 @@ export async function recordAdminOrderFulfilment(
         },
       });
     } else {
-      await tx.orderShipment.update({
+      await tx.orderShipment.upsert({
         where: { orderId: order.id },
-        data: { status: "DELIVERED", deliveredAt: changedAt, deliveryNotes: reason },
+        create: {
+          orderId: order.id,
+          carrierName: "Admin-verified delivery",
+          trackingNumber: "Not provided",
+          status: "DELIVERED",
+          deliveredAt: changedAt,
+          deliveryNotes: reason,
+        },
+        update: { status: "DELIVERED", deliveredAt: changedAt, deliveryNotes: reason },
       });
     }
 

@@ -28,6 +28,8 @@ Orders are dated by successful payment time in Kenya time (UTC+3). Earned vs pen
 
 ## Known limits
 - `SettlementService` is not built yet, so `Settlement` rows may not exist; the dashboard does not depend on them (except for provider fees).
+- Seller payable is a reporting calculation, not an available wallet balance or withdrawal instruction. No seller payout is initiated by this dashboard.
+- Paystack's Kenya T+2 collection settlement is to MaliHub's configured merchant payout account. It must not be shown as a seller withdrawal ETA. Seller eligibility follows the order completion/dispute policy; a later provider transfer has its own pending/success/failed/reversed lifecycle.
 - A `Refund` does not itemise delivery, so refunds are applied to merchandise first (conservative).
 - A FIXED rule applies once per rule group per order.
 - Order status `REFUNDED` is reserved (no transition sets it); refunds normally arrive as `Refund` rows.

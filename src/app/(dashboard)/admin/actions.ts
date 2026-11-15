@@ -44,11 +44,11 @@ import type { ApiResult } from "@/types";
  *    is never consulted, and there is no parameter through which one could
  *    be smuggled: the actor is only ever the session's own account.
  * 2. Zod-validate the input — target ids must be UUIDs, notes are capped.
- *    Anything that could move money or change identity simply isn't here:
- *    orders and payments have NO admin mutation at all (the existing order
- *    architecture defines no safe administrative transition — see
- *    `src/services/admin-service.ts`), and user records are read-only from
- *    `/admin`.
+ *    Payment, refund, settlement and payout state are never admin-editable.
+ *    The one order mutation is a narrowly scoped fulfilment override: only
+ *    PAID → SHIPPED or SHIPPED → DELIVERED, with tracking/evidence and a
+ *    mandatory reason, audited to the acting admin. User records remain
+ *    read-only from `/admin`.
  * 3. The service re-reads the target row and validates the state transition,
  *    so a forged/stale id fails with "not found" rather than blindly
  *    updating, and audit + seller notification ride along with the write.

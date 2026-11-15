@@ -340,6 +340,36 @@ describe("category actions", () => {
   });
 });
 
+describe("admin fulfilment override authorization and validation", () => {
+  it("a buyer cannot record dispatch, even with a valid-looking order payload", async () => {
+    become({ role: "BUYER" });
+    const { recordAdminOrderFulfilmentAction } = await loadActions();
+    const result = await recordAdminOrderFulfilmentAction({
+      orderId: "11111111-1111-4111-8111-111111111111",
+      step: "SHIPPED",
+      reason: "I want to change this order.",
+      shipment: { carrierName: "Courier", trackingNumber: "TRACK-1" },
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.error, "Administrator access is required.");
+    assert.equal(store.tables.auditLogs.size, 0);
+  });
+
+  it("an admin cannot submit a fulfilment override without a meaningful reason", async () => {
+    become();
+    const { recordAdminOrderFulfilmentAction } = await loadActions();
+    const result = await recordAdminOrderFulfilmentAction({
+      orderId: "11111111-1111-4111-8111-111111111111",
+      step: "SHIPPED",
+      reason: "ok",
+      shipment: { carrierName: "Courier", trackingNumber: "TRACK-1" },
+    });
+    assert.equal(result.success, false);
+    assert.match(result.error!, /reason/i);
+    assert.equal(store.tables.auditLogs.size, 0);
+  });
+});
+
 describe("the admin action surface is exactly what it should be — and no more", () => {
   it("only the documented fulfilment override can touch order status; payment and identity actions stay absent", async () => {
     const mod = await loadActions();

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { AdminPagination, adminListHref } from "@/components/shell/admin/admin-pagination";
 import { OrderStatusBadge } from "@/components/shell/admin/admin-badges";
 import { formatDate } from "@/components/shell/admin/admin-format";
+import { dispatchSlaHours, isDispatchOverdue } from "@/lib/order-sla";
 import { requireAdministrator } from "@/lib/auth";
 import { listAdminOrders } from "@/services/admin-service";
 import { formatKes } from "@/utils";
@@ -33,15 +34,16 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Orders — admin" };
 
-const STATUS_OPTIONS = [
-  "PENDING",
-  "CONFIRMED",
-  "PAID",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-  "CANCELLED",
-  "REFUNDED",
+const FILTER_CHIPS = [
+  { label: "All", params: {} },
+  { label: "Pending payment", params: { status: "PENDING" } },
+  { label: "Paid · awaiting dispatch", params: { status: "PAID" } },
+  { label: "Overdue dispatch", params: { overdue: "1" } },
+  { label: "Shipped", params: { status: "SHIPPED" } },
+  { label: "Delivered", params: { status: "DELIVERED" } },
+  { label: "Completed", params: { status: "COMPLETED" } },
+  { label: "Cancelled", params: { status: "CANCELLED" } },
+  { label: "Refunded", params: { status: "REFUNDED" } },
 ] as const;
 
 export default async function AdminOrdersPage({
@@ -55,7 +57,9 @@ export default async function AdminOrdersPage({
   const filters = parsed;
 
   const { orders, total, pageSize } = await listAdminOrders(filters);
-  const current = { q: filters.q ?? "", status: filters.status ?? "" };
+  const current = { q: filters.q ?? "", status: filters.status ?? "", overdue: filters.overdue ?? "" };
+  const now = new Date();
+  const slaHours = dispatchSlaHours();
 
   return (
     <Container className="flex flex-col gap-6 py-10">
@@ -64,10 +68,37 @@ export default async function AdminOrdersPage({
           <h1 className="font-display text-3xl font-medium">Orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {total.toLocaleString()} order{total === 1 ? "" : "s"} matching the current filters ·
-            read-only oversight
+            payment and fulfilment oversight (overrides are on each order&apos;s page)
           </p>
         </div>
       </header>
+
+      <nav aria-label="Order status filter" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        {FILTER_CHIPS.map((chip) => {
+          const p = chip.params as { status?: string; overdue?: string };
+          const active = (p.status ?? "") === current.status && (p.overdue ?? "") === current.overdue;
+          const qs = new URLSearchParams({ ...(current.q ? { q: current.q } : {}), ...p }).toString();
+          return (
+            <Link
+              key={chip.label}
+              href={qs ? `/admin/orders?${qs}` : "/admin/orders"}
+              aria-current={active ? "page" : undefined}
+              className={[
+                "shrink-0 whitespace-nowrap rounded-full border border-border px-3.5 py-2 text-sm font-medium",
+                active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+            >
+              {chip.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {current.overdue && (
+        <p className="text-xs text-muted-foreground">
+          Overdue = paid more than {slaHours} hours ago and still not shipped (monitoring threshold; set
+          ORDER_DISPATCH_SLA_HOURS to the approved rule).
+        </p>
+      )}
 
       <form className="glass-sm flex flex-wrap items-end gap-3 rounded-2xl p-4" method="GET">
         <label className="text-sm">
@@ -81,26 +112,13 @@ export default async function AdminOrdersPage({
             className="mt-1 w-72"
           />
         </label>
-        <label className="text-sm">
-          <span className="text-muted-foreground">Status</span>
-          <select
-            name="status"
-            defaultValue={current.status}
-            className="mt-1 block h-11 w-44 rounded-xl border border-border bg-background/60 px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status.charAt(0) + status.slice(1).toLowerCase()}
-              </option>
-            ))}
-          </select>
-        </label>
+        {current.status && <input type="hidden" name="status" value={current.status} />}
+        {current.overdue && <input type="hidden" name="overdue" value={current.overdue} />}
         <Button type="submit" size="sm">
           <Search className="h-4 w-4" aria-hidden />
           Apply
         </Button>
-        {(current.q || current.status) && (
+        {(current.q || current.status || current.overdue) && (
           <Link
             href="/admin/orders"
             className="self-center text-xs text-muted-foreground underline-offset-4 hover:underline"
@@ -136,14 +154,33 @@ export default async function AdminOrdersPage({
                   </span>
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {order._count.items} item{order._count.items === 1 ? "" : "s"} · placed{" "}
-                  {formatDate(order.createdAt)}
-                  {order.deliveryCounty ? ` · delivers to ${order.deliveryCounty}` : ""}
+                  {order.items.map((i) => `${i.quantity}× ${i.product.title}`).join(", ")}
+                  {order._count.items > order.items.length ? ` +${order._count.items - order.items.length} more` : ""}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Placed {formatDate(order.createdAt)}
+                  {order.payments[0]
+                    ? ` · ${order.payments[0].provider} ${order.payments[0].status.toLowerCase()}${
+                        order.payments[0].providerTransactionId ? ` (${order.payments[0].providerTransactionId})` : ""
+                      }${order.payments[0].paidAt ? `, paid ${formatDate(order.payments[0].paidAt)}` : ""}`
+                    : " · no payment recorded"}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {order.shipment
+                    ? `${order.shipment.carrierName} · ${order.shipment.trackingNumber}${
+                        order.shipment.dispatchedAt ? ` · dispatched ${formatDate(order.shipment.dispatchedAt)}` : ""
+                      }`
+                    : "No tracking yet"}
+                  {order.deliveredAt ? ` · delivered ${formatDate(order.deliveredAt)}` : ""}
+                  {order.status === "COMPLETED" ? " · buyer confirmed receipt" : ""}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="font-mono text-sm tabular-nums">{formatKes(order.totalCents)}</span>
                 <OrderStatusBadge status={order.status} />
+                {isDispatchOverdue(order.status, order.payments[0]?.paidAt, now, slaHours) && (
+                  <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400">Overdue</span>
+                )}
               </span>
             </Link>
           ))}

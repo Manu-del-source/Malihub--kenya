@@ -13,7 +13,7 @@ import {
 } from "@/components/shell/admin/admin-badges";
 import { formatDateTime } from "@/components/shell/admin/admin-format";
 import { requireAdministrator } from "@/lib/auth";
-import { getAdminOrderDetail } from "@/services/admin-service";
+import { getAdminOrderAuditTrail, getAdminOrderDetail } from "@/services/admin-service";
 import { formatKes } from "@/utils";
 import { AdminOrderFulfilmentControls } from "@/components/shell/admin/admin-order-fulfilment-controls";
 
@@ -34,7 +34,7 @@ export default async function AdminOrderDetailPage({
   await requireAdministrator();
 
   const { id } = await params;
-  const order = await getAdminOrderDetail(id);
+  const [order, auditTrail] = await Promise.all([getAdminOrderDetail(id), getAdminOrderAuditTrail(id)]);
   if (!order) notFound();
 
   return (
@@ -211,6 +211,34 @@ export default async function AdminOrderDetailPage({
           </section>
 
           <AdminOrderFulfilmentControls orderId={order.id} status={order.status} />
+
+          <section aria-label="Audit history" className="glass rounded-2xl p-6">
+            <h2 className="font-display text-lg font-medium">Audit history</h2>
+            {auditTrail.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">No audited fulfilment events yet.</p>
+            ) : (
+              <ol className="mt-3 flex flex-col gap-3 text-sm">
+                {auditTrail.map((event) => {
+                  const meta = (event.metadata ?? {}) as Record<string, unknown>;
+                  const from = typeof meta.from === "string" ? meta.from : null;
+                  const to = typeof meta.to === "string" ? meta.to : null;
+                  const reason = typeof meta.reason === "string" ? meta.reason : null;
+                  return (
+                    <li key={event.id} className="border-l-2 border-border pl-3">
+                      <p className="font-medium">
+                        {event.action}
+                        {from && to ? ` · ${from} → ${to}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(event.createdAt)} · {event.actorEmail ?? "system"}
+                      </p>
+                      {reason && <p className="mt-1 text-xs">Reason: {reason}</p>}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
 
           <section aria-label="Delivery" className="glass rounded-2xl p-6">
             <h2 className="font-display text-lg font-medium">Delivery & notes</h2>

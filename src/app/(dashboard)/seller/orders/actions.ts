@@ -17,7 +17,8 @@ import {
 export async function updateSellerOrderFulfilment(input: {
   orderId: string;
   step: FulfillmentStep;
-  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string };
+  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string; handedToCourier: boolean };
+  deliveryEvidence?: string;
 }): Promise<{ success: boolean; status?: string; error?: string }> {
   if (
     !input ||
@@ -38,6 +39,26 @@ export async function updateSellerOrderFulfilment(input: {
     return { success: false, error: "Invalid order update." };
   }
 
+  // The seller must attest that the parcel was physically handed over. This is
+  // enforced here (server side), not only by the form's checkbox.
+  if (input.step === "SHIPPED" && input.shipment?.handedToCourier !== true) {
+    return {
+      success: false,
+      error: "Confirm that the parcel has been handed to the courier or rider before marking it shipped.",
+    };
+  }
+
+  // Delivery needs evidence the seller can later stand behind. Enforced here.
+  if (input.step === "DELIVERED") {
+    const evidence = typeof input.deliveryEvidence === "string" ? input.deliveryEvidence.trim() : "";
+    if (evidence.length < 5 || evidence.length > 500) {
+      return {
+        success: false,
+        error: "Add delivery evidence (5 to 500 characters), such as who received the parcel or the courier's proof-of-delivery reference.",
+      };
+    }
+  }
+
   const { user } = await requireSellerAccess();
   const seller = await prisma.seller.findUnique({
     where: { userId: user.id },
@@ -53,11 +74,24 @@ export async function updateSellerOrderFulfilment(input: {
       orderId: input.orderId,
       actorUserId: user.id,
       actorSellerId: seller.id,
-      ...(input.step === "SHIPPED" ? { shipment: input.shipment } : {}),
+      ...(input.step === "DELIVERED" ? { deliveryEvidence: input.deliveryEvidence!.trim() } : {}),
+      ...(input.step === "SHIPPED"
+        ? {
+            dispatchConfirmed: true,
+            shipment: {
+              carrierName: input.shipment!.carrierName,
+              trackingNumber: input.shipment!.trackingNumber,
+              trackingUrl: input.shipment!.trackingUrl,
+            },
+          }
+        : {}),
     });
 
     revalidatePath("/seller");
     revalidatePath("/seller/orders");
+    revalidatePath(`/seller/orders/${input.orderId}`);
+    revalidatePath(`/buyer/orders/${input.orderId}`);
+    revalidatePath("/admin/orders");
     revalidatePath("/buyer/orders");
     return { success: true, status: result.order.status };
   } catch (error) {

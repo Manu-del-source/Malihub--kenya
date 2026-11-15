@@ -179,6 +179,7 @@ export type OrderShipmentRow = {
   status: string;
   dispatchedAt: Date | null;
   deliveredAt: Date | null;
+  deliveryNotes?: string | null;
 };
 
 /**

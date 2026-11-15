@@ -12,6 +12,7 @@ import {
   ScrollText,
   Boxes,
   Handshake,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -31,6 +32,7 @@ const ADMIN_SECTIONS = [
   { label: "Sellers", href: "/admin/sellers", icon: Store },
   { label: "Listings", href: "/admin/listings", icon: Tags },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Revenue", href: "/admin/reports", icon: BarChart3 },
   { label: "Dropshipping", href: "/admin/dropshipping", icon: Boxes },
   { label: "Supplier enquiries", href: "/admin/supplier-enquiries", icon: Handshake },
   { label: "Categories", href: "/admin/categories", icon: FolderTree },

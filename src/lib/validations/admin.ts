@@ -83,6 +83,8 @@ export type AdminListingListQuery = z.infer<typeof adminListingListSchema>;
 export const adminOrderListSchema = z.object({
   q: optionalText(120),
   status: adminOrderStatusSchema.optional(),
+  /** "1" = paid orders still awaiting dispatch past the dispatch SLA. */
+  overdue: z.enum(["1"]).optional(),
   page,
 });
 export type AdminOrderListQuery = z.infer<typeof adminOrderListSchema>;

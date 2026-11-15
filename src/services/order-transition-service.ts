@@ -545,6 +545,10 @@ export type FulfillmentParams = {
   actorUserId: string;
   /** Present only when the actor owns a `sellers` row. Resolved internally. */
   actorSellerId?: string | null;
+  /** Seller attested the parcel was physically handed to the courier/rider. Recorded in the audit trail. */
+  dispatchConfirmed?: boolean;
+  /** Seller's delivery evidence (who received it / courier proof reference). Stored in OrderShipment.deliveryNotes. */
+  deliveryEvidence?: string;
   /** Required for a seller's first PAID → SHIPPED transition. */
   shipment?: {
     carrierName: string;
@@ -572,6 +576,8 @@ export async function markOrderFulfilled(
       }
     : null;
 
+  const deliveryEvidence = params.deliveryEvidence?.trim();
+
   if (authority === "seller" && !params.actorSellerId) {
     throw new OrderTransitionError(
       "Only the seller who owns this order can record fulfilment.",
@@ -594,6 +600,15 @@ export async function markOrderFulfilled(
         : order.buyerId === params.actorUserId;
     if (!owns) {
       throw new OrderTransitionError("Order not found.", "not_found");
+    }
+
+    if (step === "DELIVERED" && params.deliveryEvidence !== undefined) {
+      if (!deliveryEvidence || deliveryEvidence.length < 5 || deliveryEvidence.length > 500) {
+        throw new OrderTransitionError(
+          "Describe the delivery evidence in 5 to 500 characters (for example who received the parcel, or the courier's proof-of-delivery reference).",
+          "invalid_transition"
+        );
+      }
     }
 
     if (step === "SHIPPED") {
@@ -690,8 +705,13 @@ export async function markOrderFulfilled(
           trackingNumber: "Not provided",
           status: "DELIVERED",
           deliveredAt: changedAt,
+          ...(deliveryEvidence ? { deliveryNotes: deliveryEvidence } : {}),
         },
-        update: { status: "DELIVERED", deliveredAt: changedAt },
+        update: {
+          status: "DELIVERED",
+          deliveredAt: changedAt,
+          ...(deliveryEvidence ? { deliveryNotes: deliveryEvidence } : {}),
+        },
       });
     }
 
@@ -721,12 +741,33 @@ export async function markOrderFulfilled(
           from: outcome.previousStatus,
           to: step,
           orderNumber: outcome.order.orderNumber,
+          actorRole: authority,
+          ...(params.actorSellerId ? { sellerId: params.actorSellerId } : {}),
+          ...(step === "SHIPPED" && shipmentInput
+            ? {
+                carrierName: shipmentInput.carrierName,
+                trackingNumber: shipmentInput.trackingNumber,
+                dispatchConfirmed: params.dispatchConfirmed === true,
+              }
+            : {}),
+          ...(step === "DELIVERED" && deliveryEvidence ? { deliveryEvidence } : {}),
+          occurredAt: new Date().toISOString(),
         },
       }).catch(() => undefined),
       notifyOrderTransition({
-        userIds: [outcome.buyerId, outcome.sellerUserId],
+        userIds: [outcome.buyerId],
+        heading: `Order ${outcome.order.orderNumber} is now ${step.toLowerCase()}`,
+        body:
+          step === "SHIPPED" && shipmentInput
+            ? `Shipped via ${shipmentInput.carrierName}. Tracking number: ${shipmentInput.trackingNumber}.`
+            : `This order moved to ${step.toLowerCase()}.`,
+        linkUrl: `/buyer/orders/${outcome.order.id}`,
+      }),
+      notifyOrderTransition({
+        userIds: [outcome.sellerUserId],
         heading: `Order ${outcome.order.orderNumber} is now ${step.toLowerCase()}`,
         body: `This order moved to ${step.toLowerCase()}.`,
+        linkUrl: `/seller/orders/${outcome.order.id}`,
       }),
     ]);
   }
@@ -769,6 +810,7 @@ async function notifyOrderTransition(params: {
   userIds: Array<string | null | undefined>;
   heading: string;
   body: string;
+  linkUrl?: string;
 }): Promise<void> {
   await Promise.all(
     [...new Set(params.userIds.filter((id): id is string => Boolean(id)))].map((userId) =>
@@ -777,7 +819,7 @@ async function notifyOrderTransition(params: {
         type: "ORDER_UPDATE",
         title: params.heading,
         body: params.body,
-        linkUrl: `/buyer/orders`,
+        linkUrl: params.linkUrl ?? `/buyer/orders`,
       }).catch(() => undefined)
     )
   );

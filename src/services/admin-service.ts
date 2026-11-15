@@ -1,4 +1,5 @@
 import "server-only";
+import { dispatchOverdueCutoff } from "@/lib/order-sla";
 import { logServerError } from "@/lib/safe-log";
 
 import { Prisma } from "@prisma/client";
@@ -961,6 +962,8 @@ export async function moderateListing(params: {
 export type AdminOrderListFilters = {
   q?: string;
   status?: OrderStatus;
+  /** "1" = paid orders past the dispatch SLA. */
+  overdue?: "1";
   page: number;
 };
 
@@ -973,6 +976,15 @@ const ADMIN_ORDER_LIST_SELECT = {
   createdAt: true,
   buyer: { select: { id: true, email: true, profile: { select: { fullName: true } } } },
   seller: { select: { id: true, businessName: true } },
+  deliveredAt: true,
+  items: { take: 3, select: { quantity: true, product: { select: { title: true } } } },
+  // Latest payment attempt: provider, reference, status and when it succeeded.
+  payments: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { provider: true, status: true, amountCents: true, paidAt: true, providerTransactionId: true },
+  },
+  shipment: { select: { carrierName: true, trackingNumber: true, dispatchedAt: true, deliveredAt: true } },
   _count: { select: { items: true } },
 } satisfies Prisma.OrderSelect;
 
@@ -984,8 +996,17 @@ export async function listAdminOrders(
   filters: AdminOrderListFilters,
   db: PrismaHandle = prisma
 ): Promise<{ orders: AdminOrderRow[]; total: number; pageSize: number }> {
+  const overdue = filters.overdue === "1";
   const where: Prisma.OrderWhereInput = {
-    ...(filters.status ? { status: filters.status } : {}),
+    // "Overdue dispatch" is PAID by definition, so it wins over a status filter.
+    ...(overdue
+      ? {
+          status: "PAID" as const,
+          payments: { some: { status: "SUCCESS" as const, paidAt: { lt: dispatchOverdueCutoff(new Date()) } } },
+        }
+      : filters.status
+        ? { status: filters.status }
+        : {}),
     ...(filters.q
       ? {
           OR: [
@@ -1024,6 +1045,20 @@ export async function listAdminOrders(
  * Payment rows are selected WITHOUT the payer handle, raw callback payload,
  * or provider metadata — the admin order screen has no need for any of them.
  */
+/**
+ * Append-only audit history for one order (seller dispatch, delivery, buyer
+ * receipt and admin overrides all log `targetType: "order"`). Read-only.
+ */
+export async function getAdminOrderAuditTrail(orderId: string, db: PrismaHandle = prisma) {
+  if (!isUuid(orderId)) return [];
+  return db.auditLog.findMany({
+    where: { targetType: "order", targetId: orderId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: { id: true, action: true, actorEmail: true, metadata: true, createdAt: true },
+  });
+}
+
 export async function getAdminOrderDetail(orderId: string, db: PrismaHandle = prisma) {
   if (!isUuid(orderId)) return null;
 

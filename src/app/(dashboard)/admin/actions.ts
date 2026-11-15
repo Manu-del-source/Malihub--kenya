@@ -23,6 +23,7 @@ import {
   moderateListing,
   setSellerVerificationStatus,
   updateAdminCategory,
+  recordAdminOrderFulfilment,
 } from "@/services/admin-service";
 import {
   createAdminSellerAccount,
@@ -43,11 +44,11 @@ import type { ApiResult } from "@/types";
  *    is never consulted, and there is no parameter through which one could
  *    be smuggled: the actor is only ever the session's own account.
  * 2. Zod-validate the input — target ids must be UUIDs, notes are capped.
- *    Anything that could move money or change identity simply isn't here:
- *    orders and payments have NO admin mutation at all (the existing order
- *    architecture defines no safe administrative transition — see
- *    `src/services/admin-service.ts`), and user records are read-only from
- *    `/admin`.
+ *    Payment, refund, settlement and payout state are never admin-editable.
+ *    The one order mutation is a narrowly scoped fulfilment override: only
+ *    PAID → SHIPPED or SHIPPED → DELIVERED, with tracking/evidence and a
+ *    mandatory reason, audited to the acting admin. User records remain
+ *    read-only from `/admin`.
  * 3. The service re-reads the target row and validates the state transition,
  *    so a forged/stale id fails with "not found" rather than blindly
  *    updating, and audit + seller notification ride along with the write.
@@ -376,5 +377,59 @@ export async function resendAdminSellerInvitationAction(
     }
     logServerError("Admin seller invitation resend failed", error);
     return { success: false, error: "Could not resend the setup email. Please try again." };
+  }
+}
+
+
+// ─── Order fulfilment oversight ────────────────────────────────────────────
+
+export async function recordAdminOrderFulfilmentAction(input: unknown): Promise<ApiResult<{
+  orderNumber: string;
+  status: "SHIPPED" | "DELIVERED";
+  changed: boolean;
+}>> {
+  const auth = await requireAdministratorAction();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  if (!input || typeof input !== "object") return { success: false, error: "Invalid order update." };
+  const value = input as Record<string, unknown>;
+  const uuid = typeof value.orderId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.orderId);
+  const step = value.step;
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  if (!uuid || (step !== "SHIPPED" && step !== "DELIVERED") || reason.length < 10 || reason.length > 500) {
+    return { success: false, error: "Provide a valid order, fulfilment status and reason (10–500 characters)." };
+  }
+
+  let shipment: { carrierName: string; trackingNumber: string; trackingUrl?: string | null } | undefined;
+  if (step === "SHIPPED") {
+    const raw = value.shipment;
+    if (!raw || typeof raw !== "object") return { success: false, error: "Courier and tracking details are required." };
+    const data = raw as Record<string, unknown>;
+    if (typeof data.carrierName !== "string" || typeof data.trackingNumber !== "string" ||
+      (data.trackingUrl !== undefined && typeof data.trackingUrl !== "string")) {
+      return { success: false, error: "Enter valid courier and tracking details." };
+    }
+    shipment = {
+      carrierName: data.carrierName,
+      trackingNumber: data.trackingNumber,
+      ...(typeof data.trackingUrl === "string" ? { trackingUrl: data.trackingUrl } : {}),
+    };
+  }
+
+  try {
+    const result = await recordAdminOrderFulfilment(
+      { orderId: value.orderId as string, step, reason, ...(shipment ? { shipment } : {}) },
+      { id: auth.user.id, email: auth.user.email }
+    );
+    revalidatePath("/admin");
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${value.orderId}`);
+    revalidatePath("/seller/orders");
+    revalidatePath("/buyer/orders");
+    return { success: true, data: { orderNumber: result.orderNumber, status: result.status, changed: result.changed } };
+  } catch (error) {
+    if (error instanceof AdminServiceError) return { success: false, error: error.message };
+    logServerError("Admin order fulfilment update failed", error);
+    return { success: false, error: "Could not update this order. Please refresh and try again." };
   }
 }

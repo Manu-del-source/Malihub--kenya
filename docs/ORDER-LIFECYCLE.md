@@ -33,8 +33,8 @@ substitute for either file.
 |---|---|---|---|
 | `PENDING` | `PAID` | verified payment confirmation only | Phase 9.2 |
 | `PENDING` | `CANCELLED` | the buyer who owns the order | Phase 9.1 ✅ |
-| `PAID` | `SHIPPED` | the seller who owns the order | service only |
-| `SHIPPED` | `DELIVERED` | the seller who owns the order | service only |
+| `PAID` | `SHIPPED` | seller; admin may record a verified override with courier details and reason | seller UI + audited admin control |
+| `SHIPPED` | `DELIVERED` | seller; admin may record delivery with evidence and reason | seller UI + audited admin control |
 | `DELIVERED` | `COMPLETED` | the buyer who owns the order | service only |
 
 Everything else is refused, including every move out of `CANCELLED`,
@@ -133,17 +133,15 @@ Losing them would turn a moderation decision into silent inventory loss. Only
 |---|---|
 | cancel | the buyer who owns the order — **only** |
 | mark paid | a verified payment confirmation (Phase 9.2); no route exposes it |
-| ship / deliver | the seller who owns the order |
+| seller ship / deliver | the seller who owns the order |
+| admin fulfilment override | ADMIN or SUPER_ADMIN, only for `PAID → SHIPPED` or `SHIPPED → DELIVERED`, with tracking/evidence and a mandatory reason |
 | complete | the buyer who owns the order |
 
 Identity always comes from the server-resolved session. No transition accepts a
-user id, role, seller id or target status from a request body.
-
-**Admins have no order-transition authority in Phase 9.1.** `ADMIN` and
-`SUPER_ADMIN` are functionally identical in this codebase today, and granting
-either a blanket ability to move orders would hand every staff account a way to
-alter a financial record. That is a permissions decision for a later phase, not
-something to smuggle in with a state machine.
+user id, role, seller id or target status from a request body. Admin overrides
+use the session-resolved admin identity, record the reason in the audit log and
+notify both buyer and seller. They cannot mark an unpaid order paid, cancel,
+refund, complete an order, change settlement state or release payouts.
 
 A seller cannot cancel a buyer's order by knowing its UUID, and one seller
 cannot cancel another's. An order that does not exist and an order belonging to
@@ -181,11 +179,15 @@ and has already committed correctly.
 - **No refunds.** `REFUNDED` has no inbound transition (§ above).
 - **No settlements or payouts.** Those belong to later phases; a settlement is
   a *paid* order's concern and this phase only reaches `PENDING`.
-- **Fulfilment UI is now connected.** A verified seller records the courier,
-  tracking number and optional HTTPS tracking link in the same transaction as
-  `PAID → SHIPPED`. The seller can then record delivery; the buyer alone can
-  confirm receipt and complete the order. Tracking is visible to the buyer and
-  admin. These workflow updates do not move money or release a payout.
+- **Fulfilment UI is connected.** In Seller Centre → Orders, a verified seller
+  enters the courier, tracking number and optional HTTPS tracking link, then
+  explicitly confirms that the product has shipped. The seller can later record
+  delivery; the buyer alone can confirm receipt and complete the order.
+  Tracking is visible to the buyer and admin.
+- **Admin fulfilment oversight is restricted and audited.** On Admin → Orders →
+  order detail, an admin can record verified dispatch or delivery only with
+  courier/tracking data (for dispatch) and a mandatory reason/evidence note.
+  These controls do not alter payment, refund, settlement or payout state.
 - **No schema change.** Every model, index and constraint Phase 9.1 needs
   already exists in `prisma/schema.prisma`. The compare-and-swap relies on
   `orders.status` being filterable, which the existing `@@index([status])`

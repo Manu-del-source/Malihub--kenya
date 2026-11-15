@@ -63,7 +63,7 @@ export function SellerOrderActions({
           <div>
             <p className="text-sm font-medium">Dispatch order</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Enter the courier and tracking reference before marking this order as shipped.
+              Once you have physically handed the parcel to the courier or delivery rider, enter the tracking details and confirm that the product has shipped.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -107,7 +107,7 @@ export function SellerOrderActions({
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Truck className="h-4 w-4" aria-hidden />}
-            {pending ? "Saving..." : "Save tracking & mark shipped"}
+            {pending ? "Saving..." : "Confirm product shipped & save tracking"}
           </button>
         </form>
       )}

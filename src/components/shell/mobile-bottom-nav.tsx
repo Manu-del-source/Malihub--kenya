@@ -2,47 +2,67 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, Package, UserRound } from "lucide-react";
-import { activeMobileTab, buildMobileTabs, type MobileTabKey } from "@/lib/mobile-tabs";
+import {
+  Home, LayoutGrid, LayoutDashboard, List, MessageCircle, Menu, Package, ShoppingCart, UserRound,
+} from "lucide-react";
+import { activeMobileTab, buildMobileTabs, mobileMode, type MobileTabKey } from "@/lib/mobile-tabs";
 
 const ICONS: Record<MobileTabKey, typeof Home> = {
   home: Home,
   categories: LayoutGrid,
-  orders: Package,
+  cart: ShoppingCart,
   messages: MessageCircle,
   account: UserRound,
+  "seller-overview": LayoutDashboard,
+  "seller-orders": Package,
+  "seller-listings": List,
+  "seller-messages": MessageCircle,
+  "seller-more": Menu,
 };
 
 /**
- * Phone bottom bar: always five tabs. Seller Centre and Admin are reached from
- * the Account tab; Cart is in the header (see `buildMobileTabs`).
+ * Phone bottom bar — five tabs in either mode (shopping, or the seller
+ * workspace inside /seller). See `buildMobileTabs`.
  */
-export function MobileBottomNav({ hasSellerProfile }: { hasSellerProfile: boolean }) {
+export function MobileBottomNav({ hasSellerProfile, cartCount = 0 }: { hasSellerProfile: boolean; cartCount?: number }) {
   const pathname = usePathname();
-  const tabs = buildMobileTabs({ hasSellerProfile });
+  const mode = mobileMode(pathname, hasSellerProfile);
+  const tabs = buildMobileTabs({ mode });
   const active = activeMobileTab(tabs, pathname);
 
   return (
     <nav
-      aria-label="Primary mobile navigation"
+      aria-label={mode === "seller" ? "Seller navigation" : "Primary mobile navigation"}
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <ul className="mx-auto grid max-w-xl grid-cols-5">
         {tabs.map(({ key, label, href }) => {
           const Icon = ICONS[key];
           const isActive = active === key;
+          const badge = key === "cart" && cartCount > 0 ? (cartCount > 99 ? "99+" : String(cartCount)) : null;
           return (
             <li key={key}>
               <Link
                 href={href}
                 aria-current={isActive ? "page" : undefined}
-                className={`relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
-                  isActive ? "text-primary-300" : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-label={badge ? `${label}, ${badge} item${cartCount === 1 ? "" : "s"}` : label}
+                className="flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
               >
-                {isActive && <span aria-hidden className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-primary" />}
-                <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.2]" : "stroke-[1.7]"}`} aria-hidden />
-                <span className="truncate">{label}</span>
+                <span
+                  className={`relative flex h-7 w-12 items-center justify-center rounded-full transition-colors ${
+                    isActive ? "bg-primary/20 text-primary-300" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.2]" : "stroke-[1.7]"}`} aria-hidden />
+                  {badge && (
+                    <span className="absolute -right-0.5 -top-1 min-w-4 rounded-full bg-primary px-1 text-center font-mono text-[10px] font-bold leading-4 text-primary-foreground">
+                      {badge}
+                    </span>
+                  )}
+                </span>
+                <span className={`truncate text-[11px] font-medium ${isActive ? "text-primary-300" : "text-muted-foreground"}`}>
+                  {label}
+                </span>
               </Link>
             </li>
           );

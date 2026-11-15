@@ -6,10 +6,10 @@ import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCartSummary } from "@/services/cart-service";
 import { signOutAction } from "@/app/(auth)/actions";
 import { DashboardNavLinks } from "@/components/shell/dashboard-nav-links";
 import { MobileBottomNav } from "@/components/shell/mobile-bottom-nav";
-import { MobileSellerNav } from "@/components/shell/mobile-area-nav";
 import { buildDashboardNav } from "@/lib/dashboard-nav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +20,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: { verificationStatus: true },
       })
     : null;
-  const { primary, account, sellerArea } = buildDashboardNav({
+  // Cart badge for the phone bar; a failed lookup must never break the page.
+  const cartCount = await getCartSummary(prisma, user.id).then((c) => c.itemCount).catch(() => 0);
+  const { primary, account } = buildDashboardNav({
     hasSellerProfile: user.hasSellerProfile,
     isAdmin: isAdministratorRole(user.role),
     sellerVerified: seller?.verificationStatus === "VERIFIED",
@@ -52,7 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <UserRound className="h-5 w-5" aria-hidden />
               <span className="text-sm font-medium">Account</span>
             </Link>
-            <Link href="/buyer/cart" aria-label="Cart" className="flex h-11 w-11 items-center justify-center gap-2 rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:h-auto md:w-auto md:px-2 md:py-1.5">
+            <Link href="/buyer/cart" aria-label="Cart" className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:flex">
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium md:inline">Cart</span>
             </Link>
@@ -81,11 +83,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </nav>
           </Container>
         </div>
-        <MobileSellerNav items={sellerArea} />
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav hasSellerProfile={user.hasSellerProfile} />
+      <MobileBottomNav hasSellerProfile={user.hasSellerProfile} cartCount={cartCount} />
     </div>
   );
 }

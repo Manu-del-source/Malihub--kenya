@@ -59,14 +59,23 @@ implementation.
 
 ## Marketplace / seller payout boundary
 
-MaliHub intends to collect buyer payments and later pay independent sellers.
-Collection and seller payouts are separate financial flows. Before enabling live
-payments, obtain written approval from Paystack for this marketplace model and
-confirm the available payout product, seller onboarding/KYC requirements,
-fees, settlement timing, refunds, chargebacks, reserves, and reconciliation.
-Do not represent an ordinary merchant collection account as an approved
-payment-aggregation arrangement. Never pay sellers based only on the browser
-return URL.
+MaliHub intends to collect buyer payments and later pay independent sellers. Collection settlement and seller transfers are separate financial flows and must be represented separately in seller-facing copy and the ledger.
+
+### Confirmed published Kenya timing (verify against MaliHub's own Paystack account before launch)
+
+- Paystack's Kenya pricing and terms publish **T+2 for local transaction settlement** to the merchant's configured payout account. This is Paystack-to-MaliHub settlement, not a seller withdrawal SLA. The schedule is expressed as up to two business days from the transaction date; Paystack may experience bank, provider, compliance or technical delays.
+- Paystack's Transfers documentation says transfers are typically processed within seconds, but a transfer can remain pending, fail or be reversed. A successful provider status does not guarantee immediate credit by the recipient's bank or wallet.
+- Paystack states Transfers are available to registered businesses. Access, recipient rails, fees, limits, and suitability for MaliHub's marketplace/seller-payee model must be confirmed with Paystack for this specific account.
+- Seller eligibility is independent of T+2: it is governed by order completion, any transaction-specific inspection/dispute policy, open protection cases, refunds, and reconciliation. Never calculate a seller's availability date by adding two days to the buyer's payment date.
+- Do not deduct or allocate provider collection or transfer fees to sellers unless the applicable fee responsibility is contractually confirmed and the exact charge is disclosed before the transaction/withdrawal.
+
+Official references:
+- https://paystack.com/ke/pricing
+- https://paystack.com/ke/terms
+- https://support.paystack.com/en/articles/2132866
+- https://paystack.com/docs/transfers/how-transfers-work/
+
+Before enabling live seller payouts, obtain written Paystack approval for this marketplace model and confirm the payout product, seller/payee onboarding and KYC requirements, fees, settlement timing, refunds, chargebacks, reserves, recipient limits and reconciliation. Do not represent an ordinary merchant collection account as an approved payment-aggregation arrangement. Never pay sellers based only on the browser return URL.
 
 ## Rollout sequence
 
@@ -81,9 +90,7 @@ return URL.
   execution against Paystack's own API is still to be performed on a machine
   with network access; the suites stub the provider client so they run
   anywhere.
-- Phase D: seller ledger/payout workflow only after compliance approval; require
-  reconciliation and manual review for payout exceptions — **pending** (see the
-  marketplace boundary above).
+- Phase D: seller ledger/payout workflow, seller withdrawal requests, provider transfer adapter, signed payout webhook/status reconciliation, admin review and exception handling — **pending** until Paystack gives written approval for MaliHub's marketplace model and confirms the enabled transfer product. No live transfer endpoint is enabled by this repository today.
 - Phase E: production cutover with feature flag and a documented rollback path
   — **pending**. Set `PAYSTACK_SECRET_KEY` to a live key and the live webhook
   URL in the Paystack dashboard; the code path is identical in both modes.

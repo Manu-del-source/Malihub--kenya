@@ -28,6 +28,8 @@ export function SellerOrderActions({
   const [carrierName, setCarrierName] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [handedOver, setHandedOver] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const nextStep = status === "PAID" ? "SHIPPED" : status === "SHIPPED" ? "DELIVERED" : null;
 
   function updateStatus(event: FormEvent<HTMLFormElement>) {
@@ -39,7 +41,7 @@ export function SellerOrderActions({
         orderId,
         step: nextStep,
         ...(nextStep === "SHIPPED"
-          ? { shipment: { carrierName, trackingNumber, ...(trackingUrl ? { trackingUrl } : {}) } }
+          ? { shipment: { carrierName, trackingNumber, handedToCourier: handedOver, ...(trackingUrl ? { trackingUrl } : {}) } }
           : {}),
       });
       if (!result.success) {
@@ -58,7 +60,18 @@ export function SellerOrderActions({
         </p>
       )}
 
-      {status === "PAID" && (
+      {status === "PAID" && !formOpen && (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400 sm:w-auto"
+        >
+          <Truck className="h-4 w-4" aria-hidden />
+          Confirm product shipped
+        </button>
+      )}
+
+      {status === "PAID" && formOpen && (
         <form onSubmit={updateStatus} className="space-y-3">
           <div>
             <p className="text-sm font-medium">Dispatch order</p>
@@ -94,6 +107,8 @@ export function SellerOrderActions({
             Tracking link (optional)
             <input
               type="url"
+              pattern="https://.*"
+              title="Tracking links must start with https://"
               maxLength={500}
               value={trackingUrl}
               onChange={(event) => setTrackingUrl(event.target.value)}
@@ -101,14 +116,34 @@ export function SellerOrderActions({
               className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
             />
           </label>
+          <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-xs leading-5 text-foreground">
+            <input
+              type="checkbox"
+              required
+              checked={handedOver}
+              onChange={(event) => setHandedOver(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>I confirm this parcel has physically been handed to the courier or rider.</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !handedOver}
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Truck className="h-4 w-4" aria-hidden />}
             {pending ? "Saving..." : "Confirm product shipped & save tracking"}
           </button>
+          <button
+            type="button"
+            onClick={() => setFormOpen(false)}
+            disabled={pending}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </button>
+          </div>
         </form>
       )}
 

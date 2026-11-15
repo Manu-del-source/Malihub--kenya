@@ -17,7 +17,7 @@ import {
 export async function updateSellerOrderFulfilment(input: {
   orderId: string;
   step: FulfillmentStep;
-  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string };
+  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string; handedToCourier: boolean };
 }): Promise<{ success: boolean; status?: string; error?: string }> {
   if (
     !input ||
@@ -38,6 +38,15 @@ export async function updateSellerOrderFulfilment(input: {
     return { success: false, error: "Invalid order update." };
   }
 
+  // The seller must attest that the parcel was physically handed over. This is
+  // enforced here (server side), not only by the form's checkbox.
+  if (input.step === "SHIPPED" && input.shipment?.handedToCourier !== true) {
+    return {
+      success: false,
+      error: "Confirm that the parcel has been handed to the courier or rider before marking it shipped.",
+    };
+  }
+
   const { user } = await requireSellerAccess();
   const seller = await prisma.seller.findUnique({
     where: { userId: user.id },
@@ -53,11 +62,23 @@ export async function updateSellerOrderFulfilment(input: {
       orderId: input.orderId,
       actorUserId: user.id,
       actorSellerId: seller.id,
-      ...(input.step === "SHIPPED" ? { shipment: input.shipment } : {}),
+      ...(input.step === "SHIPPED"
+        ? {
+            dispatchConfirmed: true,
+            shipment: {
+              carrierName: input.shipment!.carrierName,
+              trackingNumber: input.shipment!.trackingNumber,
+              trackingUrl: input.shipment!.trackingUrl,
+            },
+          }
+        : {}),
     });
 
     revalidatePath("/seller");
     revalidatePath("/seller/orders");
+    revalidatePath(`/seller/orders/${input.orderId}`);
+    revalidatePath(`/buyer/orders/${input.orderId}`);
+    revalidatePath("/admin/orders");
     revalidatePath("/buyer/orders");
     return { success: true, status: result.order.status };
   } catch (error) {

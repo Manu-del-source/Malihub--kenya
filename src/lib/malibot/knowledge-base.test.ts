@@ -21,3 +21,14 @@ test("returns no articles for unrelated or empty input", () => {
   assert.deepEqual(retrieveMaliHubKnowledge(""), []);
   assert.deepEqual(retrieveMaliHubKnowledge("xyzqv 998877"), []);
 });
+
+test("retrieves exact Seller Centre navigation for US and UK spelling", () => {
+  for (const question of [
+    "Where do I find the seller center?",
+    "How do I open my seller dashboard?",
+    "I already have an account, how do I access Seller Centre?",
+  ]) {
+    const results = retrieveMaliHubKnowledge(question);
+    assert.ok(results.some((item) => item.title === "Seller Centre and order fulfilment"), question);
+  }
+});

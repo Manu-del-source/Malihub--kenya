@@ -193,48 +193,6 @@ export default async function BuyerOrderDetailPage({
         </div>
 
         <aside className="flex flex-col gap-4">
-          {(order.shipment || order.status === "SHIPPED") && (
-            <section className="glass rounded-2xl p-5 text-sm">
-              <h2 className="font-display text-base font-medium">Shipment tracking</h2>
-              {order.shipment ? (
-                <dl className="mt-3 space-y-2">
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <dt className="text-muted-foreground">Courier</dt>
-                    <dd className="font-medium">{order.shipment.carrierName}</dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <dt className="text-muted-foreground">Tracking number</dt>
-                    <dd className="font-mono">{order.shipment.trackingNumber}</dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <dt className="text-muted-foreground">Shipment status</dt>
-                    <dd>{order.shipment.status.replaceAll("_", " ").toLowerCase()}</dd>
-                  </div>
-                  {order.shipment.dispatchedAt && (
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <dt className="text-muted-foreground">Dispatched</dt>
-                      <dd>{timeAgo(order.shipment.dispatchedAt)}</dd>
-                    </div>
-                  )}
-                  {order.shipment.trackingUrl && (
-                    <a
-                      href={order.shipment.trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex text-primary-400 hover:underline"
-                    >
-                      Track with courier →
-                    </a>
-                  )}
-                </dl>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  The seller has marked this order as shipped but has not provided tracking details.
-                </p>
-              )}
-            </section>
-          )}
-
           {order.status === "PENDING" && (
             <>
               <Script
@@ -272,6 +230,44 @@ export default async function BuyerOrderDetailPage({
                         ? "You confirmed receipt. This order is complete."
                         : `This order is ${ORDER_STATUS_LABEL[order.status]?.toLowerCase() ?? order.status.toLowerCase()}.`}
             </p>
+
+            {(order.shipment || order.status === "SHIPPED") && (
+              <div className="mt-4 rounded-xl border border-primary-400/30 bg-primary-400/5 p-4">
+                <h3 className="font-medium">Courier and tracking details</h3>
+                {order.shipment ? (
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <dt className="text-muted-foreground">Courier</dt>
+                      <dd className="font-medium text-foreground">{order.shipment.carrierName}</dd>
+                    </div>
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <dt className="text-muted-foreground">Tracking number</dt>
+                      <dd className="break-all font-mono text-foreground">{order.shipment.trackingNumber}</dd>
+                    </div>
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <dt className="text-muted-foreground">Shipment status</dt>
+                      <dd className="text-foreground">{order.shipment.status.replaceAll("_", " ").toLowerCase()}</dd>
+                    </div>
+                    {order.shipment.dispatchedAt && (
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <dt className="text-muted-foreground">Dispatched</dt>
+                        <dd className="text-foreground">{timeAgo(order.shipment.dispatchedAt)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-500">
+                    The seller marked this order as shipped, but courier and tracking details have not been recorded. Contact the seller or MaliHub support.
+                  </p>
+                )}
+                {order.shipment?.trackingUrl && (
+                  <a href={order.shipment.trackingUrl} target="_blank" rel="noopener noreferrer"
+                    className="mt-3 inline-flex text-sm font-medium text-primary-400 hover:underline">
+                    Track parcel with courier →
+                  </a>
+                )}
+              </div>
+            )}
 
             {paymentSnapshot?.payment && (
               <dl className="mt-3 space-y-1 text-xs text-muted-foreground">

@@ -13,46 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { signOutAction } from "@/app/(auth)/actions";
 import { DashboardNavLinks } from "@/components/shell/dashboard-nav-links";
 import { MobileBottomNav } from "@/components/shell/mobile-bottom-nav";
-
-type NavItem = { label: string; href: string };
-
-function buildNav({
-  hasSellerProfile,
-  isAdmin,
-  sellerVerified,
-}: {
-  hasSellerProfile: boolean;
-  isAdmin: boolean;
-  sellerVerified: boolean;
-}): { primary: NavItem[]; account: NavItem[] } {
-  const primary: NavItem[] = [
-    { label: "Marketplace", href: "/marketplace" },
-    { label: "Wishlist", href: "/buyer/wishlist" },
-  ];
-
-  if (hasSellerProfile || isAdmin) {
-    primary.push({ label: "Dashboard", href: SELLER_DASHBOARD_PATH });
-    primary.push({ label: "Supplier catalog", href: `${SELLER_DASHBOARD_PATH}/suppliers` });
-    if (sellerVerified || isAdmin) {
-      primary.push(
-        { label: "Products", href: `${SELLER_DASHBOARD_PATH}/products` },
-        { label: "Supplier orders", href: `${SELLER_DASHBOARD_PATH}/supplier-orders` },
-        { label: "Orders", href: `${SELLER_DASHBOARD_PATH}/orders` },
-        { label: "Sales", href: `${SELLER_DASHBOARD_PATH}/sales` },
-      );
-    }
-  } else {
-    primary.push({ label: "My orders", href: "/buyer/orders" });
-  }
-
-  const account: NavItem[] = [
-    { label: "Messages", href: "/messages" },
-    { label: "Profile", href: "/account" },
-  ];
-  if (isAdmin) account.push({ label: "Admin", href: ADMIN_DASHBOARD_PATH });
-
-  return { primary, account };
-}
+import { buildDashboardNav, BUYER_ORDERS_PATH, SELLER_ORDERS_PATH } from "@/lib/dashboard-nav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
@@ -62,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: { verificationStatus: true },
       })
     : null;
-  const { primary, account } = buildNav({
+  const { primary, account } = buildDashboardNav({
     hasSellerProfile: user.hasSellerProfile,
     isAdmin: isAdministratorRole(user.role),
     sellerVerified: seller?.verificationStatus === "VERIFIED",
@@ -135,7 +96,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav sellerDashboardHref={seller?.verificationStatus === "VERIFIED" ? SELLER_DASHBOARD_PATH : undefined} adminDashboardHref={isAdministratorRole(user.role) ? ADMIN_DASHBOARD_PATH : undefined} />
+      <MobileBottomNav
+        sellerDashboardHref={user.hasSellerProfile ? SELLER_DASHBOARD_PATH : undefined}
+        ordersHref={user.hasSellerProfile ? SELLER_ORDERS_PATH : BUYER_ORDERS_PATH}
+        adminDashboardHref={isAdministratorRole(user.role) ? ADMIN_DASHBOARD_PATH : undefined}
+      />
     </div>
   );
 }

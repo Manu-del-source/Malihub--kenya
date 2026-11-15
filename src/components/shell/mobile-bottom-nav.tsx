@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, ShieldCheck, ShoppingCart, Store, UserRound } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, Package, ShieldCheck, ShoppingCart, Store, UserRound } from "lucide-react";
 
 const ITEMS = [
   { label: "Home", href: "/", icon: Home, exact: true },
@@ -12,29 +12,38 @@ const ITEMS = [
   { label: "Account", href: "/account", icon: UserRound, exact: false },
 ] as const;
 
-export function MobileBottomNav({ sellerDashboardHref, adminDashboardHref }: { sellerDashboardHref?: string; adminDashboardHref?: string }) {
+export function MobileBottomNav({ sellerDashboardHref, ordersHref, adminDashboardHref }: { sellerDashboardHref?: string; ordersHref?: string; adminDashboardHref?: string }) {
   const pathname = usePathname();
-  const items = [
+  const base = [
     ...ITEMS.slice(0, 2),
     ...(sellerDashboardHref
       ? [{ label: "Seller", href: sellerDashboardHref, icon: Store, exact: false }]
+      : []),
+    ...(ordersHref
+      ? [{ label: "Orders", href: ordersHref, icon: Package, exact: false }]
       : []),
     ...(adminDashboardHref
       ? [{ label: "Admin", href: adminDashboardHref, icon: ShieldCheck, exact: false }]
       : []),
     ...ITEMS.slice(2),
   ];
+  // A seller who is also an admin would otherwise get 8 cramped tabs. Category
+  // is the least-critical tab here (the marketplace is one tap from Home).
+  const items = base.length > 7 ? base.filter((item) => item.label !== "Category") : base;
 
   return (
     <nav
       aria-label="Primary mobile navigation"
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgb(0_0_0/0.18)] backdrop-blur-xl md:hidden"
     >
-      <ul className={`mx-auto grid max-w-xl ${items.length === 7 ? "grid-cols-7" : items.length === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
+      <ul className={`mx-auto grid max-w-xl ${items.length >= 7 ? "grid-cols-7" : items.length === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
         {items.map(({ label, href, icon: Icon, exact }) => {
+          const onOrders = !!ordersHref && (pathname === ordersHref || pathname.startsWith(`${ordersHref}/`));
           const active = exact
             ? pathname === href
-            : pathname === href || pathname.startsWith(`${href}/`);
+            : label === "Seller" && onOrders
+              ? false
+              : pathname === href || pathname.startsWith(`${href}/`);
 
           return (
             <li key={label}>

@@ -770,16 +770,26 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
       orderId: order.id,
       actorUserId: SELLER_1,
       actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
     });
     assert.equal(shipped.order.status, "SHIPPED");
     assert.equal(shipped.previousStatus, "PAID");
+
+    const shipment = [...store.tables.orderShipments.values()].find((row) => row.orderId === order.id);
+    assert.ok(shipment, "dispatch must persist a courier tracking record");
+    assert.equal(shipment.carrierName, "Test Courier");
+    assert.equal(shipment.trackingNumber, "TEST-123");
+    assert.equal(shipment.status, "IN_TRANSIT");
 
     const delivered = await service.markOrderFulfilled(db, "DELIVERED", {
       orderId: order.id,
       actorUserId: SELLER_1,
       actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
     });
     assert.equal(delivered.order.status, "DELIVERED");
+    assert.equal(shipment.status, "DELIVERED");
+    assert.ok(shipment.deliveredAt instanceof Date);
 
     // Completion is the buyer's to confirm.
     const completed = await service.markOrderFulfilled(db, "COMPLETED", {
@@ -799,6 +809,7 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
           orderId: order.id,
           actorUserId: SELLER_1,
           actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
         }),
       (error: unknown) =>
         error instanceof service.OrderTransitionError && error.code === "invalid_transition"
@@ -833,11 +844,13 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
       orderId: order.id,
       actorUserId: SELLER_1,
       actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
     });
     await service.markOrderFulfilled(db, "DELIVERED", {
       orderId: order.id,
       actorUserId: SELLER_1,
       actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
     });
 
     await assert.rejects(
@@ -846,6 +859,7 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
           orderId: order.id,
           actorUserId: SELLER_1,
           actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
         }),
       (error: unknown) =>
         error instanceof service.OrderTransitionError && error.code === "not_found"
@@ -879,6 +893,7 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
           orderId: order.id,
           actorUserId: SELLER_1,
           actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
         }),
       (error: unknown) =>
         error instanceof service.OrderTransitionError && error.code === "invalid_transition"
@@ -917,6 +932,7 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
           orderId: order.id,
           actorUserId: SELLER_1,
           actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
         }),
       (error: unknown) => error instanceof service.OrderTransitionError
     );
@@ -1130,6 +1146,7 @@ describe("the service is the only status writer", () => {
             orderId: order.id,
             actorUserId: SELLER_1,
             actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
           }),
       },
       {
@@ -1140,6 +1157,7 @@ describe("the service is the only status writer", () => {
             orderId: order.id,
             actorUserId: SELLER_1,
             actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
           }),
       },
       {

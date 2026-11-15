@@ -74,6 +74,8 @@ export type OrderTransitionStore = Pick<
   "order" | "orderItem" | "product" | "seller" | "payment" | "$transaction"
 >;
 
+type OrderFulfillmentStore = OrderTransitionStore & Pick<PrismaClient, "orderShipment">;
+
 /** Why a transition was refused, in terms a route can map to a status code. */
 export type OrderTransitionErrorCode =
   | "not_found"
@@ -543,19 +545,33 @@ export type FulfillmentParams = {
   actorUserId: string;
   /** Present only when the actor owns a `sellers` row. Resolved internally. */
   actorSellerId?: string | null;
+  /** Required for a seller's first PAID → SHIPPED transition. */
+  shipment?: {
+    carrierName: string;
+    trackingNumber: string;
+    trackingUrl?: string | null;
+  };
 };
 
 /**
- * Applies one fulfilment transition. Exposed for the service layer and its
- * tests; deliberately not wired to a route or a button in this phase, because
- * the seller order screens have no fulfilment UI to attach it to yet.
+ * Applies one fulfilment transition. Seller dispatch stores courier tracking
+ * atomically with PAID → SHIPPED; delivery updates the shipment and order
+ * timestamps; only the owning buyer may complete DELIVERED → COMPLETED.
  */
 export async function markOrderFulfilled(
-  db: OrderTransitionStore,
+  db: OrderFulfillmentStore,
   step: FulfillmentStep,
   params: FulfillmentParams
 ): Promise<OrderTransitionResult> {
   const authority = FULFILLMENT_AUTHORITY[step];
+  const shipmentInput = params.shipment
+    ? {
+        carrierName: params.shipment.carrierName.trim(),
+        trackingNumber: params.shipment.trackingNumber.trim(),
+        trackingUrl: params.shipment.trackingUrl?.trim() || null,
+      }
+    : null;
+
   if (authority === "seller" && !params.actorSellerId) {
     throw new OrderTransitionError(
       "Only the seller who owns this order can record fulfilment.",
@@ -578,6 +594,26 @@ export async function markOrderFulfilled(
         : order.buyerId === params.actorUserId;
     if (!owns) {
       throw new OrderTransitionError("Order not found.", "not_found");
+    }
+
+    if (step === "SHIPPED") {
+      if (!shipmentInput?.carrierName || shipmentInput.carrierName.length > 80) {
+        throw new OrderTransitionError("Enter a valid courier or delivery provider.", "invalid_transition");
+      }
+      if (!shipmentInput.trackingNumber || shipmentInput.trackingNumber.length > 100) {
+        throw new OrderTransitionError("Enter a valid tracking number.", "invalid_transition");
+      }
+      if (shipmentInput.trackingUrl) {
+        if (shipmentInput.trackingUrl.length > 500) {
+          throw new OrderTransitionError("Tracking links must be 500 characters or fewer.", "invalid_transition");
+        }
+        try {
+          const trackingUrl = new URL(shipmentInput.trackingUrl);
+          if (trackingUrl.protocol !== "https:") throw new Error("HTTPS required");
+        } catch {
+          throw new OrderTransitionError("Tracking links must be valid HTTPS URLs.", "invalid_transition");
+        }
+      }
     }
 
     const from = order.status as OrderStatus;
@@ -606,9 +642,12 @@ export async function markOrderFulfilled(
       );
     }
 
+    const changedAt = new Date();
     const claimed = await tx.order.updateMany({
       where: { id: params.orderId, status: from },
-      data: { status: step },
+      data: step === "DELIVERED"
+        ? { status: step, deliveredAt: changedAt }
+        : { status: step },
     });
     if (claimed.count !== 1) {
       throw new OrderTransitionError(
@@ -616,6 +655,44 @@ export async function markOrderFulfilled(
         "invalid_transition",
         from
       );
+    }
+
+    if (step === "SHIPPED" && shipmentInput) {
+      await tx.orderShipment.upsert({
+        where: { orderId: params.orderId },
+        create: {
+          orderId: params.orderId,
+          carrierName: shipmentInput.carrierName,
+          trackingNumber: shipmentInput.trackingNumber,
+          trackingUrl: shipmentInput.trackingUrl,
+          status: "IN_TRANSIT",
+          dispatchedAt: changedAt,
+        },
+        update: {
+          carrierName: shipmentInput.carrierName,
+          trackingNumber: shipmentInput.trackingNumber,
+          trackingUrl: shipmentInput.trackingUrl,
+          status: "IN_TRANSIT",
+          dispatchedAt: changedAt,
+          deliveredAt: null,
+        },
+      });
+    }
+
+    if (step === "DELIVERED") {
+      // Older SHIPPED rows may predate tracking capture. Keep the historical
+      // delivery transition possible without inventing a courier reference.
+      await tx.orderShipment.upsert({
+        where: { orderId: params.orderId },
+        create: {
+          orderId: params.orderId,
+          carrierName: "Seller-arranged delivery",
+          trackingNumber: "Not provided",
+          status: "DELIVERED",
+          deliveredAt: changedAt,
+        },
+        update: { status: "DELIVERED", deliveredAt: changedAt },
+      });
     }
 
     return {

@@ -50,6 +50,7 @@ export type AdminTables = {
   orderItems: Map<string, Row>;
   payments: Map<string, Row>;
   settlements: Map<string, Row>;
+  shipments: Map<string, Row>;
   refunds: Map<string, Row>;
   wishlists: Map<string, Row>;
   reviews: Map<string, Row>;
@@ -101,6 +102,7 @@ const RELATIONS: Record<string, Record<string, RelationDef>> = {
     items: { table: "orderItems", localField: "id", foreignField: "orderId", many: true },
     payments: { table: "payments", localField: "id", foreignField: "orderId", many: true },
     settlement: { table: "settlements", localField: "id", foreignField: "orderId", many: false },
+    shipment: { table: "shipments", localField: "id", foreignField: "orderId", many: false },
     refunds: { table: "refunds", localField: "id", foreignField: "orderId", many: true },
   },
   orderItem: {
@@ -130,6 +132,7 @@ const TABLE_ALIASES: Record<string, string> = {
   orderItem: "orderItems",
   payment: "payments",
   settlement: "settlements",
+  shipment: "shipments",
   refund: "refunds",
   wishlist: "wishlists",
   review: "reviews",
@@ -462,6 +465,7 @@ export function createFakeAdminStore() {
     "orderItems",
     "payments",
     "settlements",
+    "shipments",
     "refunds",
     "wishlists",
     "reviews",

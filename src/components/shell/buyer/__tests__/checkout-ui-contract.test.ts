@@ -101,7 +101,7 @@ describe("checkout UI — payment states and copy", () => {
   it("gates the checkout CTA on server data and blocks an unavailable cart", () => {
     const source = read(CHECKOUT_VIEW);
     assert.match(source, /Pay securely · \$\{formatKes\(checkoutTotalCents\)\}/, "the CTA includes the accepted delivery estimate");
-    assert.match(source, /const checkoutTotalCents = summary\.subtotalCents \+ deliveryTotalCents/);
+    assert.match(source, /const checkoutTotalCents = summary\.subtotalCents/);
     assert.match(source, /blockedByStock/, "unavailable items must block payment");
     assert.match(source, /PAYMENT_METHODS\.map/, "payment methods render from the extensible list");
     assert.match(source, /createSerializedTask\(/, "creation is single-flighted");
@@ -179,8 +179,8 @@ describe("checkout UI — credentials never reach the browser", () => {
     assert.match(route, /checkoutCart\(prisma, user\.id, \{/);
     assert.match(service, /deliveryCounty: delivery\.county/);
     assert.match(service, /deliveryAddress: delivery\.address/);
-    assert.match(route, /acceptedDeliveryFeeCents/);
-    assert.match(read(CHECKOUT_VIEW), /deliveryEstimate/);
-    assert.match(read(CHECKOUT_VIEW), /deliveryFeeAccepted/);
+    assert.equal(route.includes("acceptedFeeCents"), false, "checkout no longer accepts or requires a delivery fee");
+    assert.equal(read(CHECKOUT_VIEW).includes("deliveryEstimate"), false);
+    assert.equal(read(CHECKOUT_VIEW).includes("deliveryFeeAccepted"), false);
   });
 });

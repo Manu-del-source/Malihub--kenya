@@ -1077,6 +1077,16 @@ export async function getAdminOrderDetail(orderId: string, db: PrismaHandle = pr
           createdAt: true,
         },
       },
+      shipment: {
+        select: {
+          carrierName: true,
+          trackingNumber: true,
+          trackingUrl: true,
+          status: true,
+          dispatchedAt: true,
+          deliveredAt: true,
+        },
+      },
       settlement: {
         select: {
           id: true,

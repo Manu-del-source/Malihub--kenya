@@ -170,6 +170,17 @@ export type OrderItemRow = {
   createdAt: Date;
 };
 
+export type OrderShipmentRow = {
+  id: string;
+  orderId: string;
+  carrierName: string;
+  trackingNumber: string;
+  trackingUrl: string | null;
+  status: string;
+  dispatchedAt: Date | null;
+  deliveredAt: Date | null;
+};
+
 /**
  * Mirrors `payments` (prisma/schema.prisma). Enum columns stay strings, as on
  * `OrderRow`; the uniques the table actually enforces —
@@ -257,6 +268,7 @@ export type Tables = {
   wishlists: Map<string, WishlistRow>;
   orders: Map<string, OrderRow>;
   orderItems: Map<string, OrderItemRow>;
+  orderShipments: Map<string, OrderShipmentRow>;
   payments: Map<string, PaymentRow>;
   paymentEvents: Map<string, PaymentEventRow>;
   sellers: Map<string, SellerRow>;
@@ -353,6 +365,11 @@ export type FakeMarketplaceStore = {
   orderItem: {
     findMany(args?: Args): Promise<unknown[]>;
     aggregate(args?: Args): Promise<unknown>;
+  };
+  orderShipment: {
+    findUnique(args: Args): Promise<unknown>;
+    upsert(args: Args): Promise<unknown>;
+    update(args: Args): Promise<unknown>;
   };
   payment: {
     create(args: Args): Promise<unknown>;
@@ -500,6 +517,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     wishlists: new Map(),
     orders: new Map(),
     orderItems: new Map(),
+    orderShipments: new Map(),
     payments: new Map(),
     paymentEvents: new Map(),
     sellers: new Map(),
@@ -742,6 +760,10 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     if (include.buyer) {
       const profile = tables.profiles.get(row.buyerId);
       out.buyer = { profile: profile ? { fullName: profile.fullName } : null };
+    }
+
+    if (include.shipment) {
+      out.shipment = [...tables.orderShipments.values()].find((shipment) => shipment.orderId === row.id) ?? null;
     }
 
     return out;
@@ -1384,6 +1406,45 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           result.totalCents = rows.reduce((total, row) => total + row.totalCents, 0);
         }
         return { _sum: result };
+      },
+    },
+
+    orderShipment: {
+      async findUnique(args) {
+        store.operations.push("orderShipment.findUnique");
+        const where = args.where as { orderId?: string };
+        const row = [...tables.orderShipments.values()].find((item) => item.orderId === where.orderId);
+        return row ? { ...row } : null;
+      },
+      async upsert(args) {
+        store.operations.push("orderShipment.upsert");
+        const where = args.where as { orderId: string };
+        const existing = [...tables.orderShipments.values()].find((item) => item.orderId === where.orderId);
+        if (existing) {
+          merge(existing as unknown as Record<string, unknown>, args.update as Args);
+          return { ...existing };
+        }
+        const data = args.create as Args;
+        const row: OrderShipmentRow = {
+          id: randomUUID(),
+          orderId: String(data.orderId),
+          carrierName: String(data.carrierName),
+          trackingNumber: String(data.trackingNumber),
+          trackingUrl: (data.trackingUrl as string | null) ?? null,
+          status: String(data.status ?? "NOT_DISPATCHED"),
+          dispatchedAt: (data.dispatchedAt as Date | null) ?? null,
+          deliveredAt: (data.deliveredAt as Date | null) ?? null,
+        };
+        tables.orderShipments.set(row.id, row);
+        return { ...row };
+      },
+      async update(args) {
+        store.operations.push("orderShipment.update");
+        const where = args.where as { orderId: string };
+        const row = [...tables.orderShipments.values()].find((item) => item.orderId === where.orderId);
+        if (!row) throw new PrismaKnownError("P2025", "order shipment not found");
+        merge(row as unknown as Record<string, unknown>, args.data as Args);
+        return { ...row };
       },
     },
 

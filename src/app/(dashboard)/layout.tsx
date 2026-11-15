@@ -135,7 +135,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav />
+      <MobileBottomNav sellerDashboardHref={seller?.verificationStatus === "VERIFIED" ? SELLER_DASHBOARD_PATH : undefined} adminDashboardHref={isAdministratorRole(user.role) ? ADMIN_DASHBOARD_PATH : undefined} />
     </div>
   );
 }

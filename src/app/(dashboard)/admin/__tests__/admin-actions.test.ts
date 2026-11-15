@@ -341,7 +341,7 @@ describe("category actions", () => {
 });
 
 describe("the admin action surface is exactly what it should be — and no more", () => {
-  it("no action can touch orders, payments, or account roles", async () => {
+  it("only the documented fulfilment override can touch order status; payment and identity actions stay absent", async () => {
     const mod = await loadActions();
     const exported = Object.keys(mod).sort();
 
@@ -352,6 +352,7 @@ describe("the admin action surface is exactly what it should be — and no more"
       "deleteAdminSellerAction",
       "deleteCategoryAction",
       "moderateListingAction",
+      "recordAdminOrderFulfilmentAction",
       "rejectSellerAction",
       "resendAdminSellerInvitationAction",
       "resetSellerVerificationAction",
@@ -361,8 +362,8 @@ describe("the admin action surface is exactly what it should be — and no more"
     for (const name of exported) {
       assert.doesNotMatch(
         name,
-        /order|payment|refund|payout|role|password|ban/i,
-        "financial and identity mutations must not appear as admin actions at all"
+        /payment|refund|payout|role|password|ban/i,
+        "payment, payout and identity mutations must not appear as admin actions"
       );
     }
   });

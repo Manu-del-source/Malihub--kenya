@@ -10,6 +10,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PAID_ORDER_STATUSES } from "@/lib/order-status";
+import { canTransitionOrder } from "@/lib/order-state-machine";
 import { logAuditEvent } from "@/services/audit-service";
 import { notifyUser } from "@/services/notification-service";
 
@@ -1393,4 +1394,145 @@ export async function listAdminAuditEvents(filters: AdminAuditListFilters, db: P
   ]);
 
   return { events, total, pageSize: ADMIN_PAGE_SIZE };
+}
+
+
+// ─── Admin order fulfilment oversight ──────────────────────────────────────
+
+export type AdminFulfilmentOverrideInput = {
+  orderId: string;
+  step: "SHIPPED" | "DELIVERED";
+  reason: string;
+  shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string | null };
+};
+
+/**
+ * An administrator may correct a fulfilment record only with a documented
+ * operational reason. This never changes payment, refund, settlement or payout
+ * state. The ordinary seller path remains the default source of dispatch data.
+ */
+export async function recordAdminOrderFulfilment(
+  input: AdminFulfilmentOverrideInput,
+  actor: AdminActor,
+  db: PrismaHandle = prisma
+) {
+  const reason = input.reason.trim();
+  if (reason.length < 10 || reason.length > 500) {
+    throw new AdminServiceError("Enter a reason between 10 and 500 characters.");
+  }
+  if (input.step === "SHIPPED") {
+    const carrierName = input.shipment?.carrierName.trim() ?? "";
+    const trackingNumber = input.shipment?.trackingNumber.trim() ?? "";
+    const trackingUrl = input.shipment?.trackingUrl?.trim() || null;
+    if (!carrierName || carrierName.length > 80 || !trackingNumber || trackingNumber.length > 100) {
+      throw new AdminServiceError("A courier and tracking number are required to record dispatch.");
+    }
+    if (trackingUrl) {
+      try {
+        const parsed = new URL(trackingUrl);
+        if (parsed.protocol !== "https:" || trackingUrl.length > 500) throw new Error("Invalid URL");
+      } catch {
+        throw new AdminServiceError("Tracking links must be valid HTTPS URLs.");
+      }
+    }
+  }
+
+  const outcome = await db.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: input.orderId },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        buyerId: true,
+        seller: { select: { userId: true } },
+      },
+    });
+    if (!order) throw new AdminServiceError("Order not found.");
+
+    if (order.status === input.step) {
+      return { changed: false, orderNumber: order.orderNumber, buyerId: order.buyerId, sellerUserId: order.seller.userId, from: order.status };
+    }
+    if (!canTransitionOrder(order.status, input.step)) {
+      throw new AdminServiceError(`This order cannot move from ${order.status} to ${input.step}.`);
+    }
+
+    const changedAt = new Date();
+    const claimed = await tx.order.updateMany({
+      where: { id: order.id, status: order.status },
+      data: input.step === "DELIVERED"
+        ? { status: "DELIVERED", deliveredAt: changedAt }
+        : { status: "SHIPPED" },
+    });
+    if (claimed.count !== 1) throw new AdminServiceError("This order changed while you were updating it. Refresh and try again.");
+
+    if (input.step === "SHIPPED") {
+      const shipment = input.shipment!;
+      await tx.orderShipment.upsert({
+        where: { orderId: order.id },
+        create: {
+          orderId: order.id,
+          carrierName: shipment.carrierName.trim(),
+          trackingNumber: shipment.trackingNumber.trim(),
+          trackingUrl: shipment.trackingUrl?.trim() || null,
+          status: "IN_TRANSIT",
+          dispatchedAt: changedAt,
+        },
+        update: {
+          carrierName: shipment.carrierName.trim(),
+          trackingNumber: shipment.trackingNumber.trim(),
+          trackingUrl: shipment.trackingUrl?.trim() || null,
+          status: "IN_TRANSIT",
+          dispatchedAt: changedAt,
+          deliveredAt: null,
+          deliveryNotes: null,
+        },
+      });
+    } else {
+      await tx.orderShipment.update({
+        where: { orderId: order.id },
+        data: { status: "DELIVERED", deliveredAt: changedAt, deliveryNotes: reason },
+      });
+    }
+
+    return {
+      changed: true,
+      orderNumber: order.orderNumber,
+      buyerId: order.buyerId,
+      sellerUserId: order.seller.userId,
+      from: order.status,
+    };
+  });
+
+  if (outcome.changed) {
+    await Promise.all([
+      logAuditEvent({
+        action: "admin.order_fulfillment_override",
+        actorId: actor.id,
+        actorEmail: actor.email,
+        targetType: "order",
+        targetId: input.orderId,
+        metadata: {
+          orderNumber: outcome.orderNumber,
+          from: outcome.from,
+          to: input.step,
+          reason,
+          courierProvided: input.step === "SHIPPED",
+        },
+      }),
+      ...[outcome.buyerId, outcome.sellerUserId].map((userId) =>
+        notifyUser({
+          userId,
+          type: "ORDER_UPDATE",
+          title: `Order ${outcome.orderNumber} updated by MaliHub support`,
+          body: input.step === "SHIPPED"
+            ? "MaliHub support recorded dispatch for your order. Tracking details are now available."
+            : "MaliHub support recorded delivery for your order. Please confirm receipt only after checking the product.",
+          linkUrl: userId === outcome.buyerId ? "/buyer/orders" : "/seller/orders",
+        }).catch(() => undefined)
+      ),
+    ]);
+  }
+
+  return { changed: outcome.changed, status: input.step, orderNumber: outcome.orderNumber };
 }

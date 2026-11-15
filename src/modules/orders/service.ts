@@ -126,6 +126,13 @@ const SELLER_ORDER_SELECT = {
   sellerId: true,
   // The seller needs the buyer's name and delivery details for fulfilment.
   buyer: { select: { profile: { select: { fullName: true } } } },
+  // Latest payment attempt only: status + provider, never payer details or
+  // raw callback payloads.
+  payments: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { status: true, provider: true },
+  },
 } satisfies Prisma.OrderSelect;
 
 type OrderBaseRow = Prisma.OrderGetPayload<{ select: typeof ORDER_BASE_SELECT }>;
@@ -186,6 +193,9 @@ function toSellerOrder(order: SellerOrderRow) {
     ...orderFields(order),
     sellerId: order.sellerId,
     buyer: { profile: order.buyer.profile ? { fullName: order.buyer.profile.fullName } : null },
+    payment: order.payments?.[0]
+      ? { status: order.payments[0].status, provider: order.payments[0].provider }
+      : null,
   };
 }
 

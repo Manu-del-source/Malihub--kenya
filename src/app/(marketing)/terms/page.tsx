@@ -49,6 +49,10 @@ const sections = [
       "The seller is responsible for preparing and handing over or dispatching the goods as agreed in the order. Where tracking or delivery features are available, use the information shown in the order. Delivery estimates are not guarantees unless expressly stated as such.",
       "Cancellation, refund, return, and failed-delivery handling depend on the order status, the applicable listing or checkout terms, any MaliHub policy displayed for that transaction, the payment provider's rules, and mandatory consumer law. Do not assume a refund, return window, escrow, inspection period, or buyer-protection feature exists unless it is expressly presented in the relevant transaction flow or policy.",
       "Any platform fee or charge must be shown before you confirm the relevant paid action. Provider fees, where applicable, may be governed by the provider's own terms.",
+      "Seller earnings and withdrawals: an order payment being marked as paid does not mean the seller's earnings are immediately available for withdrawal. Earnings become eligible only after the order reaches the completion state required by the applicable MaliHub transaction policy, any stated inspection period has ended, any open buyer-protection case or payment review has been resolved, and the payment and settlement records have been reconciled. The seller dashboard will distinguish pending earnings from an available balance.",
+      "Paystack's published Kenya payout schedule for local transactions is T+2 (up to two business days from the transaction date) to the merchant's configured payout account. This is Paystack's settlement to the merchant account; it is not a promise that an individual MaliHub seller will receive funds two days after placing an order or confirming delivery. The seller's eligibility date is determined separately by the order and dispute process. Weekends, public holidays, provider or bank delays, compliance checks, reserves, and account issues may affect actual timing.",
+      "Where MaliHub has obtained the necessary provider approval and has an enabled transfer facility for seller payments, a transfer is normally processed within seconds after initiation, but it may remain pending, fail, or be reversed. A provider status of successful confirms processing by the provider and does not guarantee that the recipient's bank or mobile-money account has immediately credited the funds. MaliHub will show the transfer status and reference where available. No transfer facility or payout time is promised until it is enabled for MaliHub.",
+      "Any withdrawal fee, minimum amount, supported destination, or other payout condition will be displayed before the seller submits a withdrawal request. A withdrawal may be delayed or declined where account details are invalid, verification is incomplete, a dispute or refund review is open, funds are unavailable, or the provider requires additional checks. MaliHub does not describe the marketplace payment flow as escrow or guarantee that funds are held by Paystack for an individual order.",
     ],
   },
   {
@@ -96,7 +100,7 @@ export default function TermsPage() {
       <article className="marketing-document mx-auto max-w-3xl rounded-3xl border border-foreground/[0.07] bg-card/75 px-6 py-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-10 sm:py-10">
         <p className="text-sm font-medium text-primary">Legal</p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Terms of Service</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Last updated: 1 November 2026</p>
+        <p className="mt-3 text-sm text-muted-foreground">Last updated: 15 November 2026</p>
         <p className="mt-6 leading-7 text-muted-foreground">
           Please read these terms before using MaliHub. They apply to buyers, sellers, and other visitors using the marketplace, subject to applicable law.
         </p>

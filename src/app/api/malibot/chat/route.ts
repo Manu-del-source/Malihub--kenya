@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     let response = await requestGeneration(model);
 
-    if (response.status === 404 && /^gemini-2\\.5-/.test(model)) {
+    if (response.status === 404 && /^gemini-2\.5-/.test(model)) {
       const fallbackModel = "gemini-3.5-flash-lite";
       console.warn("MaliBot legacy Gemini model returned 404; trying supported fallback.");
       response = await requestGeneration(fallbackModel);

@@ -63,6 +63,8 @@ export function sellerNextStep(status: OrderStatus): string {
       return "This order was cancelled.";
     case "REFUNDED":
       return "This order was refunded.";
+    default:
+      return "Open the order for details.";
   }
 }
 

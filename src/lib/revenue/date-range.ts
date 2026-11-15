@@ -38,7 +38,7 @@ function eatMonthStart(year: number, monthIndex: number): Date {
 
 function parseDay(value: string | undefined): Date | null {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [y, m, d] = value.split("-").map(Number);
+  const [y, m, d] = value.split("-").map(Number) as [number, number, number];
   const utc = new Date(Date.UTC(y, m - 1, d));
   if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== m - 1 || utc.getUTCDate() !== d) return null;
   return new Date(utc.getTime() - EAT_OFFSET_MS);

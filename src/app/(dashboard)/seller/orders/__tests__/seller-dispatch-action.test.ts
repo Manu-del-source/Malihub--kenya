@@ -56,8 +56,8 @@ describe("updateSellerOrderFulfilment (dispatch)", () => {
     const result = await updateSellerOrderFulfilment({ orderId: ORDER_ID, step: "SHIPPED", shipment: goodShipment });
     assert.deepEqual(result, { success: true, status: "SHIPPED" });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].params.dispatchConfirmed, true);
-    assert.equal(calls[0].params.actorSellerId, "seller-1");
+    assert.equal(calls[0]?.params.dispatchConfirmed, true);
+    assert.equal(calls[0]?.params.actorSellerId, "seller-1");
   });
 
   it("refuses to dispatch without the physical-handover confirmation", async () => {
@@ -117,7 +117,7 @@ describe("updateSellerOrderFulfilment (dispatch)", () => {
   it("allows delivery confirmation with evidence and without a shipment payload", async () => {
     const r = await updateSellerOrderFulfilment({ orderId: ORDER_ID, step: "DELIVERED", deliveryEvidence: "Received by customer" });
     assert.deepEqual(r, { success: true, status: "DELIVERED" });
-    assert.equal(calls[0].params.dispatchConfirmed, undefined);
+    assert.equal(calls[0]?.params.dispatchConfirmed, undefined);
   });
 
   it("requires delivery evidence server-side and forwards it trimmed", async () => {
@@ -128,6 +128,6 @@ describe("updateSellerOrderFulfilment (dispatch)", () => {
     assert.equal(calls.length, 0);
     const ok = await updateSellerOrderFulfilment({ orderId: ORDER_ID, step: "DELIVERED", deliveryEvidence: "  Received by J. Mwangi, POD 88231  " });
     assert.deepEqual(ok, { success: true, status: "DELIVERED" });
-    assert.equal(calls[0].params.deliveryEvidence, "Received by J. Mwangi, POD 88231");
+    assert.equal(calls[0]?.params.deliveryEvidence, "Received by J. Mwangi, POD 88231");
   });
 });

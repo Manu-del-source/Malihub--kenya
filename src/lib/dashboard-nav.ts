@@ -22,7 +22,7 @@ export function buildDashboardNav({
   hasSellerProfile: boolean;
   isAdmin: boolean;
   sellerVerified: boolean;
-}): { primary: DashboardNavItem[]; account: DashboardNavItem[] } {
+}): { primary: DashboardNavItem[]; account: DashboardNavItem[]; sellerArea: DashboardNavItem[] } {
   const primary: DashboardNavItem[] = [
     { label: "Marketplace", href: "/marketplace" },
     { label: "Wishlist", href: "/buyer/wishlist" },
@@ -53,5 +53,8 @@ export function buildDashboardNav({
   ];
   if (isAdmin) account.push({ label: "Admin", href: ADMIN_DASHBOARD_PATH });
 
-  return { primary, account };
+  // Phone sub-navigation shown only inside /seller (the bottom bar stays at five tabs).
+  const sellerArea = primary.filter((item) => item.href.startsWith(SELLER_DASHBOARD_PATH));
+
+  return { primary, account, sellerArea };
 }

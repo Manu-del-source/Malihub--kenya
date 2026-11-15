@@ -5,15 +5,12 @@ import { LogOut, Search, ShoppingCart, UserRound } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { isAdministratorRole, requireUser } from "@/lib/auth";
-import {
-  ADMIN_DASHBOARD_PATH,
-  SELLER_DASHBOARD_PATH,
-} from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 import { signOutAction } from "@/app/(auth)/actions";
 import { DashboardNavLinks } from "@/components/shell/dashboard-nav-links";
 import { MobileBottomNav } from "@/components/shell/mobile-bottom-nav";
-import { buildDashboardNav, BUYER_ORDERS_PATH, SELLER_ORDERS_PATH } from "@/lib/dashboard-nav";
+import { MobileSellerNav } from "@/components/shell/mobile-area-nav";
+import { buildDashboardNav } from "@/lib/dashboard-nav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
@@ -23,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: { verificationStatus: true },
       })
     : null;
-  const { primary, account } = buildDashboardNav({
+  const { primary, account, sellerArea } = buildDashboardNav({
     hasSellerProfile: user.hasSellerProfile,
     isAdmin: isAdministratorRole(user.role),
     sellerVerified: seller?.verificationStatus === "VERIFIED",
@@ -32,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="pwa-dashboard-shell min-h-svh bg-background text-foreground">
       <header className="pwa-dashboard-header sticky top-0 z-50 border-b border-border bg-card">
-        <Container className="flex flex-wrap items-center gap-3 py-3 sm:gap-5 sm:py-4">
+        <Container className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 md:flex-nowrap md:gap-5 md:py-4">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
             <span aria-hidden className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-extrabold text-primary-foreground">M</span>
             <span className="font-display text-xl font-bold tracking-tight text-foreground">
@@ -40,26 +37,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </span>
           </Link>
 
-          <form action="/marketplace" method="get" className="order-3 flex w-full min-w-0 sm:order-none sm:mx-auto sm:max-w-2xl sm:flex-1">
+          <form action="/marketplace" method="get" className="order-3 flex w-full min-w-0 md:order-none md:mx-auto md:max-w-2xl md:flex-1">
             <label htmlFor="dashboard-marketplace-search" className="sr-only">Search products and listings</label>
             <div className="flex h-11 w-full overflow-hidden rounded-full border border-border bg-muted transition focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
               <Search className="ml-3.5 mt-3 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <input id="dashboard-marketplace-search" name="q" type="search" placeholder="Search products, brands and more..." className="min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground" />
-              <button type="submit" className="flex shrink-0 items-center gap-2 bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 sm:px-5">Search</button>
+              <input id="dashboard-marketplace-search" name="q" type="search" enterKeyHint="search" placeholder="Search products, brands and more..." className="min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+              <button type="submit" className="hidden shrink-0 items-center gap-2 bg-primary px-5 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 md:flex">Search</button>
             </div>
           </form>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0 sm:gap-4">
+          <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0 md:gap-4">
             <NotificationBell isSignedIn />
-            <Link href="/account" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground">
+            <Link href="/account" className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:flex">
               <UserRound className="h-5 w-5" aria-hidden />
-              <span className="hidden text-sm font-medium sm:inline">Account</span>
+              <span className="text-sm font-medium">Account</span>
             </Link>
-            <Link href="/buyer/cart" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground">
+            <Link href="/buyer/cart" aria-label="Cart" className="flex h-11 w-11 items-center justify-center gap-2 rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:h-auto md:w-auto md:px-2 md:py-1.5">
               <ShoppingCart className="h-5 w-5" aria-hidden />
-              <span className="hidden text-sm font-medium sm:inline">Cart</span>
+              <span className="hidden text-sm font-medium md:inline">Cart</span>
             </Link>
-            <form action={signOutAction} className="hidden sm:block">
+            <form action={signOutAction} className="hidden md:block">
               <button type="submit" aria-label="Sign out" title="Sign out" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300">
                 <LogOut className="h-4 w-4" aria-hidden />
               </button>
@@ -67,9 +64,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </Container>
 
-        <div className="border-t border-border bg-card">
+        <div className="hidden border-t border-border bg-card md:block">
           <Container>
-            <nav className="pwa-dashboard-links hidden items-center gap-1 overflow-x-auto py-2 md:flex" aria-label="Account navigation">
+            <nav className="pwa-dashboard-links flex items-center gap-1 overflow-x-auto py-2" aria-label="Account navigation">
               <DashboardNavLinks items={primary} />
               <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-foreground/10" />
               <DashboardNavLinks items={account} />
@@ -82,25 +79,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 </form>
               </div>
             </nav>
-            <nav className="pwa-dashboard-links flex gap-2 overflow-x-auto py-2.5 md:hidden" aria-label="Account navigation">
-              <DashboardNavLinks items={[...primary, ...account.filter((i) => i.label !== "Profile")]} mobile />
-              <form action={signOutAction} className="shrink-0">
-                <button type="submit" className="flex items-center gap-2 rounded-full border border-red-400/20 bg-card px-3.5 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/10">
-                  <LogOut className="h-4 w-4" aria-hidden />
-                  Sign out
-                </button>
-              </form>
-            </nav>
           </Container>
         </div>
+        <MobileSellerNav items={sellerArea} />
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav
-        sellerDashboardHref={user.hasSellerProfile ? SELLER_DASHBOARD_PATH : undefined}
-        ordersHref={user.hasSellerProfile ? SELLER_ORDERS_PATH : BUYER_ORDERS_PATH}
-        adminDashboardHref={isAdministratorRole(user.role) ? ADMIN_DASHBOARD_PATH : undefined}
-      />
+      <MobileBottomNav hasSellerProfile={user.hasSellerProfile} />
     </div>
   );
 }

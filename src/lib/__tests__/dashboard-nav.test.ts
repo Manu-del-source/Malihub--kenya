@@ -31,3 +31,15 @@ describe("buildDashboardNav", () => {
     assert.ok(labels(account).includes("Admin"));
   });
 });
+
+describe("buildDashboardNav sellerArea", () => {
+  it("contains only seller-area links, including Orders, for sellers", () => {
+    const { sellerArea } = buildDashboardNav({ hasSellerProfile: true, isAdmin: false, sellerVerified: true });
+    assert.ok(sellerArea.length >= 4);
+    assert.ok(sellerArea.every((i) => i.href.startsWith("/seller")));
+    assert.ok(sellerArea.some((i) => i.label === "Orders"));
+  });
+  it("is empty for buyers", () => {
+    assert.deepEqual(buildDashboardNav({ hasSellerProfile: false, isAdmin: false, sellerVerified: false }).sellerArea, []);
+  });
+});

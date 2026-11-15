@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Lock, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,19 +15,12 @@ import { formatDateTime } from "@/components/shell/admin/admin-format";
 import { requireAdministrator } from "@/lib/auth";
 import { getAdminOrderDetail } from "@/services/admin-service";
 import { formatKes } from "@/utils";
+import { AdminOrderFulfilmentControls } from "@/components/shell/admin/admin-order-fulfilment-controls";
 
 /**
- * `/admin/orders/[id]` — one order, everything recorded about it, and
- * nothing changeable.
- *
- * Read-only by architectural decision, not by omission: the order lifecycle
- * is owned by the checkout transaction (`src/services/order-service.ts`) and
- * the payment provider boundary — neither exposes an administrative status
- * transition that could be applied safely (stock, order totals and future
- * payment state are derived from the guarded flow), so this screen has no
- * mutation surface to protect. Payments are projected WITHOUT payer handles,
- * raw callbacks, or provider metadata: the admin screen needs the *state* of
- * money, never its credentials.
+ * Admin order, payment and fulfilment oversight.
+ * Admin fulfilment controls are limited to documented, evidence-based dispatch
+ * and delivery corrections. Payment and payout state remain provider-owned.
  */
 export const dynamic = "force-dynamic";
 
@@ -63,10 +56,6 @@ export default async function AdminOrderDetailPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <OrderStatusBadge status={order.status} />
-          <Badge variant="default">
-            <Lock className="h-3 w-3" aria-hidden />
-            Read-only
-          </Badge>
         </div>
       </header>
 
@@ -220,6 +209,8 @@ export default async function AdminOrderDetailPage({
               Open seller review →
             </Link>
           </section>
+
+          <AdminOrderFulfilmentControls orderId={order.id} status={order.status} />
 
           <section aria-label="Delivery" className="glass rounded-2xl p-6">
             <h2 className="font-display text-lg font-medium">Delivery & notes</h2>

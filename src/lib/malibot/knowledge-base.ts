@@ -1,5 +1,3 @@
-import "server-only";
-
 type Article = {
   title: string;
   keywords: string[];

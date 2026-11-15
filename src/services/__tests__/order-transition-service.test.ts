@@ -799,6 +799,57 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
     assert.equal(completed.order.status, "COMPLETED");
   });
 
+  it("stores delivery evidence on the shipment and audits it; bad evidence changes nothing", async () => {
+    const { seller } = seedListing(SELLER_1, { quantity: 5 });
+    const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);
+    await service.markOrderPaid(db, { orderId: order.id, actor: { id: "sys", source: "test" } });
+    await service.markOrderFulfilled(db, "SHIPPED", {
+      orderId: order.id,
+      actorUserId: SELLER_1,
+      actorSellerId: seller.id,
+      dispatchConfirmed: true,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
+    });
+
+    for (const bad of ["", "   ", "abcd", "x".repeat(501)]) {
+      await assert.rejects(
+        service.markOrderFulfilled(db, "DELIVERED", {
+          orderId: order.id,
+          actorUserId: SELLER_1,
+          actorSellerId: seller.id,
+          deliveryEvidence: bad,
+        }),
+        /delivery evidence/i
+      );
+    }
+    assert.equal(orderRow(order.id).status, "SHIPPED", "rejected evidence must not move the order");
+
+    await service.markOrderFulfilled(db, "DELIVERED", {
+      orderId: order.id,
+      actorUserId: SELLER_1,
+      actorSellerId: seller.id,
+      deliveryEvidence: "  Received by J. Mwangi, POD 88231  ",
+    });
+    const shipment = [...store.tables.orderShipments.values()].find((row) => row.orderId === order.id);
+    assert.equal(shipment?.deliveryNotes, "Received by J. Mwangi, POD 88231");
+    assert.equal(orderRow(order.id).status, "DELIVERED");
+  });
+
+  it("does not let the buyer record delivery, and the buyer cannot complete before delivery", async () => {
+    const { seller } = seedListing(SELLER_1, { quantity: 5 });
+    const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);
+    await service.markOrderPaid(db, { orderId: order.id, actor: { id: "sys", source: "test" } });
+    await service.markOrderFulfilled(db, "SHIPPED", {
+      orderId: order.id,
+      actorUserId: SELLER_1,
+      actorSellerId: seller.id,
+      shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
+    });
+    await assert.rejects(service.markOrderFulfilled(db, "DELIVERED", { orderId: order.id, actorUserId: BUYER_A }));
+    await assert.rejects(service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: BUYER_A }));
+    assert.equal(orderRow(order.id).status, "SHIPPED");
+  });
+
   it("refuses to ship an order that has not been paid", async () => {
     const { seller } = seedListing(SELLER_1, { quantity: 5 });
     const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);

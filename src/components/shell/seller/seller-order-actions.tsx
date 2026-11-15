@@ -30,6 +30,7 @@ export function SellerOrderActions({
   const [trackingUrl, setTrackingUrl] = useState("");
   const [handedOver, setHandedOver] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [deliveryEvidence, setDeliveryEvidence] = useState("");
   const nextStep = status === "PAID" ? "SHIPPED" : status === "SHIPPED" ? "DELIVERED" : null;
 
   function updateStatus(event: FormEvent<HTMLFormElement>) {
@@ -42,7 +43,7 @@ export function SellerOrderActions({
         step: nextStep,
         ...(nextStep === "SHIPPED"
           ? { shipment: { carrierName, trackingNumber, handedToCourier: handedOver, ...(trackingUrl ? { trackingUrl } : {}) } }
-          : {}),
+          : { deliveryEvidence }),
       });
       if (!result.success) {
         setError(result.error ?? "Order update failed.");
@@ -166,10 +167,23 @@ export function SellerOrderActions({
               </p>
             )}
           </div>
-          <form onSubmit={updateStatus}>
+          <form onSubmit={updateStatus} className="space-y-3">
+            <label className="block text-xs text-muted-foreground">
+              Delivery evidence (required)
+              <textarea
+                required
+                minLength={5}
+                maxLength={500}
+                rows={2}
+                value={deliveryEvidence}
+                onChange={(event) => setDeliveryEvidence(event.target.value)}
+                placeholder="e.g. Received by J. Mwangi, courier POD ref 88231"
+                className="mt-1 block w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+            </label>
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || deliveryEvidence.trim().length < 5}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Truck className="h-4 w-4" aria-hidden />}

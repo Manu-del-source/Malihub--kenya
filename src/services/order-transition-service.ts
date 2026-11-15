@@ -547,6 +547,8 @@ export type FulfillmentParams = {
   actorSellerId?: string | null;
   /** Seller attested the parcel was physically handed to the courier/rider. Recorded in the audit trail. */
   dispatchConfirmed?: boolean;
+  /** Seller's delivery evidence (who received it / courier proof reference). Stored in OrderShipment.deliveryNotes. */
+  deliveryEvidence?: string;
   /** Required for a seller's first PAID → SHIPPED transition. */
   shipment?: {
     carrierName: string;
@@ -574,6 +576,8 @@ export async function markOrderFulfilled(
       }
     : null;
 
+  const deliveryEvidence = params.deliveryEvidence?.trim();
+
   if (authority === "seller" && !params.actorSellerId) {
     throw new OrderTransitionError(
       "Only the seller who owns this order can record fulfilment.",
@@ -596,6 +600,15 @@ export async function markOrderFulfilled(
         : order.buyerId === params.actorUserId;
     if (!owns) {
       throw new OrderTransitionError("Order not found.", "not_found");
+    }
+
+    if (step === "DELIVERED" && params.deliveryEvidence !== undefined) {
+      if (!deliveryEvidence || deliveryEvidence.length < 5 || deliveryEvidence.length > 500) {
+        throw new OrderTransitionError(
+          "Describe the delivery evidence in 5 to 500 characters (for example who received the parcel, or the courier's proof-of-delivery reference).",
+          "invalid_transition"
+        );
+      }
     }
 
     if (step === "SHIPPED") {
@@ -692,8 +705,13 @@ export async function markOrderFulfilled(
           trackingNumber: "Not provided",
           status: "DELIVERED",
           deliveredAt: changedAt,
+          ...(deliveryEvidence ? { deliveryNotes: deliveryEvidence } : {}),
         },
-        update: { status: "DELIVERED", deliveredAt: changedAt },
+        update: {
+          status: "DELIVERED",
+          deliveredAt: changedAt,
+          ...(deliveryEvidence ? { deliveryNotes: deliveryEvidence } : {}),
+        },
       });
     }
 
@@ -732,6 +750,7 @@ export async function markOrderFulfilled(
                 dispatchConfirmed: params.dispatchConfirmed === true,
               }
             : {}),
+          ...(step === "DELIVERED" && deliveryEvidence ? { deliveryEvidence } : {}),
           occurredAt: new Date().toISOString(),
         },
       }).catch(() => undefined),

@@ -18,6 +18,7 @@ export async function updateSellerOrderFulfilment(input: {
   orderId: string;
   step: FulfillmentStep;
   shipment?: { carrierName: string; trackingNumber: string; trackingUrl?: string; handedToCourier: boolean };
+  deliveryEvidence?: string;
 }): Promise<{ success: boolean; status?: string; error?: string }> {
   if (
     !input ||
@@ -47,6 +48,17 @@ export async function updateSellerOrderFulfilment(input: {
     };
   }
 
+  // Delivery needs evidence the seller can later stand behind. Enforced here.
+  if (input.step === "DELIVERED") {
+    const evidence = typeof input.deliveryEvidence === "string" ? input.deliveryEvidence.trim() : "";
+    if (evidence.length < 5 || evidence.length > 500) {
+      return {
+        success: false,
+        error: "Add delivery evidence (5 to 500 characters), such as who received the parcel or the courier's proof-of-delivery reference.",
+      };
+    }
+  }
+
   const { user } = await requireSellerAccess();
   const seller = await prisma.seller.findUnique({
     where: { userId: user.id },
@@ -62,6 +74,7 @@ export async function updateSellerOrderFulfilment(input: {
       orderId: input.orderId,
       actorUserId: user.id,
       actorSellerId: seller.id,
+      ...(input.step === "DELIVERED" ? { deliveryEvidence: input.deliveryEvidence!.trim() } : {}),
       ...(input.step === "SHIPPED"
         ? {
             dispatchConfirmed: true,

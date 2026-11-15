@@ -59,7 +59,7 @@ implementation.
 
 ## Marketplace / seller payout boundary
 
-MaliHub intends to collect buyer payments and later pay independent sellers. Collection settlement and seller transfers are separate financial flows and must be represented separately in seller-facing copy and the ledger.
+MaliHub intends to collect buyer payments and later pay independent sellers. Collection settlement and seller payments are separate financial flows. **Initial operating mode: manual seller payouts by MaliHub administrators.** Do not expose a seller withdrawal request or automated seller-transfer flow until a later approved implementation.
 
 ### Confirmed published Kenya timing (verify against MaliHub's own Paystack account before launch)
 
@@ -67,6 +67,8 @@ MaliHub intends to collect buyer payments and later pay independent sellers. Col
 - Paystack's Transfers documentation says transfers are typically processed within seconds, but a transfer can remain pending, fail or be reversed. A successful provider status does not guarantee immediate credit by the recipient's bank or wallet.
 - Paystack states Transfers are available to registered businesses. Access, recipient rails, fees, limits, and suitability for MaliHub's marketplace/seller-payee model must be confirmed with Paystack for this specific account.
 - Seller eligibility is independent of T+2: it is governed by order completion, any transaction-specific inspection/dispute policy, open protection cases, refunds, and reconciliation. Never calculate a seller's availability date by adding two days to the buyer's payment date.
+- During the manual phase, an administrator confirms order eligibility, verifies Paystack settlement/funds availability, and pays the seller manually using an approved business payment method. Record the amount, seller, order allocation, destination, payment date, payment reference/proof, operator and status in the internal reconciliation process. Do not mark a seller as paid merely because an order is completed.
+- Sellers must be told that there is no self-service withdrawal facility and no guaranteed payout turnaround time during this interim phase. Communicate the expected date when each manual payout is arranged.
 - Do not deduct or allocate provider collection or transfer fees to sellers unless the applicable fee responsibility is contractually confirmed and the exact charge is disclosed before the transaction/withdrawal.
 
 Official references:
@@ -90,7 +92,8 @@ Before enabling live seller payouts, obtain written Paystack approval for this m
   execution against Paystack's own API is still to be performed on a machine
   with network access; the suites stub the provider client so they run
   anywhere.
-- Phase D: seller ledger/payout workflow, seller withdrawal requests, provider transfer adapter, signed payout webhook/status reconciliation, admin review and exception handling — **pending** until Paystack gives written approval for MaliHub's marketplace model and confirms the enabled transfer product. No live transfer endpoint is enabled by this repository today.
+- Interim operations: manual seller payouts by an authorised MaliHub administrator after order eligibility and settled-funds reconciliation. No seller withdrawal UI or automatic transfer endpoint is enabled.
+- Future Phase D: auditable seller ledger, admin payout recording/approval, seller withdrawal requests, provider transfer adapter, signed payout webhook/status reconciliation and exception handling — **pending** until Paystack gives written approval for MaliHub's marketplace model and confirms the enabled transfer product.
 - Phase E: production cutover with feature flag and a documented rollback path
   — **pending**. Set `PAYSTACK_SECRET_KEY` to a live key and the live webhook
   URL in the Paystack dashboard; the code path is identical in both modes.

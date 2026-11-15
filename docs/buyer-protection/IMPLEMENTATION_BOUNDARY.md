@@ -12,7 +12,8 @@ This is a staged buyer-protection workflow, **not escrow**. No new payment provi
 4. MaliHub sets the inspection-window end time from the configured policy. This timestamp only represents *payout eligibility*, not a payout command.
 5. Buyer can open one protection case for the order during the eligible window, selecting a reason and providing evidence.
 6. Any open or under-review case blocks payout eligibility. Only a documented resolution and policy check can restore eligibility.
-7. Seller payout remains subject to the existing settlement/payout workflow and a separately approved provider arrangement. No automatic release is implemented by this schema change.
+7. Seller payout remains subject to the settlement/payout workflow and a separately approved provider arrangement. Order completion or `payoutEligibleAt` is not a payout command and does not mean funds have been transferred.
+8. Paystack's Kenya T+2 collection settlement is to MaliHub's merchant payout account, not the seller payout date. During the manual phase, seller statements close at 23:59 EAT Sunday and the following Tuesday is the target payout run for eligible amounts whose funds are settled and available. Unresolved disputes, inspection windows, refunds, verification or settlement delays roll the affected amount into a later cycle. This is a manual operating target, not an automated transfer or guarantee.
 
 ## Data model
 

@@ -59,14 +59,27 @@ implementation.
 
 ## Marketplace / seller payout boundary
 
-MaliHub intends to collect buyer payments and later pay independent sellers.
-Collection and seller payouts are separate financial flows. Before enabling live
-payments, obtain written approval from Paystack for this marketplace model and
-confirm the available payout product, seller onboarding/KYC requirements,
-fees, settlement timing, refunds, chargebacks, reserves, and reconciliation.
-Do not represent an ordinary merchant collection account as an approved
-payment-aggregation arrangement. Never pay sellers based only on the browser
-return URL.
+MaliHub intends to collect buyer payments and later pay independent sellers. Collection settlement and seller payments are separate financial flows. **Initial operating mode: manual seller payouts by MaliHub administrators.** Do not expose a seller withdrawal request or automated seller-transfer flow until a later approved implementation.
+
+### Confirmed published Kenya timing (verify against MaliHub's own Paystack account before launch)
+
+- Paystack's Kenya pricing and terms publish **T+2 for local transaction settlement** to the merchant's configured payout account. This is Paystack-to-MaliHub settlement, not a seller withdrawal SLA. The schedule is expressed as up to two business days from the transaction date; Paystack may experience bank, provider, compliance or technical delays.
+- Paystack's Transfers documentation says transfers are typically processed within seconds, but a transfer can remain pending, fail or be reversed. A successful provider status does not guarantee immediate credit by the recipient's bank or wallet.
+- Paystack states Transfers are available to registered businesses. Access, recipient rails, fees, limits, and suitability for MaliHub's marketplace/seller-payee model must be confirmed with Paystack for this specific account.
+- Seller eligibility is independent of T+2: it is governed by order completion, any transaction-specific inspection/dispute policy, open protection cases, refunds, and reconciliation. Never calculate a seller's availability date by adding two days to the buyer's payment date.
+- **Weekly statement cycle (proposed operating policy):** close the seller statement at 23:59 EAT every Sunday. Include only orders that have met completion, any stated inspection period, dispute/refund review and payment reconciliation by the cutoff. Roll unresolved or late-eligible orders into the next statement. The statement must show gross eligible sales, each permitted deduction, adjustments and net due; a net-due figure is not a wallet balance.
+- **Manual payout target:** pay the net amount due on the Tuesday following statement close, but only after the corresponding funds are settled and available, seller details are verified, and all checks pass. If not ready by the payout run, carry the affected amount into the next cycle and tell the seller why. Tuesday is an operational target, not an unconditional guarantee. Keep the manual payout proof and reference against the statement and order allocation.
+- During the manual phase, an administrator confirms order eligibility, verifies Paystack settlement/funds availability, and pays the seller manually using an approved business payment method. Record the amount, seller, order allocation, destination, payment date, payment reference/proof, operator and status in the internal reconciliation process. Do not mark a seller as paid merely because an order is completed.
+- Sellers must be told that there is no self-service withdrawal facility during this interim phase. Publish the weekly Sunday statement cutoff and Tuesday target, while making clear that funds, verification, disputes, bank/provider delays or compliance checks can move an amount to a later cycle. Communicate any rollover and its reason.
+- Statements may deduct only charges authorised by the seller terms and disclosed before the relevant transaction: applicable category commission, any agreed seller-borne delivery contribution, any disclosed processing/packaging charge, and evidenced refunds, returns, cancellations or transaction adjustments. Do not invent fees, estimate provider fees, or deduct a provider charge unless its allocation is contractually confirmed and disclosed.
+
+Official references:
+- https://paystack.com/ke/pricing
+- https://paystack.com/ke/terms
+- https://support.paystack.com/en/articles/2132866
+- https://paystack.com/docs/transfers/how-transfers-work/
+
+Before enabling live seller payouts, obtain written Paystack approval for this marketplace model and confirm the payout product, seller/payee onboarding and KYC requirements, fees, settlement timing, refunds, chargebacks, reserves, recipient limits and reconciliation. Do not represent an ordinary merchant collection account as an approved payment-aggregation arrangement. Never pay sellers based only on the browser return URL.
 
 ## Rollout sequence
 
@@ -81,9 +94,8 @@ return URL.
   execution against Paystack's own API is still to be performed on a machine
   with network access; the suites stub the provider client so they run
   anywhere.
-- Phase D: seller ledger/payout workflow only after compliance approval; require
-  reconciliation and manual review for payout exceptions — **pending** (see the
-  marketplace boundary above).
+- Interim operations: manual seller payouts by an authorised MaliHub administrator after order eligibility and settled-funds reconciliation. No seller withdrawal UI or automatic transfer endpoint is enabled.
+- Future Phase D: auditable seller ledger, admin payout recording/approval, seller withdrawal requests, provider transfer adapter, signed payout webhook/status reconciliation and exception handling — **pending** until Paystack gives written approval for MaliHub's marketplace model and confirms the enabled transfer product.
 - Phase E: production cutover with feature flag and a documented rollback path
   — **pending**. Set `PAYSTACK_SECRET_KEY` to a live key and the live webhook
   URL in the Paystack dashboard; the code path is identical in both modes.

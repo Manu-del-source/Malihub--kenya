@@ -5,23 +5,22 @@ import {
   ChevronRight,
   Clock3,
   Heart,
-  MessageCircle,
+  LogOut,
   MapPin,
   Package,
   PackageCheck,
   RotateCcw,
-  ShoppingCart,
   ShieldCheck,
   Star,
   Store,
   Truck,
   UserRound,
 } from "lucide-react";
+import { signOutAction } from "@/app/(auth)/actions";
 import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getCartSummary } from "@/services/cart-service";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your account" };
@@ -39,7 +38,6 @@ export default async function AccountPage() {
   const [
     profile,
     seller,
-    cartSummary,
     wishlistCount,
     orderCounts,
     toReviewCount,
@@ -54,7 +52,6 @@ export default async function AccountPage() {
       where: { userId: user.id },
       select: { businessName: true, verificationStatus: true, county: true, slug: true },
     }),
-    getCartSummary(prisma, user.id),
     prisma.wishlist.count({ where: { userId: user.id } }),
     prisma.order.groupBy({
       by: ["status"],
@@ -77,10 +74,6 @@ export default async function AccountPage() {
   const counts = Object.fromEntries(orderCounts.map((row) => [row.status, row._count._all]));
   const count = (statuses: string[]) =>
     statuses.reduce((total, status) => total + (counts[status] ?? 0), 0);
-  const memberSince = profile?.createdAt?.toLocaleDateString("en-KE", {
-    month: "long",
-    year: "numeric",
-  });
   const displayName = profile?.fullName?.trim() || "Your account";
   const initial = displayName[0]?.toUpperCase() ?? user.email[0]?.toUpperCase() ?? "M";
 
@@ -92,152 +85,127 @@ export default async function AccountPage() {
     { label: "Returns / refunds", count: protectionCaseCount, icon: RotateCcw, href: "/buyer/orders?status=returns" },
   ];
 
+  // Cart and Messages are bottom-bar tabs and the order strip above covers
+  // purchases — none of them are repeated here.
   const services = [
-    { label: "Wishlist", detail: `${wishlistCount} saved items`, href: "/buyer/wishlist", icon: Heart },
+    { label: "Wishlist", detail: `${wishlistCount} saved`, href: "/buyer/wishlist", icon: Heart },
     { label: "Notifications", detail: "Order and account updates", href: "/notifications", icon: Bell },
-    { label: "Messages", detail: "Your conversations", href: "/messages", icon: MessageCircle },
+    { label: "Addresses", detail: "Delivery destinations", href: "/account/addresses", icon: MapPin },
     { label: "Recently viewed", detail: "Continue browsing", href: "/buyer", icon: Clock3 },
-    { label: "My orders", detail: "Track your purchases", href: "/buyer/orders", icon: Package },
-    { label: "Profile", detail: "Personal information", href: "/complete-profile", icon: UserRound },
-    { label: "My addresses", detail: "Delivery destinations", href: "/account/addresses", icon: MapPin },
+    { label: "Profile", detail: profile?.onboarded ? "Personal information" : "Finish setting up", href: "/complete-profile", icon: UserRound },
+  ];
+
+  const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+  const roleLinks = [
+    ...(isAdmin
+      ? [{ label: "Admin dashboard", detail: "Orders, revenue, sellers and moderation", href: "/admin", icon: ShieldCheck }]
+      : []),
     ...(seller
-      ? [{ label: "Seller Centre", detail: seller.businessName, href: "/seller-center", icon: Store }]
+      ? [{
+          label: "Seller Centre",
+          detail: `${seller.businessName} · ${listingCount} listing${listingCount === 1 ? "" : "s"}`,
+          href: "/seller-center",
+          icon: Store,
+        }]
       : []),
   ];
 
+  const rowClass =
+    "flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary";
+
   return (
-    <Container className="max-w-5xl py-5 pb-24 sm:py-8 md:pb-10">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-300">MaliHub account</p>
-          <h1 className="mt-1 font-display text-2xl font-semibold sm:text-3xl">My account</h1>
-        </div>
-        <Link
-          href="/complete-profile"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-primary/50 hover:text-primary-300"
-          aria-label="Edit profile"
-          title="Edit profile"
-        >
-          <UserRound className="h-5 w-5" aria-hidden />
-        </Link>
-      </div>
+    <Container className="max-w-2xl space-y-4 py-4 pb-24 md:py-8 md:pb-10">
+      <h1 className="font-display text-2xl font-semibold">Account</h1>
 
-      <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.18),transparent_55%),linear-gradient(125deg,#111111,#080808)] p-5 shadow-xl sm:p-7">
-        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full border border-primary/10" aria-hidden />
-        <div className="pointer-events-none absolute -right-2 -top-8 h-32 w-32 rounded-full border border-primary/10" aria-hidden />
-        <div className="relative flex min-w-0 items-center gap-4">
-          <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-primary/50 bg-secondary text-2xl font-semibold text-primary-200 shadow-lg">
-            {profile?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : initial}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate font-display text-xl font-semibold text-white sm:text-2xl">{displayName}</h2>
-            <p className="mt-0.5 truncate text-sm text-white/65">{user.email}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="primary">{ROLE_LABEL[user.role] ?? user.role}</Badge>
+      <Link href="/complete-profile" className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/40">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/40 bg-secondary text-xl font-semibold text-primary-200">
+          {profile?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : initial}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-display text-lg font-semibold">{displayName}</span>
+          <span className="block truncate text-sm text-muted-foreground">{user.email}</span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-2">
+            <Badge variant="primary">{ROLE_LABEL[user.role] ?? user.role}</Badge>
+            {!profile?.onboarded && <span className="text-xs text-amber-400">Profile incomplete</span>}
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+      </Link>
 
-            </div>
-          </div>
-        </div>
-        <div className="relative mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-xs text-white/60">
-          <span>{profile?.county || seller?.county || "Kenya"}</span>
-          {memberSince && <span>Member since {memberSince}</span>}
-          <span>{profile?.onboarded ? "Profile complete" : "Profile incomplete"}</span>
-        </div>
-      </section>
-
-      {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (
-        <section className="mt-5 rounded-2xl border border-primary/30 bg-[linear-gradient(110deg,rgba(184,147,74,0.12),rgba(17,17,17,0.96))] p-4 sm:p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-300">
-              <ShieldCheck className="h-5 w-5" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-display text-lg font-semibold">Admin dashboard</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Review seller applications, manage users and moderate MaliHub.</p>
-            </div>
-          </div>
-          <Link
-            href="/admin"
-            className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-          >
-            Open admin dashboard
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </Link>
+      {roleLinks.length > 0 && (
+        <section aria-label="Your workspaces" className="overflow-hidden rounded-2xl border border-primary/30 bg-card">
+          <ul className="divide-y divide-border">
+            {roleLinks.map(({ label, detail, href, icon: Icon }) => (
+              <li key={label}>
+                <Link href={href} className={rowClass}>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-300">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
-      <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="flex items-center justify-between px-4 pb-2 pt-4 sm:px-5">
-          <h2 className="font-display text-lg font-semibold">My orders</h2>
-          <Link href="/buyer/orders" className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary-300">
+      <section aria-label="My orders" className="rounded-2xl border border-border bg-card">
+        <div className="flex items-center justify-between px-4 pt-4">
+          <h2 className="font-display text-base font-semibold">My orders</h2>
+          <Link href="/buyer/orders" className="inline-flex min-h-8 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary-300">
             View all <ChevronRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
-        <div className="grid grid-cols-5 divide-x divide-border px-1 pb-4 pt-3">
+        <ul className="grid grid-cols-5 gap-1 px-2 pb-3 pt-2">
           {orderShortcuts.map(({ label, count: itemCount, icon: Icon, href }) => (
-            <Link key={label} href={href} className="group flex min-w-0 flex-col items-center gap-2 px-1 py-2 text-center transition-colors hover:text-primary-300">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary-300 transition-colors group-hover:bg-primary/20 sm:h-11 sm:w-11">
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="font-mono text-lg font-semibold tabular-nums">{itemCount}</span>
-              <span className="min-h-8 text-[10px] leading-tight text-muted-foreground sm:text-xs">{label}</span>
-            </Link>
+            <li key={label}>
+              <Link href={href} className="group flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center transition-colors hover:bg-muted/60">
+                <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary-300">
+                  <Icon className="h-5 w-5" aria-hidden />
+                  {itemCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-primary px-1.5 text-center font-mono text-[11px] font-semibold leading-5 text-primary-foreground">
+                      {itemCount}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[11px] leading-tight text-muted-foreground">{label}</span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">My activity</h2>
-          <Link href="/buyer" className="text-xs text-muted-foreground hover:text-primary-300">View dashboard</Link>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Link href="/buyer/cart" className="rounded-xl bg-muted/70 p-3 text-center transition hover:bg-muted">
-            <ShoppingCart className="mx-auto h-5 w-5 text-primary-300" aria-hidden />
-            <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{cartSummary.itemCount}</p>
-            <p className="text-xs text-muted-foreground">Cart items</p>
-          </Link>
-          <Link href="/buyer/wishlist" className="rounded-xl bg-muted/70 p-3 text-center transition hover:bg-muted">
-            <Heart className="mx-auto h-5 w-5 text-primary-300" aria-hidden />
-            <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{wishlistCount}</p>
-            <p className="text-xs text-muted-foreground">Wishlist</p>
-          </Link>
-          <Link href="/buyer/orders" className="rounded-xl bg-muted/70 p-3 text-center transition hover:bg-muted">
-            <Package className="mx-auto h-5 w-5 text-primary-300" aria-hidden />
-            <p className="mt-2 font-mono text-xl font-semibold tabular-nums">{orderCounts.reduce((total, row) => total + row._count._all, 0)}</p>
-            <p className="text-xs text-muted-foreground">Orders</p>
-          </Link>
-        </div>
-      </section>
-
-      {seller && (
-        <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card p-4 sm:p-5">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Your store</p>
-            <h2 className="mt-1 truncate font-display text-lg font-semibold">{seller.businessName}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{listingCount} listing{listingCount === 1 ? "" : "s"}</p>
-          </div>
-          <Link href="/seller-center" className="rounded-full border border-primary/40 px-4 py-2 text-sm font-medium text-primary-300 transition hover:bg-primary/10">Open Seller Centre</Link>
-        </section>
-      )}
-
-      <section className="mt-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <h2 className="mb-3 font-display text-lg font-semibold">My services</h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3">
+      <section aria-label="Shortcuts" className="overflow-hidden rounded-2xl border border-border bg-card">
+        <ul className="divide-y divide-border">
           {services.map(({ label, detail, href, icon: Icon }) => (
-            <Link key={label} href={href} className="group flex min-h-28 flex-col items-center justify-center rounded-xl border border-transparent px-2 py-3 text-center transition hover:border-primary/25 hover:bg-muted/60">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground/85 group-hover:text-primary-300">
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="mt-2 text-xs font-medium leading-tight">{label}</span>
-              <span className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{detail}</span>
-            </Link>
+            <li key={label}>
+              <Link href={href} className={rowClass}>
+                <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex-1 text-sm font-medium">{label}</span>
+                <span className="truncate text-xs text-muted-foreground">{detail}</span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
+
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-card text-sm font-medium text-red-300 transition hover:bg-red-500/10"
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          Sign out
+        </button>
+      </form>
     </Container>
   );
 }

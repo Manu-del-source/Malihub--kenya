@@ -2,67 +2,67 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, Package, ShieldCheck, ShoppingCart, Store, UserRound } from "lucide-react";
+import {
+  Home, LayoutGrid, LayoutDashboard, List, MessageCircle, Menu, Package, ShoppingCart, UserRound,
+} from "lucide-react";
+import { activeMobileTab, buildMobileTabs, mobileMode, type MobileTabKey } from "@/lib/mobile-tabs";
 
-const ITEMS = [
-  { label: "Home", href: "/", icon: Home, exact: true },
-  { label: "Category", href: "/marketplace", icon: LayoutGrid, exact: false },
-  { label: "Message", href: "/messages", icon: MessageCircle, exact: false },
-  { label: "Cart", href: "/buyer/cart", icon: ShoppingCart, exact: false },
-  { label: "Account", href: "/account", icon: UserRound, exact: false },
-] as const;
+const ICONS: Record<MobileTabKey, typeof Home> = {
+  home: Home,
+  categories: LayoutGrid,
+  cart: ShoppingCart,
+  messages: MessageCircle,
+  account: UserRound,
+  "seller-overview": LayoutDashboard,
+  "seller-orders": Package,
+  "seller-listings": List,
+  "seller-messages": MessageCircle,
+  "seller-more": Menu,
+};
 
-export function MobileBottomNav({ sellerDashboardHref, ordersHref, adminDashboardHref }: { sellerDashboardHref?: string; ordersHref?: string; adminDashboardHref?: string }) {
+/**
+ * Phone bottom bar — five tabs in either mode (shopping, or the seller
+ * workspace inside /seller). See `buildMobileTabs`.
+ */
+export function MobileBottomNav({ hasSellerProfile, cartCount = 0 }: { hasSellerProfile: boolean; cartCount?: number }) {
   const pathname = usePathname();
-  const base = [
-    ...ITEMS.slice(0, 2),
-    ...(sellerDashboardHref
-      ? [{ label: "Seller", href: sellerDashboardHref, icon: Store, exact: false }]
-      : []),
-    ...(ordersHref
-      ? [{ label: "Orders", href: ordersHref, icon: Package, exact: false }]
-      : []),
-    ...(adminDashboardHref
-      ? [{ label: "Admin", href: adminDashboardHref, icon: ShieldCheck, exact: false }]
-      : []),
-    ...ITEMS.slice(2),
-  ];
-  // A seller who is also an admin would otherwise get 8 cramped tabs. Category
-  // is the least-critical tab here (the marketplace is one tap from Home).
-  const items = base.length > 7 ? base.filter((item) => item.label !== "Category") : base;
+  const mode = mobileMode(pathname, hasSellerProfile);
+  const tabs = buildMobileTabs({ mode });
+  const active = activeMobileTab(tabs, pathname);
 
   return (
     <nav
-      aria-label="Primary mobile navigation"
-      className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgb(0_0_0/0.18)] backdrop-blur-xl md:hidden"
+      aria-label={mode === "seller" ? "Seller navigation" : "Primary mobile navigation"}
+      className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
-      <ul className={`mx-auto grid max-w-xl ${items.length >= 7 ? "grid-cols-7" : items.length === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
-        {items.map(({ label, href, icon: Icon, exact }) => {
-          const onOrders = !!ordersHref && (pathname === ordersHref || pathname.startsWith(`${ordersHref}/`));
-          const active = exact
-            ? pathname === href
-            : label === "Seller" && onOrders
-              ? false
-              : pathname === href || pathname.startsWith(`${href}/`);
-
+      <ul className="mx-auto grid max-w-xl grid-cols-5">
+        {tabs.map(({ key, label, href }) => {
+          const Icon = ICONS[key];
+          const isActive = active === key;
+          const badge = key === "cart" && cartCount > 0 ? (cartCount > 99 ? "99+" : String(cartCount)) : null;
           return (
-            <li key={label}>
+            <li key={key}>
               <Link
                 href={href}
-                aria-label={label}
-                aria-current={active ? "page" : undefined}
-                className={`relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
-                  active ? "text-primary-300" : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={badge ? `${label}, ${badge} item${cartCount === 1 ? "" : "s"}` : label}
+                className="flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
               >
-                {active && (
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary"
-                  />
-                )}
-                <Icon className={`h-5 w-5 ${active ? "stroke-[2.2]" : "stroke-[1.7]"}`} aria-hidden />
-                <span>{label}</span>
+                <span
+                  className={`relative flex h-7 w-12 items-center justify-center rounded-full transition-colors ${
+                    isActive ? "bg-primary/20 text-primary-300" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.2]" : "stroke-[1.7]"}`} aria-hidden />
+                  {badge && (
+                    <span className="absolute -right-0.5 -top-1 min-w-4 rounded-full bg-primary px-1 text-center font-mono text-[10px] font-bold leading-4 text-primary-foreground">
+                      {badge}
+                    </span>
+                  )}
+                </span>
+                <span className={`truncate text-[11px] font-medium ${isActive ? "text-primary-300" : "text-muted-foreground"}`}>
+                  {label}
+                </span>
               </Link>
             </li>
           );

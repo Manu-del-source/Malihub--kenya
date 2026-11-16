@@ -54,9 +54,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <UserRound className="h-5 w-5" aria-hidden />
               <span className="text-sm font-medium">Account</span>
             </Link>
-            <Link href="/buyer/cart" aria-label="Cart" className="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:flex">
+            <Link
+              href="/buyer/cart"
+              aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}` : "Cart"}
+              className="relative flex h-11 w-11 items-center justify-center gap-2 rounded-lg text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground md:h-auto md:w-auto md:px-2 md:py-1.5"
+            >
               <ShoppingCart className="h-5 w-5" aria-hidden />
               <span className="hidden text-sm font-medium md:inline">Cart</span>
+              {cartCount > 0 && (
+                <span className="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-primary px-1 text-center font-mono text-[10px] font-bold leading-4 text-primary-foreground md:static md:ml-0.5">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </Link>
             <form action={signOutAction} className="hidden md:block">
               <button type="submit" aria-label="Sign out" title="Sign out" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300">

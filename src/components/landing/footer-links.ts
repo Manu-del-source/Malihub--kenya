@@ -19,7 +19,6 @@ export const FOOTER_GROUPS: FooterGroup[] = [
     heading: "Sell",
     links: [
       { label: "Start selling", href: "/seller-center" },
-      { label: "How selling works", href: "/#sell" },
       { label: "Become a supplier", href: "/become-a-supplier" },
     ],
   },

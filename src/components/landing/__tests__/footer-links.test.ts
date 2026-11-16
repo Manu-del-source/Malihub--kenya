@@ -38,6 +38,11 @@ describe("footer links", () => {
     assert.ok(FOOTER_GROUPS.some((g) => g.heading === "Sell" && g.links.some((l) => l.href === "/seller-center")));
   });
 
+  it("Sell group is exactly Start selling and Become a supplier", () => {
+    const sell = FOOTER_GROUPS.find((g) => g.heading === "Sell");
+    assert.deepEqual(sell?.links.map((l) => l.href), ["/seller-center", "/become-a-supplier"]);
+  });
+
   it("keeps the legal pages and cookie settings reachable", () => {
     const legal = FOOTER_GROUPS.find((g) => g.heading === "Legal");
     assert.deepEqual(legal?.links.map((l) => l.href), ["/terms", "/privacy"]);

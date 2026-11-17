@@ -18,6 +18,20 @@ const jsonLd = {
       url: APP_URL,
       description: "A Kenyan online marketplace connecting buyers with independent sellers and product listings across Kenya.",
       logo: `${APP_URL}/icons/logo.svg`,
+      email: "support@malihubke.online",
+      telephone: "+254795787261",
+      contactPoint: {
+        "@type": "ContactPoint",
+        telephone: "+254795787261",
+        email: "support@malihubke.online",
+        contactType: "customer support",
+      },
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Eldoret",
+        addressCountry: "KE",
+      },
+      sameAs: ["https://www.instagram.com/malihubke/"],
     },
     {
       "@type": "WebSite",

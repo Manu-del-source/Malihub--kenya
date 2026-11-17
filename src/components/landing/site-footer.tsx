@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Facebook, Instagram, Mail } from "lucide-react";
+import { Facebook, Instagram, Mail, MessageCircle } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CookieSettingsButton } from "@/components/cookie-consent";
 import {
@@ -8,7 +8,9 @@ import {
   INSTAGRAM_URL,
   SUPPORT_EMAIL,
   SUPPORT_MAILTO,
+  SUPPORT_WHATSAPP_URL,
 } from "@/components/landing/footer-links";
+import { SUPPORT_WHATSAPP } from "@/lib/support";
 
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 // 44px minimum tap target on every footer link.
@@ -31,6 +33,14 @@ export function SiteFooter() {
               Products and local listings from independent sellers across Kenya.
             </p>
             <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={SUPPORT_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-foreground/10 px-4 text-sm text-muted-foreground transition-colors hover:border-primary-400/50 hover:text-primary-400 ${FOCUS}`}
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp {SUPPORT_WHATSAPP}
+              </a>
               <a
                 href={SUPPORT_MAILTO}
                 className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-foreground/10 px-4 text-sm text-muted-foreground transition-colors hover:border-primary-400/50 hover:text-primary-400 ${FOCUS}`}

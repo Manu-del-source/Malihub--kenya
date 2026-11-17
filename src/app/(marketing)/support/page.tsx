@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_NUMBER_PUBLIC } from "@/lib/support";
 
 export const metadata: Metadata = {
   title: "Support & Safety | MaliHub Kenya",
@@ -62,6 +63,10 @@ export default function SupportPage() {
             For listing concerns, use the Report listing tool so the report is attached to the relevant item. For account or other support requests, email us at{" "}
             <a href="mailto:support@malihubke.online?subject=MaliHub%20Support" className="font-medium text-primary underline underline-offset-4">
               support@malihubke.online
+            </a>{" "}
+            or message us on{" "}
+            <a href={`https://wa.me/${SUPPORT_WHATSAPP_NUMBER_PUBLIC}?text=${encodeURIComponent("Hello MaliHub Kenya, I need help.")}`} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-4">
+              WhatsApp {SUPPORT_WHATSAPP}
             </a>
             . Please include “MaliHub” in your subject and never send passwords, M-Pesa PINs, or verification codes.
           </p>

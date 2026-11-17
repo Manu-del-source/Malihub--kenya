@@ -4,6 +4,7 @@ export type FooterGroup = { heading: string; links: FooterLink[]; includeCookieS
 
 export const SUPPORT_EMAIL = "support@malihubke.online";
 export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=MaliHub%20Support`;
+export const SUPPORT_WHATSAPP_URL = "https://wa.me/254795787261";
 export const INSTAGRAM_URL = "https://www.instagram.com/malihubke/";
 export const FACEBOOK_URL = "https://www.facebook.com/share/1ZiYTdJ5X3/";
 
@@ -25,6 +26,8 @@ export const FOOTER_GROUPS: FooterGroup[] = [
   {
     heading: "Help",
     links: [
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
       { label: "Support & safety", href: "/support" },
       { label: "Email support", href: SUPPORT_MAILTO },
     ],

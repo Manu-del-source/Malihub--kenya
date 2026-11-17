@@ -89,7 +89,7 @@ const sections = [
     paragraphs: [
       "We may suspend or restrict access where we reasonably believe an account has breached these terms, presents a safety or security risk, or must be restricted by law. Where appropriate, we may ask for additional information to investigate a report. We may take account of the seriousness and repetition of the conduct when deciding what action is proportionate.",
       "We may update these terms as the service or legal requirements change. The version published on this page applies from its stated update date. Material changes will be reflected on this page.",
-      "These terms are governed by the laws of Kenya, subject to any mandatory rights and protections that apply to you. For questions or complaints, contact support@malihubke.online.",
+      "These terms are governed by the laws of Kenya, subject to any mandatory rights and protections that apply to you. For questions or complaints, contact us on WhatsApp +254795787261 or email support@malihubke.online. MaliHub Kenya is operated by the site owner under Kenyan law.",
     ],
   },
 ];

@@ -14,6 +14,8 @@ import { signOutAction } from "@/app/(auth)/actions";
 const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
   { label: "Categories", href: "/#categories" },
+  { label: "Sell", href: "/seller-center" },
+  { label: "Wholesale", href: "/become-a-supplier" },
 ];
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {

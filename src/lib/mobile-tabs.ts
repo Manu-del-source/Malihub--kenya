@@ -1,21 +1,11 @@
-import { BUYER_ORDERS_PATH, SELLER_ORDERS_PATH } from "@/lib/dashboard-nav";
+import { BUYER_ORDERS_PATH } from "@/lib/dashboard-nav";
 
 /**
- * Phone bottom bar. Two modes, five tabs each (3–5 is the usable range for a
- * thumb-reachable bar), following the marketplace pattern of separating the
- * shopping app from the seller workspace (cf. Jumia's separate Vendor Center):
- *
- *  - shop:   Home · Categories · Cart · Messages · Account
- *  - seller: Overview · Orders · Listings · Messages · More   (inside /seller)
- *
- * Orders (buyer) live on the Account page's status strip; Admin and Seller
- * Centre are entered from Account. The bar therefore never grows with roles.
+ * The installed MaliHub app is a buyer companion. Seller operations remain
+ * available through the full website's Seller Centre, not a second mobile
+ * navigation mode.
  */
-export type MobileMode = "shop" | "seller";
-
-export type MobileTabKey =
-  | "home" | "categories" | "cart" | "messages" | "account"
-  | "seller-overview" | "seller-orders" | "seller-listings" | "seller-messages" | "seller-more";
+export type MobileTabKey = "home" | "categories" | "cart" | "messages" | "account";
 
 export type MobileTab = {
   key: MobileTabKey;
@@ -25,31 +15,9 @@ export type MobileTab = {
   match: readonly string[];
 };
 
-export function mobileMode(pathname: string, hasSellerProfile: boolean): MobileMode {
-  const inSeller = pathname === "/seller" || pathname.startsWith("/seller/");
-  return hasSellerProfile && inSeller ? "seller" : "shop";
-}
-
-export function buildMobileTabs({ mode }: { mode: MobileMode }): MobileTab[] {
-  if (mode === "seller") {
-    return [
-      { key: "seller-overview", label: "Overview", href: "/seller", match: ["/seller"] },
-      { key: "seller-orders", label: "Orders", href: SELLER_ORDERS_PATH, match: [SELLER_ORDERS_PATH] },
-      { key: "seller-listings", label: "Listings", href: "/seller/listings", match: ["/seller/listings"] },
-      { key: "seller-messages", label: "Messages", href: "/seller/messages", match: ["/seller/messages"] },
-      {
-        key: "seller-more",
-        label: "More",
-        href: "/seller/menu",
-        match: [
-          "/seller/menu", "/seller/products", "/seller/sales", "/seller/supplier-orders",
-          "/seller/supplier-catalog", "/seller/suppliers", "/seller/onboarding",
-        ],
-      },
-    ];
-  }
+export function buildMobileTabs(): MobileTab[] {
   return [
-    { key: "home", label: "Home", href: "/", match: ["/"] },
+    { key: "home", label: "Home", href: "/app", match: ["/app"] },
     { key: "categories", label: "Categories", href: "/marketplace", match: ["/marketplace"] },
     { key: "cart", label: "Cart", href: "/buyer/cart", match: ["/buyer/cart"] },
     { key: "messages", label: "Messages", href: "/messages", match: ["/messages"] },
@@ -57,8 +25,8 @@ export function buildMobileTabs({ mode }: { mode: MobileMode }): MobileTab[] {
       key: "account",
       label: "Account",
       href: "/account",
-      // My orders, wishlist and the role entry points all live under Account.
-      match: ["/account", "/admin", "/buyer", BUYER_ORDERS_PATH, "/notifications", "/complete-profile", "/seller-center"],
+      // Buyer orders, wishlist, profile and seller-centre entry all live here.
+      match: ["/account", "/admin", "/buyer", BUYER_ORDERS_PATH, "/notifications", "/complete-profile", "/seller-center", "/seller"],
     },
   ];
 }

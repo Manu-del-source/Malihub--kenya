@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 /**
  * "Add to cart" for a listing.
  *
- * The POST to `/api/cart` carries only the productId (+ quantity 1) — the
+ * The POST to `/api/cart` carries only the productId and selected quantity — the
  * buyer identity, product existence, availability and stock caps are all
  * re-validated server-side from the session, so this component is purely
  * presentation: nothing here is trusted.

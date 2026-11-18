@@ -46,15 +46,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             <Button size="sm" asChild className="hidden whitespace-nowrap sm:inline-flex">
               <Link href="/seller-center">List with us</Link>
             </Button>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
-            </button>
             <NotificationBell isSignedIn={!!user} />
             {user ? (
               <AccountMenu user={user} />
@@ -65,7 +56,16 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             )}
             <button
               type="button"
-              onClick={() => setMobileOpen((v) => !v)}
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {theme === "dark" ? <Sun className="h-[1.1rem] w-[1.1rem]" aria-hidden /> : <Moon className="h-[1.1rem] w-[1.1rem]" aria-hidden />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-controls="mobile-primary-navigation"

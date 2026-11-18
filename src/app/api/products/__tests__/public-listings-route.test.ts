@@ -15,6 +15,7 @@ const product = {
   title: "Coffee pot",
   description: "A handmade coffee pot.",
   priceCents: 125000,
+  priceTiers: [],
   isNegotiable: true,
   condition: "NEW",
   brand: "Mali",

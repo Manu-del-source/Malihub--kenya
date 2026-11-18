@@ -83,7 +83,7 @@ describe("payment methods — only what the backend can actually collect", () =>
     assert.equal(PAYSTACK_METHOD.id, "paystack");
     assert.equal(PAYSTACK_METHOD.label, "Paystack");
     assert.equal(PAYSTACK_METHOD.provider, "PAYSTACK");
-    assert.equal(PAYSTACK_METHOD.method, "MOBILE_MONEY");
+    assert.equal(PAYSTACK_METHOD.method, null, "the buyer chooses the actual channel in Paystack checkout");
     assert.equal(PAYSTACK_METHOD.enabled, true);
 
     const advertised = JSON.stringify(PAYMENT_METHODS).toLowerCase();

@@ -162,7 +162,7 @@ export async function getCartSummary(db: CartStore, userId: string): Promise<Car
   return {
     itemCount: rows.length,
     subtotalCents: rows.reduce(
-      (sum, row: { quantity: number; product: { priceCents: number } }) =>
+      (sum, row: { quantity: number; product: { priceCents: number; priceTiers?: Array<{ minQuantity: number; unitPriceCents: number }> } }) =>
         sum + row.quantity * getUnitPriceCents(row.product.priceCents, row.product.priceTiers ?? [], row.quantity),
       0
     ),

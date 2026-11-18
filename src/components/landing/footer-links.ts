@@ -29,6 +29,7 @@ export const FOOTER_GROUPS: FooterGroup[] = [
       { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
       { label: "Support & safety", href: "/support" },
+      { label: "Email support", href: SUPPORT_MAILTO },
     ],
   },
   {

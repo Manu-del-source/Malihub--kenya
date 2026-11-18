@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home, LayoutGrid, LayoutDashboard, List, MessageCircle, Menu, Package, ShoppingCart, UserRound,
-} from "lucide-react";
-import { activeMobileTab, buildMobileTabs, mobileMode, type MobileTabKey } from "@/lib/mobile-tabs";
+import { Home, LayoutGrid, MessageCircle, ShoppingCart, UserRound } from "lucide-react";
+import { activeMobileTab, buildMobileTabs, type MobileTabKey } from "@/lib/mobile-tabs";
 
 const ICONS: Record<MobileTabKey, typeof Home> = {
   home: Home,
@@ -13,26 +11,17 @@ const ICONS: Record<MobileTabKey, typeof Home> = {
   cart: ShoppingCart,
   messages: MessageCircle,
   account: UserRound,
-  "seller-overview": LayoutDashboard,
-  "seller-orders": Package,
-  "seller-listings": List,
-  "seller-messages": MessageCircle,
-  "seller-more": Menu,
 };
 
-/**
- * Phone bottom bar — five tabs in either mode (shopping, or the seller
- * workspace inside /seller). See `buildMobileTabs`.
- */
-export function MobileBottomNav({ hasSellerProfile, cartCount = 0 }: { hasSellerProfile: boolean; cartCount?: number }) {
+/** Five buyer-focused tabs. Seller operations stay in the website Seller Centre. */
+export function MobileBottomNav({ cartCount = 0 }: { cartCount?: number }) {
   const pathname = usePathname();
-  const mode = mobileMode(pathname, hasSellerProfile);
-  const tabs = buildMobileTabs({ mode });
+  const tabs = buildMobileTabs();
   const active = activeMobileTab(tabs, pathname);
 
   return (
     <nav
-      aria-label={mode === "seller" ? "Seller navigation" : "Primary mobile navigation"}
+      aria-label="Buyer navigation"
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <ul className="mx-auto grid max-w-xl grid-cols-5">

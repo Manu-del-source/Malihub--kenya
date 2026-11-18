@@ -2,14 +2,14 @@
   "id": "/",
   "name": "MaliHub Kenya",
   "short_name": "MaliHub",
-  "description": "Buy and sell across Kenya with MaliHub.",
-  "start_url": "/",
+  "description": "Discover and shop products from sellers across Kenya.",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0A0A0A",
   "theme_color": "#0A0A0A",
-  "categories": ["shopping", "business"],
+  "categories": ["shopping"],
   "prefer_related_applications": false,
   "icons": [
     {

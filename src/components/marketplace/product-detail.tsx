@@ -99,7 +99,7 @@ export async function ProductDetail({
 
             {availableDetails.length > 0 && (
               <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm">
-                {availableDetails.slice(0, 4).map(([label, value]) => (
+                {availableDetails.map(([label, value]) => (
                   <div key={label} className="min-w-0"><dt className="text-muted-foreground">{label}</dt><dd className="truncate font-medium text-foreground">{value}</dd></div>
                 ))}
               </dl>
@@ -132,22 +132,24 @@ export async function ProductDetail({
       </div>
 
       <section className="mt-5 space-y-2">
-        <details className="group rounded-xl border border-border bg-card px-4 py-3" open={false}>
+        <details className="group rounded-xl border border-border bg-card px-4 py-3" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
-            Product description <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+            About this product <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
           </summary>
           <p className="whitespace-pre-line pt-3 text-sm leading-6 text-muted-foreground">{product.description}</p>
         </details>
         <details className="group rounded-xl border border-border bg-card px-4 py-3">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
-            More product details <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+            Specifications <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
           </summary>
-          <div className="flex flex-wrap gap-2 pt-3">
-            <Badge>{product.category.name}</Badge>
-            {product.brand && <Badge>{product.brand}</Badge>}
-            {product.size && <Badge>Size: {product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</Badge>}
-            {product.availableSizes && <Badge>Available sizes: {product.availableSizes}</Badge>}
-          </div>
+          <dl className="mt-3 divide-y divide-border text-sm">
+            <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Category</dt><dd className="text-right font-medium text-foreground">{product.category.name}</dd></div>
+            {product.brand && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Brand</dt><dd className="text-right font-medium text-foreground">{product.brand}</dd></div>}
+            {product.condition && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Condition</dt><dd className="text-right font-medium text-foreground">{CONDITION_LABEL[product.condition] ?? product.condition}</dd></div>}
+            {product.size && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Size</dt><dd className="text-right font-medium text-foreground">{product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</dd></div>}
+            {product.availableSizes && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Available sizes</dt><dd className="text-right font-medium text-foreground">{product.availableSizes}</dd></div>}
+            <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Location</dt><dd className="text-right font-medium text-foreground">{product.subCounty ? `${product.subCounty}, ` : ""}{product.county}</dd></div>
+          </dl>
         </details>
         <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2">
           <ShareButtons title={product.title} url={canonicalUrl} />

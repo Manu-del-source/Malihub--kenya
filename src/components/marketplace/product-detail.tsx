@@ -126,7 +126,7 @@ export async function ProductDetail({
                   isLoggedIn={!!user}
                   redirectTo={canonicalPath}
                   title={product.title}
-                  priceLabel={formatKes(product.priceCents)}
+                  basePriceCents={product.priceCents}
                   priceTiers={product.priceTiers}
                   chatAction={<StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />}
                 />

@@ -555,7 +555,7 @@ convention:
    `channels: ["card", "mobile_money"]`, and our reference. The provider's
    `reference` and `access_code` are stored on the attempt **immediately** —
    the webhook can arrive before the initiation response does.
-3. Paystack's hosted checkout collects the M-Pesa payment. The buyer's browser
+3. Paystack's hosted checkout lets the buyer choose an enabled KES channel (card or mobile money). The buyer's browser
    may land on `/checkout/payment-result`; that page is a navigation
    convenience and is **not** a payment signal.
 4. Paystack posts `charge.success` to `POST /api/payments/paystack/webhook`.

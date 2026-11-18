@@ -141,7 +141,7 @@ export default async function BuyerOrderDetailPage({
           </div>
         </section>
 
-        {order.status === "DELIVERED" && (
+        {(order.status === "SHIPPED" || order.status === "DELIVERED") && (
           <ConfirmOrderReceipt orderId={order.id} />
         )}
 
@@ -223,7 +223,7 @@ export default async function BuyerOrderDetailPage({
                 : order.status === "PAID"
                   ? "Payment confirmed. The seller is preparing your order for dispatch."
                   : order.status === "SHIPPED"
-                    ? "Your order has been dispatched. Courier name and tracking number are shown above. Open the courier tracking page to follow updates."
+                    ? "Your order has been dispatched. Courier name and tracking number are shown above. Follow the courier updates, then confirm receipt here once the parcel is physically with you."
                     : order.status === "DELIVERED"
                       ? "The seller has marked this order delivered. Confirm receipt only after you have physically received and checked it."
                       : order.status === "COMPLETED"

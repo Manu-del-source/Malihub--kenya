@@ -2119,6 +2119,18 @@ export function seedProduct(
     updatedAt: overrides.updatedAt ?? new Date(),
   };
   store.tables.products.set(row.id, row);
+  // Product price tiers are a separate Prisma relation/table. Keep the fake
+  // database representation aligned with that relation instead of relying
+  // on the convenience property stored on the seed row.
+  for (const tier of row.priceTiers ?? []) {
+    const tierRow: ProductPriceTierRow = {
+      id: nextId("tier"),
+      productId: row.id,
+      minQuantity: tier.minQuantity,
+      unitPriceCents: tier.unitPriceCents,
+    };
+    store.tables.productPriceTiers.set(tierRow.id, tierRow);
+  }
   return row;
 }
 

@@ -51,7 +51,7 @@ export function HeroSection() {
               <ArrowRight className="h-5 w-5 shrink-0 text-gold transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>
             <Link
-              href="/register?role=seller"
+              href="/register?redirectTo=%2Fseller%2Fonboarding"
               className="group flex min-h-24 items-center justify-between gap-4 border-b border-foreground/10 py-4 transition-colors hover:border-gold/45 sm:border sm:px-5 lg:min-h-28"
             >
               <span>

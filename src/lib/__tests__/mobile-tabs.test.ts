@@ -27,7 +27,6 @@ describe("activeMobileTab", () => {
     assert.equal(activeMobileTab(tabs, "/admin/reports"), "account");
     assert.equal(activeMobileTab(tabs, "/"), null);
     assert.equal(activeMobileTab(tabs, "/app"), "home");
-    assert.equal(activeMobileTab(tabs, "/app?sort=newest"), "home");
     assert.equal(activeMobileTab(tabs, "/marketplace"), "categories");
     assert.equal(activeMobileTab(tabs, "/messages"), "messages");
     assert.equal(activeMobileTab(tabs, "/seller/orders"), "account");

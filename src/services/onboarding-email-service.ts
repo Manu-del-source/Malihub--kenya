@@ -59,7 +59,21 @@ export async function sendOnboardingWelcomeEmail(userId: string, kind: Onboardin
 
 /** Retry failed welcome messages on a later authenticated request. SENT rows are never sent again. */
 export async function retryOnboardingWelcomeEmails(userId: string): Promise<void> {
-  await sendOnboardingWelcomeEmail(userId, "BUYER_WELCOME");
-  const seller = await prisma.seller.findUnique({ where: { userId }, select: { id: true } }).catch(() => null);
-  if (seller) await sendOnboardingWelcomeEmail(userId, "SELLER_WELCOME");
+  // Only retry rows created by a real registration/activation event. Do not
+  // backfill welcome emails to the existing user base after this feature ships.
+  const buyerDelivery = await prisma.onboardingEmail.findUnique({
+    where: { userId_kind: { userId, kind: "BUYER_WELCOME" } },
+    select: { status: true },
+  });
+  if (buyerDelivery && buyerDelivery.status !== "SENT") {
+    await sendOnboardingWelcomeEmail(userId, "BUYER_WELCOME");
+  }
+
+  const sellerDelivery = await prisma.onboardingEmail.findUnique({
+    where: { userId_kind: { userId, kind: "SELLER_WELCOME" } },
+    select: { status: true },
+  });
+  if (sellerDelivery && sellerDelivery.status !== "SENT") {
+    await sendOnboardingWelcomeEmail(userId, "SELLER_WELCOME");
+  }
 }

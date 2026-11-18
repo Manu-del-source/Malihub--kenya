@@ -207,6 +207,8 @@ export type PaymentIdentifiers = {
   providerReference?: string | null;
   /** The processor's own transaction id (Paystack transaction `id`). */
   providerTransactionId?: string | null;
+  /** Verified Paystack channel mapped to MaliHub's payment-method enum. */
+  method?: "CARD" | "MOBILE_MONEY";
 };
 
 /**
@@ -266,6 +268,9 @@ export async function claimPaymentSuccess(
   };
   if (identifiers.providerReference) {
     data = { ...data, providerReference: identifiers.providerReference };
+  }
+  if (identifiers.method) {
+    data = { ...data, method: identifiers.method };
   }
   if (!payment.providerTransactionId && identifiers.providerTransactionId) {
     data = { ...data, providerTransactionId: identifiers.providerTransactionId };

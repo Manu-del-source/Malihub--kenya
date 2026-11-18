@@ -47,12 +47,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = () => {
-    setTheme((current) => {
-      const next: Theme = current === "dark" ? "light" : "dark";
-      window.localStorage.setItem(STORAGE_KEY, next);
-      applyTheme(next);
-      return next;
-    });
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    window.localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+    setTheme(next);
   };
 
   const value = useMemo<ThemeContextValue>(() => ({ theme, toggleTheme }), [theme]);

@@ -49,7 +49,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
               {categoriesOpen && (
                 <>
                   <button type="button" aria-label="Close category menu" onClick={() => setCategoriesOpen(false)} className="fixed inset-0 z-40 cursor-default" />
-                  <section id="desktop-category-menu" aria-label="Browse MaliHub categories" className="absolute left-1/2 top-[calc(100%+22px)] z-50 w-[min( min(92vw,960px),960px)] -translate-x-1/2 rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
+                  <section id="desktop-category-menu" aria-label="Browse MaliHub categories" className="absolute left-1/2 top-[calc(100%+22px)] z-50 w-[min(92vw,960px)] -translate-x-1/2 rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
                     <div className="mb-5 flex items-end justify-between gap-4 border-b border-border pb-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">The MaliHub catalogue</p>

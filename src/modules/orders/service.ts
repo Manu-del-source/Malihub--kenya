@@ -2,6 +2,7 @@ import "server-only";
 
 import { customAlphabet } from "nanoid";
 import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
+import { getUnitPriceCents } from "@/lib/pricing/product-price-tiers";
 
 /**
  * Orders — the buyer → cart → order → order-items → seller foundation.
@@ -380,20 +381,22 @@ export async function checkoutCart(
             where: { id: item.productId },
             select: {
               priceCents: true,
+              priceTiers: { orderBy: { minQuantity: "asc" }, select: { minQuantity: true, unitPriceCents: true } },
               supplierProductId: true,
               supplierProduct: { select: { title: true, sku: true } },
             },
           });
           if (!fresh) throw new OrderError("A listing in your cart no longer exists.", "unavailable");
 
-          const lineTotal = fresh.priceCents * item.quantity;
+          const unitPriceCents = getUnitPriceCents(fresh.priceCents, fresh.priceTiers ?? [], item.quantity);
+          const lineTotal = unitPriceCents * item.quantity;
           subtotalCents += lineTotal;
           // Snapshot the supplier source at checkout. A later supplier-product
           // removal or price change must not rewrite what the buyer ordered.
           itemData.push({
             productId: item.productId,
             quantity: item.quantity,
-            unitPriceCents: fresh.priceCents,
+            unitPriceCents,
             totalCents: lineTotal,
             supplierProductId: fresh.supplierProductId,
             supplierProductTitle: fresh.supplierProduct?.title ?? null,

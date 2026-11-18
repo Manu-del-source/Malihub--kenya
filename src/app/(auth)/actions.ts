@@ -43,6 +43,7 @@ import {
 } from "@/services/auth-service";
 import { BUYER_DASHBOARD_PATH, SELLER_DASHBOARD_PATH } from "@/lib/auth/config";
 import type { ApiResult } from "@/types";
+import { retryOnboardingWelcomeEmails, sendOnboardingWelcomeEmail } from "@/services/onboarding-email-service";
 
 /**
  * Server Actions for the authentication flows.
@@ -138,6 +139,9 @@ export async function signUpAction(
     // Logged, not surfaced: the account exists and the retry path is the next
     // sign-in. Only the failure reason is recorded — never the password.
     logServerError("[auth] signUp: application rows not provisioned", provisioning.error);
+  } else {
+    // Email is best-effort and idempotent. A mail outage must never undo signup.
+    await sendOnboardingWelcomeEmail(provisioning.userId, "BUYER_WELCOME");
   }
 
   return { success: true, data: { email, redirectTo: safeInternalRedirect(redirectTo) ?? "/complete-profile" } };
@@ -195,6 +199,10 @@ export async function signInAction(
         : "We couldn't load your MaliHub account. Please contact support.",
     };
   }
+
+  // Retry only missing/failed onboarding messages. The delivery ledger makes
+  // already-sent messages a no-op, so ordinary logins never resend them.
+  await retryOnboardingWelcomeEmails(provisioning.userId);
 
   let state: AuthoritativeOnboardingState | null = null;
   try {

@@ -20,18 +20,24 @@ export async function sendEmail(params: {
   to: string;
   subject: string;
   react: React.ReactElement;
-}): Promise<void> {
+}): Promise<boolean> {
   const resend = getClient();
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set — email skipped");
-    return;
+    return false;
   }
 
   const from = process.env.EMAIL_FROM ?? "MaliHub Kenya <notifications@malihub.co.ke>";
 
   try {
-    await resend.emails.send({ from, to: params.to, subject: params.subject, react: params.react });
+    const result = await resend.emails.send({ from, to: params.to, subject: params.subject, react: params.react });
+    if (result.error) {
+      logServerError("[email] Provider rejected message", result.error);
+      return false;
+    }
+    return true;
   } catch (error) {
     logServerError("[email] Send failed", error);
+    return false;
   }
 }

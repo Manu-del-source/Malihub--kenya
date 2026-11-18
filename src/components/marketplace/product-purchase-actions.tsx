@@ -41,7 +41,8 @@ export function ProductPurchaseActions({
 
   return (
     <>
-      <div className="space-y-3">\n        <p className="text-sm font-semibold text-primary">{formatKes(selectedUnitPrice)} <span className="text-xs font-normal text-muted-foreground">per unit at this quantity</span></p>
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-primary">{formatKes(selectedUnitPrice)} <span className="text-xs font-normal text-muted-foreground">per unit at this quantity</span></p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="text-sm font-medium text-foreground" id="product-quantity-label">Quantity</label>
           <div className="inline-flex h-10 items-center rounded-lg border border-border bg-background">

@@ -42,6 +42,7 @@ export type ProductRow = {
   slug: string;
   description: string;
   priceCents: number;
+  priceTiers?: Array<{ minQuantity: number; unitPriceCents: number }>;
   isNegotiable: boolean;
   condition: string;
   brand: string | null;
@@ -2056,6 +2057,7 @@ export function seedProduct(
     slug: overrides.slug ?? `test-listing-${randomUUID().slice(0, 8)}`,
     description: overrides.description ?? "A listing used by the test suite.",
     priceCents: overrides.priceCents ?? 150_000,
+    priceTiers: overrides.priceTiers ?? [],
     isNegotiable: overrides.isNegotiable ?? false,
     condition: overrides.condition ?? "GOOD",
     brand: overrides.brand ?? null,

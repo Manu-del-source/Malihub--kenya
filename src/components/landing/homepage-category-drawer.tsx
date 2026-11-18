@@ -35,7 +35,7 @@ export function HomepageCategoryDrawer() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls="homepage-category-drawer"
-        className="fixed left-0 top-[42%] z-40 hidden -translate-y-1/2 rounded-r-xl border border-l-0 border-primary/30 bg-card px-2.5 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground shadow-lg transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex sm:items-center sm:gap-2"
+        className="fixed left-0 top-[42%] z-40 flex -translate-y-1/2 items-center gap-2 rounded-r-xl border border-l-0 border-primary/30 bg-card px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground shadow-lg transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5 sm:py-4 sm:text-[11px]"
         style={{ writingMode: "vertical-rl" }}
       >
         View all categories

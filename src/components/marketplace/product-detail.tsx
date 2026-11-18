@@ -8,7 +8,7 @@ import { ShareButtons } from "@/components/marketplace/share-buttons";
 import { ReportListingDialog } from "@/components/marketplace/report-listing-dialog";
 import { SimilarListings } from "@/components/marketplace/similar-listings";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
-import { AddToCartButton } from "@/components/marketplace/add-to-cart-button";
+import { ProductPurchaseActions } from "@/components/marketplace/product-purchase-actions";
 import { StartChatButton } from "@/components/marketplace/start-chat-button";
 import { getSimilarListings } from "@/services/search-service";
 import { getCurrentUser } from "@/lib/auth";
@@ -107,14 +107,16 @@ export async function ProductDetail({
 
             <div className="mt-4">
               {!isOwnListing ? (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <div className="min-w-0 flex-1">
-                    <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />
-                  </div>
-                </div>
+                <ProductPurchaseActions
+                  productId={product.id}
+                  status={product.status}
+                  stock={product.quantity}
+                  isLoggedIn={!!user}
+                  redirectTo={canonicalPath}
+                  title={product.title}
+                  priceLabel={formatKes(product.priceCents)}
+                  chatAction={<StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />}
+                />
               ) : (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">This is your listing.</p>
               )}
@@ -159,19 +161,7 @@ export async function ProductDetail({
 
       <SimilarListings listings={similar} />
 
-      {!isOwnListing && !isSold && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-lg pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] text-muted-foreground">{product.title}</p>
-              <p className="font-mono text-base font-bold tabular-nums text-primary">{formatKes(product.priceCents)}</p>
-            </div>
-            <div className="w-[48%] max-w-[13rem]">
-              <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} intent="checkout" />
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }

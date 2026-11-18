@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, MessageCircle, Package, ShoppingCart, UserRound } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, ShoppingCart, UserRound } from "lucide-react";
 import { activeMobileTab, buildMobileTabs, type MobileTabKey } from "@/lib/mobile-tabs";
 
 const ICONS: Record<MobileTabKey, typeof Home> = {

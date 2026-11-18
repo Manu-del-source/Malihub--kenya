@@ -94,7 +94,9 @@ export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatu
   PENDING: ["PAID", "CANCELLED"],
   CONFIRMED: [],
   PAID: ["SHIPPED"],
-  SHIPPED: ["DELIVERED"],
+  // A buyer may confirm physical receipt directly from SHIPPED; courier
+  // tracking feeds are not guaranteed to report the final hand-off.
+  SHIPPED: ["DELIVERED", "COMPLETED"],
   DELIVERED: ["COMPLETED"],
   COMPLETED: [],
   CANCELLED: [],

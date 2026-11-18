@@ -21,6 +21,7 @@ export function AddToCartButton({
   stock,
   isLoggedIn,
   redirectTo,
+  quantity = 1,
   intent = "cart",
 }: {
   productId: string;
@@ -28,6 +29,7 @@ export function AddToCartButton({
   stock: number;
   isLoggedIn: boolean;
   redirectTo: string;
+  quantity?: number;
   intent?: "cart" | "checkout";
 }) {
   const router = useRouter();
@@ -62,7 +64,7 @@ export function AddToCartButton({
         const response = await fetch("/api/cart", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId, quantity: 1 }),
+          body: JSON.stringify({ productId, quantity }),
         });
         const payload = await response.json().catch(() => null);
 

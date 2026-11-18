@@ -31,6 +31,7 @@ const REQUIRED_TRANSITIONS: ReadonlyArray<[OrderStatus, OrderStatus]> = [
   ["PENDING", "CANCELLED"],
   ["PAID", "SHIPPED"],
   ["SHIPPED", "DELIVERED"],
+  ["SHIPPED", "COMPLETED"],
   ["DELIVERED", "COMPLETED"],
 ];
 

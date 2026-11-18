@@ -141,10 +141,6 @@ export default async function BuyerOrderDetailPage({
           </div>
         </section>
 
-        {order.status === "DELIVERED" && (
-          <ConfirmOrderReceipt orderId={order.id} />
-        )}
-
         {supplierFulfilments.length > 0 && (
           <section className="glass rounded-2xl p-5 text-sm">
             <h2 className="font-display text-base font-medium">Supplier fulfilment updates</h2>
@@ -223,7 +219,7 @@ export default async function BuyerOrderDetailPage({
                 : order.status === "PAID"
                   ? "Payment confirmed. The seller is preparing your order for dispatch."
                   : order.status === "SHIPPED"
-                    ? "Your order has been dispatched. Courier name and tracking number are shown above. Open the courier tracking page to follow updates."
+                    ? "Your order has been dispatched. Courier name and tracking number are shown above. Follow the courier updates, then confirm receipt here once the parcel is physically with you."
                     : order.status === "DELIVERED"
                       ? "The seller has marked this order delivered. Confirm receipt only after you have physically received and checked it."
                       : order.status === "COMPLETED"
@@ -300,6 +296,12 @@ export default async function BuyerOrderDetailPage({
                   </div>
                 )}
               </dl>
+            )}
+
+            {(order.status === "SHIPPED" || order.status === "DELIVERED") && (
+              <div className="mt-5 border-t border-border pt-5">
+                <ConfirmOrderReceipt orderId={order.id} />
+              </div>
             )}
 
             {order.status === "PENDING" && (

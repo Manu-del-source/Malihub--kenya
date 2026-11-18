@@ -154,6 +154,7 @@ export type OrderRow = {
   status: string;
   subtotalCents: number;
   totalCents: number;
+  deliveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -1327,6 +1328,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           status: String(data.status ?? "PENDING"),
           subtotalCents: Number(data.subtotalCents ?? 0),
           totalCents: Number(data.totalCents ?? 0),
+          deliveredAt: data.deliveredAt instanceof Date ? data.deliveredAt : null,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

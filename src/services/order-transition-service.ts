@@ -658,9 +658,10 @@ export async function markOrderFulfilled(
     }
 
     const changedAt = new Date();
+    const buyerConfirmedShippedOrder = step === "COMPLETED" && from === "SHIPPED";
     const claimed = await tx.order.updateMany({
       where: { id: params.orderId, status: from },
-      data: step === "DELIVERED"
+      data: step === "DELIVERED" || buyerConfirmedShippedOrder
         ? { status: step, deliveredAt: changedAt }
         : { status: step },
     });
@@ -715,6 +716,22 @@ export async function markOrderFulfilled(
       });
     }
 
+    if (buyerConfirmedShippedOrder) {
+      // The buyer's explicit confirmation is the delivery signal when the
+      // courier feed or seller has not yet advanced SHIPPED to DELIVERED.
+      // Do not manufacture a tracking record if this older order has none.
+      const shipment = await tx.orderShipment.findUnique({
+        where: { orderId: params.orderId },
+        select: { id: true },
+      });
+      if (shipment) {
+        await tx.orderShipment.update({
+          where: { orderId: params.orderId },
+          data: { status: "DELIVERED", deliveredAt: changedAt },
+        });
+      }
+    }
+
     return {
       order: {
         id: order.id,
@@ -760,7 +777,9 @@ export async function markOrderFulfilled(
         body:
           step === "SHIPPED" && shipmentInput
             ? `Shipped via ${shipmentInput.carrierName}. Tracking number: ${shipmentInput.trackingNumber}.`
-            : `This order moved to ${step.toLowerCase()}.`,
+            : step === "COMPLETED"
+              ? "The buyer confirmed that the order was received."
+              : `This order moved to ${step.toLowerCase()}.`,
         linkUrl: `/buyer/orders/${outcome.order.id}`,
       }),
       notifyOrderTransition({

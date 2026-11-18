@@ -28,8 +28,10 @@ export function ConfirmOrderReceipt({ orderId }: { orderId: string }) {
     <section className="glass rounded-2xl p-5 text-sm">
       <h2 className="font-display text-base font-medium">Confirm receipt</h2>
       <p className="mt-2 text-muted-foreground">
-        Only confirm after you have physically received and checked your order. This completes the order.
-        If anything is missing, damaged or incorrect, contact MaliHub support before confirming.
+        Your courier tracking may still say “in transit”. You can confirm here once the parcel is physically with you and you have checked it. This completes the order.
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        If the parcel has not arrived, or anything is missing, damaged or incorrect, do not confirm. Contact the seller or MaliHub support instead.
       </p>
       <label className="mt-4 flex items-start gap-2 text-xs leading-5">
         <input

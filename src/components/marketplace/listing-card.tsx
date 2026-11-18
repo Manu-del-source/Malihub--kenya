@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin } from "lucide-react";
+import { BadgeCheck, MapPin } from "lucide-react";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
 import { formatKes, cn } from "@/utils";
 
@@ -84,7 +84,14 @@ export function ListingCard({
         </div>
 
         <div className="flex min-w-0 items-center justify-between gap-1 border-t border-border pt-2 text-[10px] sm:pt-2.5 sm:text-xs">
-          <span className="min-w-0 truncate text-muted-foreground">{listing.sellerName}</span>
+          <span className="flex min-w-0 items-center gap-1 truncate text-muted-foreground">
+  <span className="truncate">{listing.sellerName}</span>
+  {listing.isVerifiedSeller && (
+    <span className="inline-flex shrink-0 items-center text-primary-400" title="Verified seller" aria-label="Verified seller">
+      <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+    </span>
+  )}
+</span>
           <span className="max-w-[48%] shrink-0 truncate rounded-full border border-border bg-muted px-2 py-1 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
             {CONDITION_LABEL[listing.condition]}
           </span>

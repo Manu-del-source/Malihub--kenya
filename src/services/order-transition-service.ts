@@ -720,10 +720,16 @@ export async function markOrderFulfilled(
       // The buyer's explicit confirmation is the delivery signal when the
       // courier feed or seller has not yet advanced SHIPPED to DELIVERED.
       // Do not manufacture a tracking record if this older order has none.
-      await tx.orderShipment.updateMany({
+      const shipment = await tx.orderShipment.findUnique({
         where: { orderId: params.orderId },
-        data: { status: "DELIVERED", deliveredAt: changedAt },
+        select: { id: true },
       });
+      if (shipment) {
+        await tx.orderShipment.update({
+          where: { orderId: params.orderId },
+          data: { status: "DELIVERED", deliveredAt: changedAt },
+        });
+      }
     }
 
     return {

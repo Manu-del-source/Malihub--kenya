@@ -415,6 +415,18 @@ enum NotificationChannel {
   BOTH
 }
 
+enum OnboardingEmailKind {
+  BUYER_WELCOME
+  SELLER_WELCOME
+}
+
+enum OnboardingEmailStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
 enum ReportReason {
   SCAM
   COUNTERFEIT
@@ -489,6 +501,7 @@ model User {
   wishlists       Wishlist[]
   reviews         Review[]         @relation("ReviewAuthor")
   notifications   Notification[]
+  onboardingEmails OnboardingEmail[]
   chatsAsBuyer    Chat[]           @relation("ChatBuyer")
   chatsAsSeller   Chat[]           @relation("ChatSeller")
   messagesSent    Message[]        @relation("MessageSender")
@@ -1368,6 +1381,26 @@ model Message {
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────
+
+/// Idempotent delivery ledger for registration and seller-activation emails.
+model OnboardingEmail {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  kind      OnboardingEmailKind
+  status    OnboardingEmailStatus @default(PENDING)
+  attempts  Int                  @default(0)
+  lastError String?              @map("last_error") @db.VarChar(500)
+  claimedAt DateTime?            @map("claimed_at") @db.Timestamptz(6)
+  sentAt    DateTime?            @map("sent_at") @db.Timestamptz(6)
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@index([status, updatedAt])
+  @@map("onboarding_emails")
+}
 
 model Notification {
   id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

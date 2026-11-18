@@ -3,11 +3,12 @@ import {
 } from "@react-email/components";
 
 export function WelcomeEmail({
-  audience, displayName, shopName, appUrl,
+  audience, displayName, shopName, email, appUrl,
 }: {
   audience: "buyer" | "seller";
   displayName: string;
   shopName?: string | null;
+  email: string;
   appUrl: string;
 }) {
   const isSeller = audience === "seller";
@@ -34,7 +35,7 @@ export function WelcomeEmail({
             </>
           )}
           <Section style={{ margin: "28px 0" }}>
-            <Button href={isSeller ? `${appUrl}/verify-email` : appUrl} style={{ backgroundColor: "#b8934a", borderRadius: "999px", color: "#0a0a0a", display: "inline-block", fontSize: "14px", fontWeight: 700, padding: "13px 22px", textDecoration: "none" }}>{isSeller ? "Continue to email verification" : "Explore MaliHub"}</Button>
+            <Button href={isSeller ? `${appUrl}/verify-email?email=${encodeURIComponent(email)}` : appUrl} style={{ backgroundColor: "#b8934a", borderRadius: "999px", color: "#0a0a0a", display: "inline-block", fontSize: "14px", fontWeight: 700, padding: "13px 22px", textDecoration: "none" }}>{isSeller ? "Continue to email verification" : "Explore MaliHub"}</Button>
           </Section>
           <Hr style={{ borderColor: "#302719", margin: "24px 0" }} />
           <Text style={{ color: "#918879", fontSize: "12px", lineHeight: 1.6, margin: 0 }}>Thank you for choosing MaliHub Kenya. If you did not create this account, you can ignore this email.</Text>

@@ -235,6 +235,13 @@ export type ProductImageRow = {
   isPrimary: boolean;
 };
 
+export type ProductPriceTierRow = {
+  id: string;
+  productId: string;
+  minQuantity: number;
+  unitPriceCents: number;
+};
+
 export type CategoryRow = { id: string; name: string; slug: string };
 
 export type ProfileRow = { userId: string; fullName: string; county: string | null };
@@ -265,6 +272,7 @@ export type NotificationRow = {
 export type Tables = {
   products: Map<string, ProductRow>;
   productImages: Map<string, ProductImageRow>;
+  productPriceTiers: Map<string, ProductPriceTierRow>;
   categories: Map<string, CategoryRow>;
   cartItems: Map<string, CartItemRow>;
   wishlists: Map<string, WishlistRow>;
@@ -412,6 +420,10 @@ export type FakeMarketplaceStore = {
   productImage: {
     deleteMany(args: Args): Promise<{ count: number }>;
   };
+  productPriceTier: {
+    deleteMany(args: Args): Promise<{ count: number }>;
+    createMany(args: Args): Promise<{ count: number }>;
+  };
   wishlist: {
     findUnique(args: Args): Promise<unknown>;
     create(args: Args): Promise<unknown>;
@@ -514,6 +526,7 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
   const tables: Tables = {
     products: new Map(),
     productImages: new Map(),
+    productPriceTiers: new Map(),
     categories: new Map(),
     cartItems: new Map(),
     wishlists: new Map(),
@@ -596,6 +609,10 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
     const category = tables.categories.get(product.categoryId);
     return {
       ...withSupplierProduct(product),
+      priceTiers: [...tables.productPriceTiers.values()]
+        .filter((tier) => tier.productId === product.id)
+        .sort((a, b) => a.minQuantity - b.minQuantity)
+        .map(({ minQuantity, unitPriceCents }) => ({ minQuantity, unitPriceCents })),
       // Product-detail GET now selects the owning user's role for the
       // server-side public-catalogue visibility rule. Keep that relation
       // available in the fake Prisma store just as the real relation is.
@@ -1749,6 +1766,34 @@ export function createFakeMarketplaceStore(): FakeMarketplaceStore {
           count++;
         }
         return { count };
+      },
+    },
+
+    productPriceTier: {
+      async deleteMany(args) {
+        store.operations.push("productPriceTier.deleteMany");
+        const productId = (args.where as { productId: string }).productId;
+        let count = 0;
+        for (const [id, row] of [...tables.productPriceTiers.entries()]) {
+          if (row.productId !== productId) continue;
+          tables.productPriceTiers.delete(id);
+          count++;
+        }
+        return { count };
+      },
+      async createMany(args) {
+        store.operations.push("productPriceTier.createMany");
+        const rows = (args.data ?? []) as Array<{ productId: string; minQuantity: number; unitPriceCents: number }>;
+        for (const data of rows) {
+          const row: ProductPriceTierRow = {
+            id: nextId("tier"),
+            productId: data.productId,
+            minQuantity: data.minQuantity,
+            unitPriceCents: data.unitPriceCents,
+          };
+          tables.productPriceTiers.set(row.id, row);
+        }
+        return { count: rows.length };
       },
     },
 

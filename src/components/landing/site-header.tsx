@@ -4,12 +4,13 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOutAction } from "@/app/(auth)/actions";
+import { useTheme } from "@/providers/theme-provider";
 
 const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
@@ -20,6 +21,7 @@ const NAV_LINKS = [
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
@@ -54,7 +56,16 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             )}
             <button
               type="button"
-              onClick={() => setMobileOpen((v) => !v)}
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {theme === "dark" ? <Sun className="h-[1.1rem] w-[1.1rem]" aria-hidden /> : <Moon className="h-[1.1rem] w-[1.1rem]" aria-hidden />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-controls="mobile-primary-navigation"

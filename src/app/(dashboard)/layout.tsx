@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="pwa-dashboard-shell min-h-svh bg-background text-foreground">
       <header className="pwa-dashboard-header sticky top-0 z-50 border-b border-border bg-card">
         <Container className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 md:flex-nowrap md:gap-5 md:py-4">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
+          <Link href="/app" className="flex shrink-0 items-center gap-2.5" aria-label="MaliHub home">
             <span aria-hidden className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-lg font-extrabold text-primary-foreground">M</span>
             <span className="font-display text-xl font-bold tracking-tight text-foreground">
               Mali<span className="copper-text">Hub</span>
@@ -95,7 +95,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav hasSellerProfile={user.hasSellerProfile} cartCount={cartCount} />
+      <MobileBottomNav cartCount={cartCount} />
     </div>
   );
 }

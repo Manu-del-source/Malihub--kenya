@@ -41,7 +41,7 @@ const BUYER_B = "buyer-b";
 
 function seedSellerListing(
   userId: string,
-  overrides: { quantity?: number; priceCents?: number; status?: string } = {}
+  overrides: { quantity?: number; priceCents?: number; status?: string; priceTiers?: Array<{ minQuantity: number; unitPriceCents: number }> } = {}
 ) {
   const seller = seedSeller(store, { userId, businessName: `${userId} shop` });
   seedProfile(store, userId, "Seller Person");
@@ -52,6 +52,7 @@ function seedSellerListing(
     categoryId: category.id,
     quantity: overrides.quantity ?? 5,
     priceCents: overrides.priceCents ?? 100_000,
+    priceTiers: overrides.priceTiers ?? [],
     status: overrides.status ?? "ACTIVE",
   });
   return { seller, product };
@@ -68,7 +69,23 @@ beforeEach(() => {
   seedProfile(store, BUYER_B, "Grace Atieno");
 });
 
-describe("checkout — cart becomes orders", () => {
+describe("checkout — cart becomes orders", () => {\n  it("snapshots the eligible bulk unit price into the order item", async () => {
+    const { product } = seedSellerListing("seller-bulk", {
+      quantity: 6,
+      priceCents: 125_000,
+      priceTiers: [{ minQuantity: 2, unitPriceCents: 91_000 }],
+    });
+    seedCartItem(store, BUYER_A, product.id, 3);
+
+    const result = await service.checkoutCart(db, BUYER_A);
+
+    assert.equal(result.orders[0]!.subtotalCents, 273_000);
+    const item = [...store.tables.orderItems.values()][0]!;
+    assert.equal(item.unitPriceCents, 91_000);
+    assert.equal(item.totalCents, 273_000);
+  });
+
+
   it("creates one PENDING order per seller with server-side totals", async () => {
     const first = seedSellerListing("seller-1", { priceCents: 100_000 });
     const second = seedSellerListing("seller-2", { priceCents: 250_000 });

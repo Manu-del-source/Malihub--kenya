@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { Facebook, Instagram, Mail, MessageCircle } from "lucide-react";
+import { Facebook, Instagram, MessageCircle } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { CookieSettingsButton } from "@/components/cookie-consent";
 import {
   FACEBOOK_URL,
   FOOTER_GROUPS,
   INSTAGRAM_URL,
-  SUPPORT_EMAIL,
-  SUPPORT_MAILTO,
   SUPPORT_WHATSAPP_URL,
 } from "@/components/landing/footer-links";
 import { SUPPORT_WHATSAPP } from "@/lib/support";
@@ -23,7 +21,7 @@ export function SiteFooter() {
       <div className="footer-glow pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden />
       <Container className="relative py-10 sm:py-14">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16">
-          {/* Brand + contact */}
+          {/* Brand + primary contact */}
           <div className="flex flex-col items-start gap-4">
             <Link href="/" className={`group flex items-center gap-2.5 rounded-full ${FOCUS}`} aria-label="MaliHub home">
               <span aria-hidden className="brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-[#17110a]">M</span>
@@ -32,34 +30,30 @@ export function SiteFooter() {
             <p className="max-w-xs text-sm leading-6 text-muted-foreground">
               Products and local listings from independent sellers across Kenya.
             </p>
-            <div className="w-full max-w-xl">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-foreground">Contact</h3>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <a
-                  href={SUPPORT_WHATSAPP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`inline-flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-foreground/10 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary-400/50 hover:text-primary-400 ${FOCUS}`}
-                >
-                  <MessageCircle className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>WhatsApp {SUPPORT_WHATSAPP}</span>
-                </a>
-                <a
-                  href={SUPPORT_MAILTO}
-                  className={`inline-flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-foreground/10 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary-400/50 hover:text-primary-400 ${FOCUS}`}
-                >
-                  <Mail className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="break-all">{SUPPORT_EMAIL}</span>
-                </a>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow MaliHub on Instagram" className={ICON_BUTTON}>
-                  <Instagram className="h-4 w-4" aria-hidden />
-                </a>
-                <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow MaliHub on Facebook" className={ICON_BUTTON}>
-                  <Facebook className="h-4 w-4" aria-hidden />
-                </a>
-              </div>
+
+            <a
+              href={SUPPORT_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`group inline-flex min-h-12 w-full max-w-xs items-center gap-3 rounded-xl border border-primary-400/25 bg-primary-400/[0.06] px-4 py-3 transition-colors hover:border-primary-400/50 hover:bg-primary-400/[0.10] ${FOCUS}`}
+              aria-label={`Chat with MaliHub support on WhatsApp at ${SUPPORT_WHATSAPP}`}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-400/15 text-primary-400" aria-hidden>
+                <MessageCircle className="h-5 w-5" />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary-400">Chat with us on WhatsApp</span>
+                <span className="text-xs text-muted-foreground">{SUPPORT_WHATSAPP}</span>
+              </span>
+            </a>
+
+            <div className="flex items-center gap-2">
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow MaliHub on Instagram" className={ICON_BUTTON}>
+                <Instagram className="h-4 w-4" aria-hidden />
+              </a>
+              <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow MaliHub on Facebook" className={ICON_BUTTON}>
+                <Facebook className="h-4 w-4" aria-hidden />
+              </a>
             </div>
           </div>
 

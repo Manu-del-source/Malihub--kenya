@@ -14,7 +14,7 @@ export function ProductPurchaseActions({
   redirectTo,
   chatAction,
   title,
-  priceLabel,
+  basePriceCents,
   priceTiers,
 }: {
   productId: string;
@@ -24,12 +24,12 @@ export function ProductPurchaseActions({
   redirectTo: string;
   chatAction: ReactNode;
   title: string;
-  priceLabel: string;
+  basePriceCents: number;
   priceTiers: ProductPriceTierInput[];
 }) {
   const [quantity, setQuantity] = useState(1);
   const unavailable = status !== "ACTIVE" || stock < 1;
-  const selectedUnitPrice = getUnitPriceCents(Number(priceLabel.replace(/[^0-9]/g, "")) * 100 || 100, priceTiers, quantity);
+  const selectedUnitPrice = getUnitPriceCents(basePriceCents, priceTiers, quantity);
 
   function decrease() {
     setQuantity((current) => Math.max(1, current - 1));

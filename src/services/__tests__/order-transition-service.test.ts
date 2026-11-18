@@ -1359,8 +1359,8 @@ describe("the service is the only status writer", () => {
     }
 
     // Every non-legal combination was actually exercised. 8 states × 5
-    // writers = 40 pairs, minus the 5 legal ones and minus 5 self-pairs that
-    // take the replay branch = 30 refusals + 5 replays.
+    // writers = 40 pairs, minus the 6 legal ones and minus 5 self-pairs that
+    // take the replay branch = 29 refusals + 5 replays.
     assert.equal(checked, 34, "the forbidden/replay matrix must be fully exercised");
   });
 });

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { BadgeCheck, MapPin } from "lucide-react";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
 import { formatKes, cn } from "@/utils";
@@ -39,64 +38,79 @@ export function ListingCard({
   priority?: boolean;
 }) {
   return (
-    <motion.article
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.18 }}
-      className={cn("group relative min-w-0 overflow-hidden rounded-xl border border-border/80 bg-card transition-colors duration-200 hover:border-primary/40 sm:rounded-2xl", className)}
+    <article
+      className={cn(
+        "group relative min-w-0 overflow-hidden rounded-xl border border-border bg-card transition-colors duration-200 hover:border-primary/45 sm:rounded-2xl",
+        className
+      )}
     >
-      <div className="relative aspect-square overflow-hidden bg-muted">
-        <Link href={`/products/${listing.slug}`} aria-label={`View ${listing.title}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <Link
+          href={`/products/${listing.slug}`}
+          aria-label={`View ${listing.title}`}
+          className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
           <Image
             src={listing.imageUrl}
             alt={listing.title}
             fill
             sizes="(min-width: 1280px) 240px, (min-width: 640px) 30vw, 48vw"
             priority={priority}
-            className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.02]"
           />
         </Link>
         <FavoriteButton
           productId={listing.id}
           initialFavorited={listing.isFavorited ?? false}
-          className="absolute right-2 top-2 border border-black/10 bg-black/65 text-white shadow-lg backdrop-blur-md hover:bg-black/80 hover:text-white sm:right-3 sm:top-3"
+          className="absolute right-2 top-2 border border-black/10 bg-black/65 text-white shadow-sm backdrop-blur-sm hover:bg-black/80 hover:text-white sm:right-3 sm:top-3"
         />
+        <span className="absolute bottom-2 left-2 rounded-md bg-black/75 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm sm:bottom-3 sm:left-3 sm:text-xs">
+          {CONDITION_LABEL[listing.condition]}
+        </span>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-1.5 p-2.5 sm:gap-2.5 sm:p-3.5">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <p className="min-w-0 font-mono text-sm font-bold tracking-tight tabular-nums sm:text-lg">
+      <div className="flex min-w-0 flex-col gap-2 p-3 sm:p-3.5">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <p className="min-w-0 font-mono text-base font-bold tracking-tight tabular-nums text-foreground sm:text-lg">
             {formatKes(listing.priceCents)}
           </p>
           {listing.isNegotiable && (
-            <span className="text-[10px] font-medium text-muted-foreground sm:text-xs">Negotiable</span>
+            <span className="text-[10px] font-medium text-muted-foreground sm:text-xs">
+              Negotiable
+            </span>
           )}
         </div>
 
-        <Link href={`/products/${listing.slug}`} className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <h3 className="line-clamp-2 min-h-9 break-words text-xs font-medium leading-4 text-foreground/90 sm:min-h-10 sm:text-sm sm:leading-5">
+        <Link
+          href={`/products/${listing.slug}`}
+          className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <h3 className="line-clamp-2 min-h-10 break-words text-xs font-medium leading-5 text-foreground sm:text-sm">
             {listing.title}
           </h3>
         </Link>
 
-        <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground sm:gap-1.5 sm:text-xs">
-          <MapPin className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden />
+        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
+          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span className="truncate">{listing.county}</span>
         </div>
 
-        <div className="flex min-w-0 items-center justify-between gap-1 border-t border-border pt-2 text-[10px] sm:pt-2.5 sm:text-xs">
-          <span className="flex min-w-0 items-center gap-1 truncate text-muted-foreground">
-  <span className="truncate">{listing.sellerName}</span>
-  {listing.isVerifiedSeller && (
-    <span className="inline-flex shrink-0 items-center text-primary-400" title="Verified seller" aria-label="Verified seller">
-      <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-    </span>
-  )}
-</span>
-          <span className="max-w-[48%] shrink-0 truncate rounded-full border border-border bg-muted px-2 py-1 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
-            {CONDITION_LABEL[listing.condition]}
+        <div className="flex min-w-0 items-center gap-1.5 border-t border-border pt-2 text-[11px] sm:text-xs">
+          <span className="min-w-0 truncate text-muted-foreground">
+            {listing.sellerName}
           </span>
+          {listing.isVerifiedSeller && (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 font-medium text-primary-400"
+              title="This seller has been verified by MaliHub"
+              aria-label="Verified seller"
+            >
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+              <span>Verified</span>
+            </span>
+          )}
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }

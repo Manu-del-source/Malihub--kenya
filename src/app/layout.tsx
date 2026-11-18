@@ -111,8 +111,10 @@ export default function RootLayout({
             __html: `
               (function () {
                 try {
-                  var light = window.matchMedia('(prefers-color-scheme: light)').matches;
+                  var saved = window.localStorage.getItem('malihub-theme');
+                  var light = saved === 'light' || (saved !== 'dark' && window.matchMedia('(prefers-color-scheme: light)').matches);
                   document.documentElement.classList.toggle('dark', !light);
+                  document.documentElement.classList.toggle('light', light);
                   document.documentElement.style.colorScheme = light ? 'light' : 'dark';
                 } catch (e) {}
               })();

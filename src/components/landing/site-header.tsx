@@ -65,7 +65,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             </button>
             <button
               type="button"
-              onClick={() => setMobileOpen((v) => !v)
+              onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-controls="mobile-primary-navigation"

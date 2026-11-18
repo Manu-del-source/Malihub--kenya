@@ -38,6 +38,7 @@ export function ListingForm({
     defaultValues: {
       isNegotiable: false,
       quantity: 1,
+      priceTiers: [],
       contactPreference: "ANY",
       images: [],
       status: "DRAFT",

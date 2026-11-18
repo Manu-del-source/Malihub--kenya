@@ -11,6 +11,7 @@ import { isVerificationEmailDisabled } from "@/lib/auth/errors";
 import { logAuditEvent } from "@/services/audit-service";
 import { logServerError } from "@/lib/safe-log";
 import { slugify } from "@/utils";
+import { sendOnboardingWelcomeEmail } from "@/services/onboarding-email-service";
 
 export type CreateAdminSellerInput = {
   email: string;
@@ -332,6 +333,10 @@ export async function activateSellerInvitation(input: {
       "Your sign-in account was created, but we couldn't finish linking it. Contact MaliHub support before trying another invitation."
     );
   }
+
+  // The seller identity and application link are now committed. Send the
+  // seller-specific welcome independently of the required email-verification step.
+  await sendOnboardingWelcomeEmail(invitation.user.id, "SELLER_WELCOME");
 
   return { email: invitation.user.email };
 }

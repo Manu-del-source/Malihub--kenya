@@ -56,7 +56,7 @@ export type PaymentMethodOption = {
   description: string;
   /** The channel behind this option, for display and diagnostics only. */
   provider: "PAYSTACK";
-  method: "MOBILE_MONEY" | "CARD";
+  method: "MOBILE_MONEY";
   enabled: boolean;
 };
 

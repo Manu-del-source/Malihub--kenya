@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BadgeCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { SellerVerificationStatus } from "@/types";
 
 export function SellerInfoCard({
   seller,
@@ -14,6 +15,7 @@ export function SellerInfoCard({
     businessName: string;
     slug: string;
     logoUrl: string | null;
+    verificationStatus: SellerVerificationStatus;
     ratingAverage: unknown;
     ratingCount?: number;
     county: string;
@@ -60,12 +62,11 @@ export function SellerInfoCard({
         )}
       </div>
 
-
       {!isOwnListing && showWhatsapp && (
         <div className="flex flex-col gap-2">
           <Button variant="outline" size="lg" className="w-full" asChild>
             <a
-              href={`https://wa.me/${whatsapp!.replace(/\D/g, "")}`}
+              href={`https://wa.me/${whatsapp!.replace(/\\D/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
             >

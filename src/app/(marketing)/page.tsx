@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
+import { CategoriesSection } from "@/components/landing/categories-section";
 import { HeroSection } from "@/components/landing/hero-section";
+import { SellerCtaSection } from "@/components/landing/seller-cta-section";
+import { SupplierCtaSection } from "@/components/landing/supplier-cta-section";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
 import styles from "./homepage.module.css";
 
 export const metadata: Metadata = {
+  title: "MaliHub Kenya — Shop products from sellers across Kenya",
+  description:
+    "Discover products and local listings from independent sellers across Kenya. Compare prices, explore categories and connect with sellers on MaliHub.",
   alternates: { canonical: "/" },
 };
 
@@ -52,11 +58,19 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={styles.homepage}>
         <HeroSection />
-        <section className="border-y border-foreground/10 bg-background py-8 text-foreground sm:py-12">
+
+        <section
+          aria-labelledby="latest-listings-heading"
+          className="border-y border-foreground/10 bg-background py-8 text-foreground sm:py-12"
+        >
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-            <MarketplaceBrowser rawParams={{}} heading="New arrivals" compact />
+            <MarketplaceBrowser rawParams={{}} heading="Discover products and local finds" compact />
           </div>
         </section>
+
+        <CategoriesSection />
+        <SellerCtaSection />
+        <SupplierCtaSection />
       </div>
     </>
   );

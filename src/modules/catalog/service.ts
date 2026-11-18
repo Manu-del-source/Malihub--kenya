@@ -50,6 +50,7 @@ export async function createListing(
       slug: slugify(input.title),
       description: input.description,
       priceCents: input.priceCents,
+      priceTiers: { create: input.priceTiers },
       isNegotiable: input.isNegotiable,
       condition: input.condition,
       brand: input.brand || null,
@@ -99,9 +100,14 @@ export async function updateListing(
   const nextStatus = isPublishing ? "ACTIVE" : existing.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
 
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // Replace the image set wholesale — simpler and safer than diffing,
-    // and image edits are infrequent enough that this isn't a hot path.
+    // Replace image and tier sets atomically with the listing update.
     await tx.productImage.deleteMany({ where: { productId } });
+    await tx.productPriceTier.deleteMany({ where: { productId } });
+    if (input.priceTiers.length) {
+      await tx.productPriceTier.createMany({
+        data: input.priceTiers.map((tier) => ({ productId, ...tier })),
+      });
+    }
 
     return tx.product.update({
       where: { id: productId },
@@ -185,7 +191,7 @@ export async function markListingSold(productId: string, ownerId: string) {
 export async function duplicateListing(productId: string, ownerId: string) {
   const original = await prisma.product.findUnique({
     where: { id: productId },
-    include: { images: true },
+    include: { images: true, priceTiers: true },
   });
   if (!original || original.ownerId !== ownerId) {
     throw new ListingServiceError("Listing not found or you don't have access to it.");
@@ -200,6 +206,7 @@ export async function duplicateListing(productId: string, ownerId: string) {
       slug: slugify(original.title),
       description: original.description,
       priceCents: original.priceCents,
+      priceTiers: { create: original.priceTiers.map(({ minQuantity, unitPriceCents }) => ({ minQuantity, unitPriceCents })) },
       isNegotiable: original.isNegotiable,
       condition: original.condition,
       brand: original.brand,

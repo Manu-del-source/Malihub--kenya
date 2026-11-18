@@ -21,7 +21,7 @@ const BENEFITS = [
 function SellerIllustration() {
   return (
     <div className="relative mx-auto aspect-square w-full max-w-sm" aria-hidden>
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-secondary/10 to-cyan/10 blur-3xl" />
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 blur-3xl" />
 
       <motion.div
         animate={{ y: [0, -10, 0] }}
@@ -36,11 +36,11 @@ function SellerIllustration() {
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
         className="glass absolute right-2 top-20 flex h-16 w-16 items-center justify-center rounded-xl sm:right-6"
       >
-        <Tag className="h-6 w-6 text-cyan" />
+        <Tag className="h-6 w-6 text-primary-400" />
       </motion.div>
 
       <div className="glass absolute bottom-10 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl p-4">
-        <Tag className="h-5 w-5 text-secondary" />
+        <Tag className="h-5 w-5 text-primary-400" />
         <span className="text-sm font-medium">Your listing, your price</span>
       </div>
     </div>
@@ -80,7 +80,7 @@ export function SellerCtaSection() {
               ))}
             </ul>
             <Button size="lg" asChild className="w-fit">
-              <Link href="/register?role=seller">
+              <Link href="/register?redirectTo=%2Fseller%2Fonboarding">
                 Start selling today
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>

@@ -8,7 +8,7 @@ import { ShareButtons } from "@/components/marketplace/share-buttons";
 import { ReportListingDialog } from "@/components/marketplace/report-listing-dialog";
 import { SimilarListings } from "@/components/marketplace/similar-listings";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
-import { AddToCartButton } from "@/components/marketplace/add-to-cart-button";
+import { ProductPurchaseActions } from "@/components/marketplace/product-purchase-actions";
 import { StartChatButton } from "@/components/marketplace/start-chat-button";
 import { getSimilarListings } from "@/services/search-service";
 import { getCurrentUser } from "@/lib/auth";
@@ -92,6 +92,18 @@ export async function ProductDetail({
               {product.isNegotiable && <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Negotiable</span>}
             </div>
 
+            {product.priceTiers.length > 0 && (
+              <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs font-semibold text-foreground">Better prices when you buy more</p>
+                <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                  <li className="flex justify-between gap-3"><span>1–{product.priceTiers[0]!.minQuantity - 1} units</span><span className="font-mono font-semibold text-foreground">{formatKes(product.priceCents)} each</span></li>
+                  {product.priceTiers.map((tier, index) => (
+                    <li key={tier.minQuantity} className="flex justify-between gap-3"><span>{tier.minQuantity}{product.priceTiers[index + 1] ? `–${product.priceTiers[index + 1]!.minQuantity - 1}` : "+"} units</span><span className="font-mono font-semibold text-foreground">{formatKes(tier.unitPriceCents)} each</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-y border-border py-3 text-xs text-muted-foreground sm:text-sm">
               <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" aria-hidden />{product.subCounty ? `${product.subCounty}, ` : ""}{product.county}</span>
               <span className="inline-flex items-center gap-1.5"><Package className="h-4 w-4 text-primary" aria-hidden />{isSold ? "Sold out" : `${product.quantity} available`}</span>
@@ -99,7 +111,7 @@ export async function ProductDetail({
 
             {availableDetails.length > 0 && (
               <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm">
-                {availableDetails.slice(0, 4).map(([label, value]) => (
+                {availableDetails.map(([label, value]) => (
                   <div key={label} className="min-w-0"><dt className="text-muted-foreground">{label}</dt><dd className="truncate font-medium text-foreground">{value}</dd></div>
                 ))}
               </dl>
@@ -107,14 +119,17 @@ export async function ProductDetail({
 
             <div className="mt-4">
               {!isOwnListing ? (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <div className="min-w-0 flex-1">
-                    <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />
-                  </div>
-                </div>
+                <ProductPurchaseActions
+                  productId={product.id}
+                  status={product.status}
+                  stock={product.quantity}
+                  isLoggedIn={!!user}
+                  redirectTo={canonicalPath}
+                  title={product.title}
+                  basePriceCents={product.priceCents}
+                  priceTiers={product.priceTiers}
+                  chatAction={<StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />}
+                />
               ) : (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">This is your listing.</p>
               )}
@@ -132,22 +147,24 @@ export async function ProductDetail({
       </div>
 
       <section className="mt-5 space-y-2">
-        <details className="group rounded-xl border border-border bg-card px-4 py-3" open={false}>
+        <details className="group rounded-xl border border-border bg-card px-4 py-3" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
-            Product description <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+            About this product <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
           </summary>
           <p className="whitespace-pre-line pt-3 text-sm leading-6 text-muted-foreground">{product.description}</p>
         </details>
         <details className="group rounded-xl border border-border bg-card px-4 py-3">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
-            More product details <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+            Specifications <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
           </summary>
-          <div className="flex flex-wrap gap-2 pt-3">
-            <Badge>{product.category.name}</Badge>
-            {product.brand && <Badge>{product.brand}</Badge>}
-            {product.size && <Badge>Size: {product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</Badge>}
-            {product.availableSizes && <Badge>Available sizes: {product.availableSizes}</Badge>}
-          </div>
+          <dl className="mt-3 divide-y divide-border text-sm">
+            <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Category</dt><dd className="text-right font-medium text-foreground">{product.category.name}</dd></div>
+            {product.brand && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Brand</dt><dd className="text-right font-medium text-foreground">{product.brand}</dd></div>}
+            {product.condition && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Condition</dt><dd className="text-right font-medium text-foreground">{CONDITION_LABEL[product.condition] ?? product.condition}</dd></div>}
+            {product.size && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Size</dt><dd className="text-right font-medium text-foreground">{product.size}{product.sizeSystem ? ` (${product.sizeSystem === "CLOTHING" ? "Clothing" : product.sizeSystem})` : ""}</dd></div>}
+            {product.availableSizes && <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Available sizes</dt><dd className="text-right font-medium text-foreground">{product.availableSizes}</dd></div>}
+            <div className="flex items-start justify-between gap-4 py-2"><dt className="text-muted-foreground">Location</dt><dd className="text-right font-medium text-foreground">{product.subCounty ? `${product.subCounty}, ` : ""}{product.county}</dd></div>
+          </dl>
         </details>
         <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2">
           <ShareButtons title={product.title} url={canonicalUrl} />
@@ -157,19 +174,7 @@ export async function ProductDetail({
 
       <SimilarListings listings={similar} />
 
-      {!isOwnListing && !isSold && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-lg pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] text-muted-foreground">{product.title}</p>
-              <p className="font-mono text-base font-bold tabular-nums text-primary">{formatKes(product.priceCents)}</p>
-            </div>
-            <div className="w-[48%] max-w-[13rem]">
-              <AddToCartButton productId={product.id} status={product.status} stock={product.quantity} isLoggedIn={!!user} redirectTo={canonicalPath} intent="checkout" />
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }

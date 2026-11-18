@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ArrowRight, Save } from "lucide-react";
@@ -38,6 +38,7 @@ export function ListingForm({
     defaultValues: {
       isNegotiable: false,
       quantity: 1,
+      priceTiers: [],
       contactPreference: "ANY",
       images: [],
       status: "DRAFT",
@@ -47,6 +48,8 @@ export function ListingForm({
 
   const images = watch("images");
   const isNegotiable = watch("isNegotiable");
+  const watchedPriceTiers = watch("priceTiers");
+  const { fields: priceTierFields, append: appendPriceTier, remove: removePriceTier } = useFieldArray({ control, name: "priceTiers" });
 
   async function submit(status: ListingInput["status"], input: ListingInput) {
     const payload = { ...input, status };
@@ -185,6 +188,69 @@ export function ListingForm({
           </label>
         </div>
       </div>
+
+      <section className="rounded-2xl border border-border p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Quantity pricing (optional)</h3>
+            <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">
+              Offer a lower unit price when buyers order more. The standard price applies below the first threshold.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={priceTierFields.length >= 8 || (Number(watch("priceCents")) || 0) <= 100}
+            onClick={() => appendPriceTier({
+              minQuantity: watchedPriceTiers.length ? watchedPriceTiers[watchedPriceTiers.length - 1]!.minQuantity + 1 : 2,
+              unitPriceCents: Math.max(100, Math.floor((Number(watch("priceCents")) || 100) * 0.9)),
+            })}
+          >
+            Add price tier
+          </Button>
+        </div>
+        {priceTierFields.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {priceTierFields.map((tier, index) => (
+              <div key={tier.id} className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto] items-end gap-2">
+                <FormField id={`priceTiers.${index}.minQuantity`} label="From (units)" error={errors.priceTiers?.[index]?.minQuantity?.message}>
+                  <Input
+                    id={`priceTiers.${index}.minQuantity`}
+                    type="number"
+                    min={2}
+                    max={9999}
+                    invalid={!!errors.priceTiers?.[index]?.minQuantity}
+                    {...register(`priceTiers.${index}.minQuantity`, { valueAsNumber: true })}
+                  />
+                </FormField>
+                <FormField id={`priceTiers.${index}.unitPriceCents`} label="Price per unit (KSh)" error={errors.priceTiers?.[index]?.unitPriceCents?.message}>
+                  <Controller
+                    name={`priceTiers.${index}.unitPriceCents`}
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        id={`priceTiers.${index}.unitPriceCents`}
+                        type="number"
+                        min={1}
+                        invalid={!!errors.priceTiers?.[index]?.unitPriceCents}
+                        value={field.value ? field.value / 100 : ""}
+                        onChange={(event) => field.onChange(Math.round(Number(event.target.value) * 100))}
+                      />
+                    )}
+                  />
+                </FormField>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Remove price tier ${index + 1}`} onClick={() => removePriceTier(index)}>
+                  ×
+                </Button>
+              </div>
+            ))}
+            {errors.priceTiers?.root?.message && <p className="text-xs text-destructive">{errors.priceTiers.root.message}</p>}
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">No quantity discounts added. Buyers pay the standard unit price.</p>
+        )}
+      </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField id="county" label="County" error={errors.county?.message}>

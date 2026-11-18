@@ -62,6 +62,7 @@ export type ProductWithRelations = Pick<
 > & {
   images: Array<Pick<ProductImage, "url">>;
   category: Pick<Category, "id" | "name" | "slug">;
+  priceTiers: Array<{ minQuantity: number; unitPriceCents: number }>;
   seller: Pick<Seller, "businessName" | "slug" | "logoUrl" | "verificationStatus" | "ratingCount" | "county"> & {
     ratingAverage: number;
   };

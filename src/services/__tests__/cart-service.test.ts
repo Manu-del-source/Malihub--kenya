@@ -35,7 +35,7 @@ let db: ReturnType<typeof asCartStore>;
 const BUYER_A = "buyer-a";
 const BUYER_B = "buyer-b";
 
-function seedActiveListing(quantity = 5, priceCents = 120_000) {
+function seedActiveListing(quantity = 5, priceCents = 120_000, priceTiers: Array<{ minQuantity: number; unitPriceCents: number }> = []) {
   const seller = seedSeller(store, { userId: "seller-1" });
   const category = seedCategory(store);
   return seedProduct(store, {
@@ -44,6 +44,7 @@ function seedActiveListing(quantity = 5, priceCents = 120_000) {
     categoryId: category.id,
     quantity,
     priceCents,
+    priceTiers,
     status: "ACTIVE",
   });
 }
@@ -58,6 +59,20 @@ beforeEach(() => {
 });
 
 describe("cart — adding items", () => {
+  it("uses the eligible quantity price for cart lines and subtotals", async () => {
+    const product = seedActiveListing(8, 125_000, [
+      { minQuantity: 2, unitPriceCents: 91_000 },
+      { minQuantity: 5, unitPriceCents: 87_500 },
+    ]);
+
+    const cart = await service.addToCart(db, BUYER_A, product.id, 5);
+
+    assert.equal(cart.items[0]!.unitPriceCents, 87_500);
+    assert.equal(cart.items[0]!.lineTotalCents, 437_500);
+    assert.equal(cart.subtotalCents, 437_500);
+  });
+
+
   it("adds a product to the buyer's own cart with a valid quantity", async () => {
     const product = seedActiveListing();
 

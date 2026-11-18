@@ -16,7 +16,6 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = { Tv, Smartphone, Shirt, Foot
 
 const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
-  { label: "Suppliers", href: "/become-a-supplier" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -86,9 +85,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
           </nav>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <Button size="sm" asChild className="hidden whitespace-nowrap sm:inline-flex">
-              <Link href="/seller-center">List with us</Link>
-            </Button>
             <NotificationBell isSignedIn={!!user} />
             {user ? (
               <AccountMenu user={user} />
@@ -147,13 +143,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/seller-center"
-                onClick={() => setMobileOpen(false)}
-                className="mt-1 flex items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-400"
-              >
-                List with us
-              </Link>
               <div className="mt-1 flex gap-2 border-t border-border pt-3">
                 {user ? (
                   <>

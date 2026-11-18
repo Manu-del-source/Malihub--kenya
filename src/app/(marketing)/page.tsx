@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
 import { CategoriesSection } from "@/components/landing/categories-section";
 import { HeroSection } from "@/components/landing/hero-section";
-import { SellerCtaSection } from "@/components/landing/seller-cta-section";
-import { SupplierCtaSection } from "@/components/landing/supplier-cta-section";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
 import styles from "./homepage.module.css";
 
 export const metadata: Metadata = {
   title: "MaliHub Kenya — Shop products from sellers across Kenya",
   description:
-    "Discover products and local listings from independent sellers across Kenya. Compare prices, explore categories and connect with sellers on MaliHub.",
+    "Discover products and local listings from independent sellers across Kenya. Compare prices, explore categories and connect directly with sellers.",
   alternates: { canonical: "/" },
 };
 
@@ -69,8 +67,6 @@ export default function HomePage() {
         </section>
 
         <CategoriesSection />
-        <SellerCtaSection />
-        <SupplierCtaSection />
       </div>
     </>
   );

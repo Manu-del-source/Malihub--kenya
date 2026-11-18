@@ -835,7 +835,7 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
     assert.equal(orderRow(order.id).status, "DELIVERED");
   });
 
-  it("does not let the buyer record delivery, and the buyer cannot complete before delivery", async () => {
+  it("lets the buyer confirm physical receipt directly from SHIPPED", async () => {
     const { seller } = seedListing(SELLER_1, { quantity: 5 });
     const order = await placeOrder(BUYER_A, sellerProductId(store, seller.id), 1);
     await service.markOrderPaid(db, { orderId: order.id, actor: { id: "sys", source: "test" } });
@@ -845,9 +845,21 @@ describe("markOrderFulfilled — PAID → SHIPPED → DELIVERED → COMPLETED", 
       actorSellerId: seller.id,
       shipment: { carrierName: "Test Courier", trackingNumber: "TEST-123" },
     });
+
+    // Buyers cannot make the seller's delivery attestation, but they can
+    // confirm their own physical receipt even when courier tracking lags.
     await assert.rejects(service.markOrderFulfilled(db, "DELIVERED", { orderId: order.id, actorUserId: BUYER_A }));
-    await assert.rejects(service.markOrderFulfilled(db, "COMPLETED", { orderId: order.id, actorUserId: BUYER_A }));
-    assert.equal(orderRow(order.id).status, "SHIPPED");
+    const completed = await service.markOrderFulfilled(db, "COMPLETED", {
+      orderId: order.id,
+      actorUserId: BUYER_A,
+    });
+
+    assert.equal(completed.order.status, "COMPLETED");
+    assert.equal(orderRow(order.id).status, "COMPLETED");
+    assert.ok(orderRow(order.id).deliveredAt instanceof Date);
+    const shipment = [...store.tables.orderShipments.values()].find((row) => row.orderId === order.id);
+    assert.equal(shipment?.status, "DELIVERED");
+    assert.ok(shipment?.deliveredAt instanceof Date);
   });
 
   it("lets only the owning buyer confirm receipt, once", async () => {
@@ -1349,6 +1361,6 @@ describe("the service is the only status writer", () => {
     // Every non-legal combination was actually exercised. 8 states × 5
     // writers = 40 pairs, minus the 5 legal ones and minus 5 self-pairs that
     // take the replay branch = 30 refusals + 5 replays.
-    assert.equal(checked, 35, "the forbidden/replay matrix must be fully exercised");
+    assert.equal(checked, 34, "the forbidden/replay matrix must be fully exercised");
   });
 });

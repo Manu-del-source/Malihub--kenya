@@ -21,8 +21,12 @@ function applyTheme(theme: Theme) {
 }
 
 function getPreferredTheme(): Theme {
-  const saved = window.localStorage.getItem(STORAGE_KEY);
-  if (saved === "light" || saved === "dark") return saved;
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    // Storage can be unavailable in restricted browser contexts; use system preference.
+  }
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
@@ -40,7 +44,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const query = window.matchMedia("(prefers-color-scheme: light)");
     const handleSystemChange = () => {
-      if (!window.localStorage.getItem(STORAGE_KEY)) sync();
+      try {
+        if (!window.localStorage.getItem(STORAGE_KEY)) sync();
+      } catch {
+        sync();
+      }
     };
     query.addEventListener("change", handleSystemChange);
     return () => query.removeEventListener("change", handleSystemChange);
@@ -48,7 +56,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTheme = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
-    window.localStorage.setItem(STORAGE_KEY, next);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Apply the choice for this session even when persistent storage is blocked.
+    }
     applyTheme(next);
     setTheme(next);
   };

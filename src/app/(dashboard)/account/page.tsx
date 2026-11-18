@@ -104,7 +104,7 @@ export default async function AccountPage() {
       ? [{
           label: "Open Seller Centre",
           detail: `${seller.businessName} · ${listingCount} listing${listingCount === 1 ? "" : "s"}`,
-          href: "/seller-center",
+          href: "/seller",
           icon: Store,
           target: "_blank" as const,
         }]

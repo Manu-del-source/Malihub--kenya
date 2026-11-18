@@ -3,6 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import { AddToCartButton } from "@/components/marketplace/add-to-cart-button";
+import { getUnitPriceCents, type ProductPriceTierInput } from "@/lib/pricing/product-price-tiers";
+import { formatKes } from "@/utils";
 
 export function ProductPurchaseActions({
   productId,
@@ -13,6 +15,7 @@ export function ProductPurchaseActions({
   chatAction,
   title,
   priceLabel,
+  priceTiers,
 }: {
   productId: string;
   status: string;
@@ -22,9 +25,11 @@ export function ProductPurchaseActions({
   chatAction: ReactNode;
   title: string;
   priceLabel: string;
+  priceTiers: ProductPriceTierInput[];
 }) {
   const [quantity, setQuantity] = useState(1);
   const unavailable = status !== "ACTIVE" || stock < 1;
+  const selectedUnitPrice = getUnitPriceCents(Number(priceLabel.replace(/[^0-9]/g, "")) * 100 || 100, priceTiers, quantity);
 
   function decrease() {
     setQuantity((current) => Math.max(1, current - 1));
@@ -36,7 +41,7 @@ export function ProductPurchaseActions({
 
   return (
     <>
-      <div className="space-y-3">
+      <div className="space-y-3">\n        <p className="text-sm font-semibold text-primary">{formatKes(selectedUnitPrice)} <span className="text-xs font-normal text-muted-foreground">per unit at this quantity</span></p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="text-sm font-medium text-foreground" id="product-quantity-label">Quantity</label>
           <div className="inline-flex h-10 items-center rounded-lg border border-border bg-background">
@@ -85,7 +90,7 @@ export function ProductPurchaseActions({
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[10px] text-muted-foreground">{title}</p>
-              <p className="font-mono text-base font-bold tabular-nums text-primary">{priceLabel}</p>
+              <p className="font-mono text-base font-bold tabular-nums text-primary">{formatKes(selectedUnitPrice)}</p>
               <p className="text-[10px] text-muted-foreground">Qty: {quantity}</p>
             </div>
             <div className="w-[48%] max-w-[13rem]">

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { getUnitPriceCents } from "@/lib/pricing/product-price-tiers";
 
 /**
  * Buyer cart — server-side domain logic.
@@ -54,6 +55,7 @@ const CART_SELECT = {
       title: true,
       slug: true,
       priceCents: true,
+      priceTiers: { orderBy: { minQuantity: "asc" }, select: { minQuantity: true, unitPriceCents: true } },
       status: true,
       quantity: true,
       images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
@@ -126,8 +128,8 @@ export async function getCart(db: CartStore, userId: string): Promise<CartView> 
       id: row.id,
       productId: row.productId,
       quantity: row.quantity,
-      unitPriceCents: row.product.priceCents,
-      lineTotalCents: isAvailable ? row.product.priceCents * row.quantity : 0,
+      unitPriceCents: getUnitPriceCents(row.product.priceCents, row.product.priceTiers ?? [], row.quantity),
+      lineTotalCents: isAvailable ? getUnitPriceCents(row.product.priceCents, row.product.priceTiers ?? [], row.quantity) * row.quantity : 0,
       isAvailable,
       stockAvailable: Math.max(0, row.product.quantity),
       product: {
@@ -153,7 +155,7 @@ export async function getCartSummary(db: CartStore, userId: string): Promise<Car
     where: { userId, product: { status: "ACTIVE" } },
     select: {
       quantity: true,
-      product: { select: { priceCents: true } },
+      product: { select: { priceCents: true, priceTiers: { orderBy: { minQuantity: "asc" }, select: { minQuantity: true, unitPriceCents: true } } } },
     },
   });
 
@@ -161,7 +163,7 @@ export async function getCartSummary(db: CartStore, userId: string): Promise<Car
     itemCount: rows.length,
     subtotalCents: rows.reduce(
       (sum, row: { quantity: number; product: { priceCents: number } }) =>
-        sum + row.quantity * row.product.priceCents,
+        sum + row.quantity * getUnitPriceCents(row.product.priceCents, row.product.priceTiers ?? [], row.quantity),
       0
     ),
   };

@@ -91,10 +91,10 @@ describe("checkout UI — payment states and copy", () => {
   it("never presents an opened Paystack checkout as success", () => {
     const source = read(PAY_SECTION);
     assert.match(source, /Awaiting payment/, "the waiting state is named explicitly");
-    assert.match(source, /Complete the payment in the Paystack window/);
+    assert.match(source, /Complete your payment in the secure Paystack window using M-Pesa or a debit\/credit card/);
     assert.match(source, /Payment successful/, "success copy exists for the confirmed state");
     assert.match(source, /Payment was not completed/, "failure copy exists for the failed state");
-    assert.match(source, /Your M-Pesa PIN is entered only on the official Paystack\/M-Pesa prompt/);
+    assert.match(source, /M-Pesa or a debit\/credit card/, "both supported Paystack payment channels are explained");
     assert.match(source, /This page updates\s+automatically/, "the buyer is told the server confirms");
   });
 

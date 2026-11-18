@@ -4,7 +4,6 @@ import { HeroSection } from "@/components/landing/hero-section";
 import { SellerCtaSection } from "@/components/landing/seller-cta-section";
 import { SupplierCtaSection } from "@/components/landing/supplier-cta-section";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
-import { HomepageCategoryDrawer } from "@/components/landing/homepage-category-drawer";
 import styles from "./homepage.module.css";
 
 export const metadata: Metadata = {
@@ -58,7 +57,6 @@ export default function HomePage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={styles.homepage}>
-        <HomepageCategoryDrawer />
         <HeroSection />
 
         <section

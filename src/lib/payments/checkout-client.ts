@@ -54,9 +54,13 @@ export type PaymentMethodOption = {
   id: "paystack";
   label: string;
   description: string;
-  /** The channel behind this option, for display and diagnostics only. */
+  /** The provider used for hosted checkout. */
   provider: "PAYSTACK";
-  method: "MOBILE_MONEY";
+  /**
+   * Paystack hosted checkout lets the buyer choose the actual channel.
+   * It is unknown until the server verifies the completed transaction.
+   */
+  method: null;
   enabled: boolean;
 };
 
@@ -66,7 +70,7 @@ export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
     label: "Paystack",
     description: "Pay securely by M-Pesa or debit/credit card through Paystack hosted checkout.",
     provider: "PAYSTACK",
-    method: "MOBILE_MONEY",
+    method: null,
     enabled: true,
   },
 ];

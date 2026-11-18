@@ -69,7 +69,8 @@ beforeEach(() => {
   seedProfile(store, BUYER_B, "Grace Atieno");
 });
 
-describe("checkout — cart becomes orders", () => {\n  it("snapshots the eligible bulk unit price into the order item", async () => {
+describe("checkout — cart becomes orders", () => {
+  it("snapshots the eligible bulk unit price into the order item", async () => {
     const { product } = seedSellerListing("seller-bulk", {
       quantity: 6,
       priceCents: 125_000,

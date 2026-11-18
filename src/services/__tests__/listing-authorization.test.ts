@@ -60,6 +60,7 @@ const LISTING_INPUT = {
   condition: "GOOD" as const,
   brand: "",
   priceCents: 90_000,
+  priceTiers: [],
   isNegotiable: false,
   quantity: 6,
   county: "Nairobi" as const,

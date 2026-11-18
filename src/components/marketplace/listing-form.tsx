@@ -48,6 +48,7 @@ export function ListingForm({
 
   const images = watch("images");
   const isNegotiable = watch("isNegotiable");
+  const watchedPriceTiers = watch("priceTiers");
   const { fields: priceTierFields, append: appendPriceTier, remove: removePriceTier } = useFieldArray({ control, name: "priceTiers" });
 
   async function submit(status: ListingInput["status"], input: ListingInput) {
@@ -200,8 +201,11 @@ export function ListingForm({
             type="button"
             variant="secondary"
             size="sm"
-            disabled={priceTierFields.length >= 8}
-            onClick={() => appendPriceTier({ minQuantity: 2, unitPriceCents: Math.max(100, (Number(watch("priceCents")) || 100) - 100) })}
+            disabled={priceTierFields.length >= 8 || (Number(watch("priceCents")) || 0) <= 100}
+            onClick={() => appendPriceTier({
+              minQuantity: watchedPriceTiers.length ? watchedPriceTiers[watchedPriceTiers.length - 1]!.minQuantity + 1 : 2,
+              unitPriceCents: Math.max(100, Math.floor((Number(watch("priceCents")) || 100) * 0.9)),
+            })}
           >
             Add price tier
           </Button>

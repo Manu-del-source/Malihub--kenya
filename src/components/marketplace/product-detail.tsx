@@ -92,6 +92,18 @@ export async function ProductDetail({
               {product.isNegotiable && <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Negotiable</span>}
             </div>
 
+            {product.priceTiers.length > 0 && (
+              <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs font-semibold text-foreground">Better prices when you buy more</p>
+                <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                  <li className="flex justify-between gap-3"><span>1–{product.priceTiers[0]!.minQuantity - 1} units</span><span className="font-mono font-semibold text-foreground">{formatKes(product.priceCents)} each</span></li>
+                  {product.priceTiers.map((tier, index) => (
+                    <li key={tier.minQuantity} className="flex justify-between gap-3"><span>{tier.minQuantity}{product.priceTiers[index + 1] ? `–${product.priceTiers[index + 1]!.minQuantity - 1}` : "+"} units</span><span className="font-mono font-semibold text-foreground">{formatKes(tier.unitPriceCents)} each</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-y border-border py-3 text-xs text-muted-foreground sm:text-sm">
               <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" aria-hidden />{product.subCounty ? `${product.subCounty}, ` : ""}{product.county}</span>
               <span className="inline-flex items-center gap-1.5"><Package className="h-4 w-4 text-primary" aria-hidden />{isSold ? "Sold out" : `${product.quantity} available`}</span>
@@ -115,6 +127,7 @@ export async function ProductDetail({
                   redirectTo={canonicalPath}
                   title={product.title}
                   priceLabel={formatKes(product.priceCents)}
+                  priceTiers={product.priceTiers}
                   chatAction={<StartChatButton sellerId={product.ownerId} productId={product.id} isLoggedIn={!!user} redirectTo={canonicalPath} />}
                 />
               ) : (

@@ -31,6 +31,7 @@ export default async function EditListingPage({
     where: { id },
     include: {
       images: { orderBy: { sortOrder: "asc" } },
+      priceTiers: { orderBy: { minQuantity: "asc" } },
       category: true,
       supplierProduct: {
         select: {
@@ -84,6 +85,7 @@ export default async function EditListingPage({
             condition: product.condition,
             brand: product.brand ?? "",
             priceCents: product.priceCents,
+            priceTiers: product.priceTiers.map((tier) => ({ minQuantity: tier.minQuantity, unitPriceCents: tier.unitPriceCents })),
             isNegotiable: product.isNegotiable,
             quantity: product.quantity,
             county: product.county as ListingFormCounty,

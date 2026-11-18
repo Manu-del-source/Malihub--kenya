@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateProductPriceTiers } from "@/lib/pricing/product-price-tiers";
 import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/constants";
 import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 import { boundedArray } from "@/lib/validations/bounded-array";
@@ -40,6 +41,10 @@ export const listingSchema = z.object({
   sizeSystem: z.enum(["UK", "US", "EU", "CLOTHING", "OTHER"]).optional(),
   availableSizes: z.string().trim().max(250).optional().or(z.literal("")),
   priceCents: z.coerce.number().int().min(100, "Price must be at least KSh 1"),
+  priceTiers: z.array(z.object({
+    minQuantity: z.coerce.number().int().min(2).max(9999),
+    unitPriceCents: z.coerce.number().int().min(100),
+  })).max(8).default([]),
   isNegotiable: z.boolean().default(false),
   quantity: z.coerce.number().int().min(1).max(9999).default(1),
   county: z.enum(KENYA_COUNTIES, { error: "Select a county" }),
@@ -53,6 +58,12 @@ export const listingSchema = z.object({
     `Up to ${MAX_LISTING_IMAGES} photos`
   ),
   status: z.enum(["DRAFT", "ACTIVE"]).default("DRAFT"),
+}).superRefine((input, ctx) => {
+  try {
+    validateProductPriceTiers(input.priceCents, input.priceTiers);
+  } catch (error) {
+    ctx.addIssue({ code: "custom", path: ["priceTiers"], message: error instanceof Error ? error.message : "Invalid quantity prices." });
+  }
 });
 
 export type ListingInput = z.infer<typeof listingSchema>;

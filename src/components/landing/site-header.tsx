@@ -12,7 +12,9 @@ import { AccountMenu, type HeaderUser } from "@/components/landing/account-menu"
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOutAction } from "@/app/(auth)/actions";
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = { Tv, Smartphone, Shirt, Footprints, Sofa, WashingMachine, Sparkles, Wheat, Briefcase, Wrench, Dumbbell, BookOpen, Baby, PawPrint, Package };\n\nconst NAV_LINKS = [
+const CATEGORY_ICONS: Record<string, LucideIcon> = { Tv, Smartphone, Shirt, Footprints, Sofa, WashingMachine, Sparkles, Wheat, Briefcase, Wrench, Dumbbell, BookOpen, Baby, PawPrint, Package };
+
+const NAV_LINKS = [
   { label: "Explore", href: "/marketplace" },
   { label: "Suppliers", href: "/become-a-supplier" },
   { label: "Contact", href: "/contact" },
@@ -20,7 +22,8 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = { Tv, Smartphone, Shirt, Foot
 
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);\n  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">

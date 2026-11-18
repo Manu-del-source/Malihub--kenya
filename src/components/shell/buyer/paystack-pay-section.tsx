@@ -105,7 +105,7 @@ export function PaystackPaySection({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-primary-400" aria-hidden />
-          <h3 className="font-display text-base font-medium">Choose how to pay</h3>
+          <h3 className="font-display text-base font-medium">Secure payment</h3>
         </div>
         <Badge variant={payment.phase === "succeeded" ? "primary" : "default"}>
           {paymentAttemptLabel(snapshot)}
@@ -114,7 +114,7 @@ export function PaystackPaySection({
 
       <p className="mt-1 text-xs text-muted-foreground">
         Order <span className="font-mono">{order.orderNumber}</span>
-        {order.sellerName ? ` · ${order.sellerName}` : ""} · {PAYSTACK.label} secure checkout · M-Pesa and cards
+        {order.sellerName ? ` · ${order.sellerName}` : ""} · {PAYSTACK.label} secure checkout · Choose M-Pesa or card in Paystack checkout
       </p>
 
       {payment.phase === "succeeded" ? (

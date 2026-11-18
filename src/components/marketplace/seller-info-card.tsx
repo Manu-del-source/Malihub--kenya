@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Star } from "lucide-react";
+import { BadgeCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SellerInfoCard({
@@ -32,12 +32,22 @@ export function SellerInfoCard({
           {seller.businessName[0]?.toUpperCase()}
         </div>
         <div>
-          <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             {seller.businessName}
+            {seller.verificationStatus === "VERIFIED" && (
+              <BadgeCheck className="h-4 w-4 shrink-0 text-primary" aria-label="Verified seller" />
+            )}
           </p>
-          <p className="text-xs text-muted-foreground">{seller.county}</p>
+          <p className="text-xs text-muted-foreground">{seller.county} · Seller profile</p>
         </div>
       </Link>
+
+      {seller.verificationStatus === "VERIFIED" && (
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+          <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+          MaliHub verified seller
+        </p>
+      )}
 
       <div className="flex items-center gap-1.5 text-sm">
         <Star
@@ -55,7 +65,7 @@ export function SellerInfoCard({
         <div className="flex flex-col gap-2">
           <Button variant="outline" size="lg" className="w-full" asChild>
             <a
-              href={`https://wa.me/${whatsapp!.replace(/\\D/g, "")}`}
+              href={`https://wa.me/${whatsapp!.replace(/\D/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
             >

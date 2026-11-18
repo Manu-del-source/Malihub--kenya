@@ -43,7 +43,7 @@ export async function sendOnboardingWelcomeEmail(userId: string, kind: Onboardin
     const delivered = await sendEmail({
       to: user.email,
       subject: isSeller ? "Welcome to MaliHub Seller Center" : "Welcome to MaliHub Kenya",
-      react: WelcomeEmail({ audience: isSeller ? "seller" : "buyer", displayName, shopName: user.seller?.businessName, appUrl: APP_URL }),
+      react: WelcomeEmail({ audience: isSeller ? "seller" : "buyer", displayName, shopName: user.seller?.businessName, email: user.email, appUrl: APP_URL }),
     });
 
     await prisma.onboardingEmail.update({

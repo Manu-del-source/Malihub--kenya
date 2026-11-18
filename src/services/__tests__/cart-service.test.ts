@@ -58,7 +58,8 @@ beforeEach(() => {
   db = asCartStore(store);
 });
 
-describe("cart — adding items", () => {\n  it("uses the eligible quantity price for cart lines and subtotals", async () => {
+describe("cart — adding items", () => {
+  it("uses the eligible quantity price for cart lines and subtotals", async () => {
     const product = seedActiveListing(8, 125_000, [
       { minQuantity: 2, unitPriceCents: 91_000 },
       { minQuantity: 5, unitPriceCents: 87_500 },

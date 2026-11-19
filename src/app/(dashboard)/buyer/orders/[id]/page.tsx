@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
 import { notFound } from "next/navigation";
@@ -17,6 +18,8 @@ import { PaystackPaySection } from "@/components/shell/buyer/paystack-pay-sectio
 import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
+import { buildOrderProgress, orderProgressHeadline } from "@/lib/order-progress";
+import { OrderStepper } from "@/components/shell/buyer/order-stepper";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -61,6 +64,15 @@ export default async function BuyerOrderDetailPage({
   });
 
   const itemSubtotal = order.items.reduce((sum, item) => sum + item.totalCents, 0);
+  // Anything above the item subtotal is delivery / fees; shown only when present.
+  const extraCents = Math.max(0, order.totalCents - itemSubtotal);
+
+  const progress = buildOrderProgress({
+    status: order.status,
+    createdAt: order.createdAt,
+    paidAt: paymentSnapshot?.payment?.paidAt ? new Date(paymentSnapshot.payment.paidAt) : null,
+    deliveredAt: order.deliveredAt,
+  });
 
   // Buyer-safe supplier fulfilment projections only: no supplier name, cost,
   // purchase reference, internal notes or delivery evidence is selected.
@@ -104,35 +116,70 @@ export default async function BuyerOrderDetailPage({
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
+        <section className="glass rounded-2xl p-5 sm:p-6">
+          <p
+            className={
+              progress.kind === "closed"
+                ? "font-display text-lg font-medium text-destructive"
+                : "font-display text-lg font-medium"
+            }
+          >
+            {orderProgressHeadline(progress)}
+          </p>
+          <div className="mt-5">
+            <OrderStepper progress={progress} />
+          </div>
+        </section>
+
         <section className="glass rounded-2xl">
           <h2 className="border-b border-border px-6 py-4 font-display text-lg font-medium">
-            Items
+            {order.items.length} item{order.items.length === 1 ? "" : "s"} in this order
           </h2>
           <div className="divide-y divide-border">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-4 px-6 py-4">
-                <div className="min-w-0">
-                  <Link
-                    href={`/products/${item.product.slug}`}
-                    className="block truncate text-sm font-medium hover:text-primary-400"
-                  >
-                    {item.product.title}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {formatKes(item.unitPriceCents)} × {item.quantity}
+            {order.items.map((item) => {
+              const image = item.product.images[0]?.url;
+              return (
+                <div key={item.id} className="flex items-center gap-4 px-6 py-4">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-card">
+                    {image ? (
+                      <Image
+                        src={image}
+                        alt=""
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/products/${item.product.slug}`}
+                      className="block truncate text-sm font-medium hover:text-primary-400"
+                    >
+                      {item.product.title}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      Qty: {item.quantity} · {formatKes(item.unitPriceCents)} each
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-mono text-sm tabular-nums">
+                    {formatKes(item.totalCents)}
                   </p>
                 </div>
-                <p className="shrink-0 font-mono text-sm tabular-nums">
-                  {formatKes(item.totalCents)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="space-y-1.5 border-t border-border px-6 py-4 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-mono tabular-nums">{formatKes(itemSubtotal)}</span>
             </div>
+            {extraCents > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Delivery &amp; fees</span>
+                <span className="font-mono tabular-nums">{formatKes(extraCents)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-medium">
               <span>Total</span>
               <span className="font-mono tabular-nums">{formatKes(order.totalCents)}</span>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Package } from "lucide-react";
@@ -9,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 import { listBuyerOrders } from "@/services/order-service";
 import { formatKes, timeAgo } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
+import { buildOrderProgress, orderProgressHeadline } from "@/lib/order-progress";
+import { OrderProgressBar } from "@/components/shell/buyer/order-stepper";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your orders" };
@@ -133,14 +136,40 @@ export default async function BuyerOrdersPage({
                 </div>
                 <span className="text-xs text-muted-foreground">{timeAgo(order.createdAt)}</span>
               </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex min-w-0 flex-wrap gap-3">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-2">
-                      <span className="max-w-[14rem] truncate text-sm text-foreground/90">{item.product.title}</span>
-                      <span className="text-xs text-muted-foreground">×{item.quantity}</span>
-                    </div>
-                  ))}
+              {(() => {
+                const progress = buildOrderProgress({
+                  status: order.status,
+                  createdAt: order.createdAt,
+                  deliveredAt: order.deliveredAt,
+                });
+                return (
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-sm font-medium">{orderProgressHeadline(progress)}</p>
+                    <OrderProgressBar progress={progress} />
+                  </div>
+                );
+              })()}
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex -space-x-2">
+                    {order.items.slice(0, 3).map((item) => {
+                      const image = item.product.images[0]?.url;
+                      return (
+                        <span
+                          key={item.id}
+                          className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-card bg-card"
+                        >
+                          {image ? (
+                            <Image src={image} alt="" fill sizes="48px" className="object-cover" />
+                          ) : null}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <p className="min-w-0 truncate text-sm text-foreground/90">
+                    {order.items[0]?.product.title}
+                    {order.items.length > 1 ? ` +${order.items.length - 1} more` : ""}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-base font-medium tabular-nums">{formatKes(order.totalCents)}</p>

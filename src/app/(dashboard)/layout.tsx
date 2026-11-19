@@ -95,7 +95,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </header>
 
       <main className="pb-20 md:pb-0">{children}</main>
-      <MobileBottomNav cartCount={cartCount} />
+      <MobileBottomNav cartCount={cartCount} sellerEnabled={Boolean(seller)} />
     </div>
   );
 }

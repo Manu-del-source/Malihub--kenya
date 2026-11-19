@@ -75,7 +75,7 @@ export default async function SellerDashboardPage() {
   const stepIndex = isVerified ? 2 : seller.verificationStatus === "PENDING" ? 1 : 0;
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
+    <Container className="min-h-[calc(100svh-180px)] px-3 py-6 pb-28 text-foreground sm:px-6 sm:py-12">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Badge variant={seller.verificationStatus === "VERIFIED" ? "verified" : "default"}>
@@ -86,7 +86,7 @@ export default async function SellerDashboardPage() {
         {isVerified && (
           <Link
             href={`${SELLER_DASHBOARD_PATH}/listings/new`}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400"
           >
             <Plus className="h-4 w-4" aria-hidden />
             Add new listing

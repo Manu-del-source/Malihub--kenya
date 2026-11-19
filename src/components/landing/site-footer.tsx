@@ -9,7 +9,6 @@ import {
   INSTAGRAM_URL,
   SUPPORT_WHATSAPP_URL,
 } from "@/components/landing/footer-links";
-import { SUPPORT_WHATSAPP } from "@/lib/support";
 
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 // 44px minimum tap target on every footer link.
@@ -32,21 +31,17 @@ export function SiteFooter() {
               Products and local listings from independent sellers across Kenya.
             </p>
 
-            <a
-              href={SUPPORT_WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`group inline-flex min-h-11 items-center gap-3 rounded-lg py-1 pr-2 transition-colors ${FOCUS}`}
-              aria-label={`Chat with MaliHub support on WhatsApp at ${SUPPORT_WHATSAPP}`}
-            >
-              <WhatsAppIcon className="h-7 w-7 shrink-0" aria-hidden />
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-[#25D366]">Chat on WhatsApp</span>
-                <span className="text-xs text-muted-foreground">{SUPPORT_WHATSAPP}</span>
-              </span>
-            </a>
-
             <div className="flex items-center gap-2">
+              <a
+                href={SUPPORT_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Chat with MaliHub on WhatsApp"
+                title="WhatsApp"
+                className={`${ICON_BUTTON} text-[#25D366] hover:border-[#25D366]/50 hover:bg-[#25D366]/10 hover:text-[#25D366]`}
+              >
+                <WhatsAppIcon className="h-5 w-5" aria-hidden />
+              </a>
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow MaliHub on Instagram" className={ICON_BUTTON}>
                 <Instagram className="h-4 w-4" aria-hidden />
               </a>

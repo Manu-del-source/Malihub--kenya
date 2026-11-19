@@ -48,17 +48,17 @@ export default async function SellerListingsPage() {
   });
 
   return (
-    <Container className="min-h-[calc(100svh-180px)] py-10 text-foreground sm:py-12">
-      <div className="mb-8 flex items-center justify-between">
+    <Container className="min-h-[calc(100svh-180px)] px-3 py-6 pb-28 text-foreground sm:px-6 sm:py-12">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
         <div>
-          <h1 className="font-display text-3xl font-medium">My listings</h1>
+          <h1 className="font-display text-2xl font-medium sm:text-3xl">My listings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {listings.length} listing{listings.length === 1 ? "" : "s"}
           </p>
         </div>
         <Link
           href={`${SELLER_DASHBOARD_PATH}/listings/new`}
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
         >
           <Plus className="h-4 w-4" aria-hidden />
           Add new listing
@@ -83,7 +83,34 @@ export default async function SellerListingsPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-foreground/10 bg-card">
+        <>
+        <div className="space-y-3 md:hidden">
+          {listings.map((listing: ListingRow) => (
+            <article key={listing.id} className="rounded-2xl border border-foreground/10 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-foreground/10 bg-muted">
+                  {listing.images[0] && (
+                    <Image src={listing.images[0].url} alt="" fill sizes="80px" className="object-cover" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <Link href={`${SELLER_DASHBOARD_PATH}/listings/${listing.id}/edit`} className="line-clamp-2 text-sm font-semibold text-foreground hover:text-primary">
+                    {listing.title}
+                  </Link>
+                  <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-foreground/90">{formatKes(listing.priceCents)}</p>
+                  <div className="mt-2"><ListingStatusBadge status={listing.status} /></div>
+                </div>
+                <ListingRowActions productId={listing.id} status={listing.status} />
+              </div>
+              <div className="mt-3 flex items-center gap-4 border-t border-foreground/10 pt-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><Eye className="h-3.5 w-3.5" aria-hidden /> {listing.viewCount} views</span>
+                <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5" aria-hidden /> {listing.favoriteCount} saved</span>
+                <span className="ml-auto">{timeAgo(listing.updatedAt)}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-hidden rounded-2xl border border-foreground/10 bg-card md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-foreground/10 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -128,6 +155,7 @@ export default async function SellerListingsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Container>
   );

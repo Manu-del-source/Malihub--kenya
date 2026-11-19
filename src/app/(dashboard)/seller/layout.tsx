@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
+import { SellerBrowserGate } from "@/components/pwa/seller-browser-gate";
 
-/** Seller Centre remains accessible inside the installed MaliHub experience. */
+/**
+ * Keep the full Seller Centre browser-first while allowing product workflows
+ * through SellerBrowserGate in the installed MaliHub app.
+ */
 export default function SellerLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <SellerBrowserGate>{children}</SellerBrowserGate>;
 }

@@ -102,16 +102,15 @@ export default async function AccountPage() {
       : []),
     ...(seller
       ? [{
-          label: "Open Seller Centre",
+          label: "Manage products",
           detail: `${seller.businessName} · ${listingCount} listing${listingCount === 1 ? "" : "s"}`,
-          href: "/seller",
+          href: "/seller/listings",
           icon: Store,
-          target: "_blank" as const,
         }]
       : !isAdmin
         ? [{
             label: "Sell on MaliHub",
-            detail: "Register and manage your shop on the website",
+            detail: "Register your business and set up your shop on the website",
             href: "/seller-center",
             icon: Store,
             target: "_blank" as const,

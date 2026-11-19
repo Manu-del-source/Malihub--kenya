@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { SellerBrowserGate } from "@/components/pwa/seller-browser-gate";
 
+/** Seller Centre is responsive and available in both the browser and installed app. */
 export default function SellerLayout({ children }: { children: ReactNode }) {
-  return <SellerBrowserGate>{children}</SellerBrowserGate>;
+  return children;
 }

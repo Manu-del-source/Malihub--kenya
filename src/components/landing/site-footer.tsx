@@ -36,14 +36,12 @@ export function SiteFooter() {
               href={SUPPORT_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className={`group inline-flex min-h-12 w-full max-w-xs items-center gap-3 rounded-xl border border-primary-400/25 bg-primary-400/[0.06] px-4 py-3 transition-colors hover:border-primary-400/50 hover:bg-primary-400/[0.10] ${FOCUS}`}
+              className={`group inline-flex min-h-11 items-center gap-3 rounded-lg py-1 pr-2 transition-colors ${FOCUS}`}
               aria-label={`Chat with MaliHub support on WhatsApp at ${SUPPORT_WHATSAPP}`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-400/15 text-primary-400" aria-hidden>
-                <WhatsAppIcon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary-400">Chat with us on WhatsApp</span>
+              <WhatsAppIcon className="h-7 w-7 shrink-0" aria-hidden />
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-[#25D366]">Chat on WhatsApp</span>
                 <span className="text-xs text-muted-foreground">{SUPPORT_WHATSAPP}</span>
               </span>
             </a>

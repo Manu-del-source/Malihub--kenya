@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
+import { FloatingWhatsAppButton } from "@/components/landing/floating-whatsapp-button";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -50,6 +51,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <SiteHeader user={headerUser} />
       <main>{children}</main>
       <SiteFooter />
+      <FloatingWhatsAppButton />
     </>
   );
 }

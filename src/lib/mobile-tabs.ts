@@ -1,10 +1,6 @@
 import { BUYER_ORDERS_PATH } from "@/lib/dashboard-nav";
 
-/**
- * The installed MaliHub app is a buyer companion. Seller operations remain
- * available through the full website's Seller Centre, not a second mobile
- * navigation mode.
- */
+/** Five primary mobile destinations; Account also links buyers and sellers to their tools. */
 export type MobileTabKey = "home" | "categories" | "cart" | "messages" | "account";
 
 export type MobileTab = {

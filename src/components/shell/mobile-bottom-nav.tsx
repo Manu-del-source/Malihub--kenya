@@ -13,7 +13,7 @@ const ICONS: Record<MobileTabKey, typeof Home> = {
   account: UserRound,
 };
 
-/** Five buyer-focused tabs. Seller operations stay in the website Seller Centre. */
+/** Five primary mobile destinations shared by buyers and sellers. */
 export function MobileBottomNav({ cartCount = 0 }: { cartCount?: number }) {
   const pathname = usePathname();
   const tabs = buildMobileTabs();
@@ -21,7 +21,7 @@ export function MobileBottomNav({ cartCount = 0 }: { cartCount?: number }) {
 
   return (
     <nav
-      aria-label="Buyer navigation"
+      aria-label="Main navigation"
       className="pwa-dashboard-bottom-nav fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <ul className="mx-auto grid max-w-xl grid-cols-5">

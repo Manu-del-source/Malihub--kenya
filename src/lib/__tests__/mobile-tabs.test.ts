@@ -3,17 +3,18 @@ import { describe, it } from "node:test";
 import { activeMobileTab, buildMobileTabs } from "../mobile-tabs";
 
 describe("buildMobileTabs", () => {
-  it("always exposes the five buyer tabs, with no seller workspace tabs", () => {
+  it("keeps the five primary mobile destinations without adding a duplicate seller tab", () => {
     const tabs = buildMobileTabs();
     assert.deepEqual(tabs.map((tab) => tab.label), ["Home", "Categories", "Cart", "Messages", "Account"]);
     assert.equal(tabs.length, 5);
     assert.equal(tabs.some((tab) => tab.href.startsWith("/seller/")), false);
   });
 
-  it("opens the buyer app home and keeps the Seller Centre out of the tab bar", () => {
+  it("keeps the app home and makes seller tools reachable through Account", () => {
     const tabs = buildMobileTabs();
     assert.equal(tabs.find((tab) => tab.key === "home")?.href, "/app");
     assert.equal(tabs.some((tab) => tab.href === "/seller-center"), false);
+    assert.equal(tabs.find((tab) => tab.key === "account")?.href, "/account");
   });
 });
 
@@ -30,6 +31,7 @@ describe("activeMobileTab", () => {
     assert.equal(activeMobileTab(tabs, "/marketplace"), "categories");
     assert.equal(activeMobileTab(tabs, "/messages"), "messages");
     assert.equal(activeMobileTab(tabs, "/seller/orders"), "account");
+    assert.equal(activeMobileTab(tabs, "/seller/onboarding"), "account");
     assert.equal(activeMobileTab(tabs, "/seller-center"), "account");
   });
 

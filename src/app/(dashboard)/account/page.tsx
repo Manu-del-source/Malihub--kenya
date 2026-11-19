@@ -106,15 +106,13 @@ export default async function AccountPage() {
           detail: `${seller.businessName} · ${listingCount} listing${listingCount === 1 ? "" : "s"}`,
           href: "/seller",
           icon: Store,
-          target: "_blank" as const,
         }]
       : !isAdmin
         ? [{
             label: "Sell on MaliHub",
-            detail: "Register and manage your shop on the website",
+            detail: "Create your shop and start selling on MaliHub",
             href: "/seller-center",
             icon: Store,
-            target: "_blank" as const,
           }]
         : []),
   ];
@@ -147,9 +145,9 @@ export default async function AccountPage() {
       {roleLinks.length > 0 && (
         <section aria-label="Your workspaces" className="overflow-hidden rounded-2xl border border-primary/30 bg-card">
           <ul className="divide-y divide-border">
-            {roleLinks.map(({ label, detail, href, icon: Icon, target }) => (
+            {roleLinks.map(({ label, detail, href, icon: Icon }) => (
               <li key={label}>
-                <Link href={href} target={target} rel={target === "_blank" ? "noopener noreferrer" : undefined} className={rowClass}>
+                <Link href={href} className={rowClass}>
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary-300">
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>

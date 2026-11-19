@@ -13,7 +13,8 @@ describe("buildMobileTabs", () => {
   it("keeps the app home and makes seller tools reachable through Account", () => {
     const tabs = buildMobileTabs();
     assert.equal(tabs.find((tab) => tab.key === "home")?.href, "/app");
-    assert.equal(tabs.some((tab) => tab.href === "/seller-center"), false);\n    assert.equal(tabs.find((tab) => tab.key === "account")?.href, "/account");
+    assert.equal(tabs.some((tab) => tab.href === "/seller-center"), false);
+    assert.equal(tabs.find((tab) => tab.key === "account")?.href, "/account");
   });
 });
 
@@ -29,7 +30,8 @@ describe("activeMobileTab", () => {
     assert.equal(activeMobileTab(tabs, "/app"), "home");
     assert.equal(activeMobileTab(tabs, "/marketplace"), "categories");
     assert.equal(activeMobileTab(tabs, "/messages"), "messages");
-    assert.equal(activeMobileTab(tabs, "/seller/orders"), "account");\n    assert.equal(activeMobileTab(tabs, "/seller/onboarding"), "account");
+    assert.equal(activeMobileTab(tabs, "/seller/orders"), "account");
+    assert.equal(activeMobileTab(tabs, "/seller/onboarding"), "account");
     assert.equal(activeMobileTab(tabs, "/seller-center"), "account");
   });
 

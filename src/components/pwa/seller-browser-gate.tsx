@@ -20,6 +20,25 @@ function isAppProductWorkflow(pathname: string): boolean {
 }
 
 /**
+ * Open the full Seller Centre outside the installed PWA.
+ * Android intent URLs ask the OS to hand the HTTPS URL to the user's browser;
+ * other platforms use a normal new tab/window.
+ */
+function openSellerCentreInBrowser(pathname: string): void {
+  const destination = new URL(pathname || "/seller", window.location.origin);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  if (isAndroid) {
+    const intentPath = `${destination.host}${destination.pathname}${destination.search}${destination.hash}`;
+    window.location.href =
+      `intent://${intentPath}#Intent;scheme=${destination.protocol.replace(":", "")};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`;
+    return;
+  }
+
+  window.open(destination.toString(), "_blank", "noopener,noreferrer");
+}
+
+/**
  * The installed app keeps the high-frequency product workflows available.
  * Registration, onboarding and the wider Seller Centre remain browser-first.
  */
@@ -49,9 +68,13 @@ export function SellerBrowserGate({ children }: { children: ReactNode }) {
         <Link href="/seller/listings" className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-400">
           Manage products in the app
         </Link>
-        <a href={pathname || "/seller"} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-muted">
+        <button
+          type="button"
+          onClick={() => openSellerCentreInBrowser(pathname)}
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
           Open full Seller Centre in browser
-        </a>
+        </button>
         <Link href="/marketplace" className="mt-3 inline-flex min-h-10 items-center justify-center px-4 text-sm font-medium text-muted-foreground transition hover:text-foreground">
           Continue shopping
         </Link>

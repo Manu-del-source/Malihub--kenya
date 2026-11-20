@@ -14,6 +14,17 @@ import {
 
 const GA_ID = "G-8XD22ZZD9X";
 
+/**
+ * Apply an analytics opt-out synchronously before React processes the
+ * consent-state update. This closes the small window in which GA could send
+ * another hit after a visitor rejects or withdraws optional analytics.
+ */
+function saveConsentChoice(choice: "essential" | "all"): void {
+  (window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = choice !== "all";
+  if (choice !== "all") clearAnalyticsCookies();
+  writeConsent(choice);
+}
+
 /** "pending" on the server and during hydration so nothing flashes. */
 function useConsent(): ConsentState | "pending" {
   return useSyncExternalStore<ConsentState | "pending">(
@@ -84,7 +95,7 @@ function CookiePreferencesDialog({
   if (!open) return null;
 
   const save = (analytics: boolean) => {
-    writeConsent(analytics ? "all" : "essential");
+    saveConsentChoice(analytics ? "all" : "essential");
     onClose();
   };
 
@@ -253,14 +264,14 @@ export function CookieBanner() {
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 type="button"
-                onClick={() => writeConsent("essential")}
+                onClick={() => saveConsentChoice("essential")}
                 className="rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Reject optional
               </button>
               <button
                 type="button"
-                onClick={() => writeConsent("all")}
+                onClick={() => saveConsentChoice("all")}
                 className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Accept all

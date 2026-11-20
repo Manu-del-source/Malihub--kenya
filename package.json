@@ -33,7 +33,8 @@
     "backend:dev": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "backend:test": "cd backend && python -m pytest",
     "backend:lint": "cd backend && python -m ruff check app tests",
-    "backend:format": "cd backend && python -m ruff format app tests"
+    "backend:format": "cd backend && python -m ruff format app tests",
+    "prisma:seed:demo": "tsx prisma/seed-demo.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

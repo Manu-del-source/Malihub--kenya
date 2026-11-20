@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" role="img" aria-labelledby="title">
+  <title id="title">Listing photo placeholder</title>
+  <rect width="600" height="600" fill="#f5efe3"/>
+  <rect x="150" y="200" width="300" height="200" rx="16" fill="none" stroke="#ef7d32" stroke-width="10" stroke-dasharray="28 18"/>
+  <path d="M232 252v-22a68 68 0 0 1 136 0v22" fill="none" stroke="#ef7d32" stroke-width="10" stroke-linecap="round"/>
+  <path d="M204 256a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16l14 112a24 24 0 0 1-24 27H214a24 24 0 0 1-24-27z" fill="#11100f"/>
+  <text x="300" y="478" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#8a8378">Listing photo</text>
+</svg>

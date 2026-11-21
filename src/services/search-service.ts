@@ -165,9 +165,12 @@ export async function getListingBySlug(rawSlug: string) {
   const product = await prisma.product.findFirst({
     where: {
       OR: [
-        { slug },
-        { slug: { equals: rawSlug } },
-        { slug: { equals: slug.replace(/-/g, " ") } },
+        // Prisma string filters are case-sensitive by default, and the one
+        // legacy/demo row ("seed Tecno Camon 30") also stores capitals, so
+        // the space-restored variant must match case-insensitively too.
+        { slug: { equals: slug, mode: "insensitive" } },
+        { slug: { equals: rawSlug, mode: "insensitive" } },
+        { slug: { equals: slug.replace(/-/g, " "), mode: "insensitive" } },
       ],
       category: { slug: { notIn: ["vehicles", "property"] } },
     },

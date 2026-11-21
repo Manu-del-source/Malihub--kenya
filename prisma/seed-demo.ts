@@ -45,7 +45,7 @@ const SEED_IMAGES: Record<string, string> = {
     "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=900&q=80&auto=format&fit=crop",
   "seed-hp-elitebook-840":
     "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=900&q=80&auto=format&fit=crop",
-  "seed Tecno Camon 30":
+  "seed-tecno-camon-30":
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=900&q=80&auto=format&fit=crop",
   "seed-samsung-galaxy-a55":
     "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=900&q=80&auto=format&fit=crop",
@@ -118,7 +118,7 @@ const SEED_LISTINGS: SeedListing[] = [
     isFeatured: true,
   },
   {
-    slug: "seed Tecno Camon 30",
+    slug: "seed-tecno-camon-30",
     sellerSlug: "nairobi-tech-deals",
     categorySlug: "phones",
     title: "Tecno Camon 30, 256GB, 50MP selfie camera",

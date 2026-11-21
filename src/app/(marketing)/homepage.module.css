@@ -29,36 +29,126 @@
 }
 
 
-/* Homepage product marquee */
-.homepage :global(.homepage-product-marquee) {
+/* Featured product carousel */
+.homepage :global(.homepage-featured) {
+  width: min(100%, 720px);
+  margin: 0 auto;
   overflow: hidden;
-  width: 100%;
-  mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent);
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 1.25rem;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.22);
 }
-.homepage :global(.homepage-product-marquee__track) {
+.homepage :global(.homepage-featured__visual) {
+  position: relative;
+  aspect-ratio: 1.18 / 1;
+  overflow: hidden;
+  background: #f4f1ec;
+}
+.homepage :global(.homepage-featured__image-link) {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.homepage :global(.homepage-featured__image) {
+  object-fit: contain;
+  padding: clamp(1rem, 5vw, 2.5rem);
+  animation: featured-product-enter 420ms ease both;
+}
+.homepage :global(.homepage-featured__arrow) {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 999px;
+  color: white;
+  background: rgb(10 10 10 / 0.72);
+  backdrop-filter: blur(8px);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.homepage :global(.homepage-featured__arrow:hover) {
+  border-color: #c9a45f;
+  background: #9a7438;
+}
+.homepage :global(.homepage-featured__arrow--left) { left: 0.85rem; }
+.homepage :global(.homepage-featured__arrow--right) { right: 0.85rem; }
+.homepage :global(.homepage-featured__details) {
   display: flex;
-  width: max-content;
-  animation: homepage-product-scroll 55s linear infinite;
-  will-change: transform;
+  min-height: 174px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.1rem 1rem 1.25rem;
+  text-align: center;
+  background: linear-gradient(135deg, #17120d, #24180f);
+  color: #f8f4ec;
 }
-.homepage :global(.homepage-product-marquee:hover .homepage-product-marquee__track),
-.homepage :global(.homepage-product-marquee:focus-within .homepage-product-marquee__track) {
-  animation-play-state: paused;
+.homepage :global(.homepage-featured__eyebrow) {
+  margin-bottom: 0.55rem;
+  color: #c9a45f;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
 }
-.homepage :global(.homepage-product-marquee__group) {
+.homepage :global(.homepage-featured__title) {
+  max-width: 90%;
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.homepage :global(.homepage-featured__price) {
+  margin-top: 0.35rem;
+  color: #e7c98d;
+  font-size: clamp(1.25rem, 4vw, 1.65rem);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.homepage :global(.homepage-featured__location) {
   display: flex;
-  flex: none;
-  gap: 0.75rem;
-  padding-right: 0.75rem;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  color: rgb(255 255 255 / 0.62);
+  font-size: 0.72rem;
 }
-.homepage :global(.homepage-product-marquee__card) {
-  width: clamp(190px, 22vw, 250px);
+.homepage :global(.homepage-featured__dots) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  margin-top: 0.8rem;
 }
-@keyframes homepage-product-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+.homepage :global(.homepage-featured__dots button) {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.32);
+  transition: width 180ms ease, background 180ms ease;
+}
+.homepage :global(.homepage-featured__dots button.is-active) {
+  width: 1.15rem;
+  background: #d7b675;
+}
+@keyframes featured-product-enter {
+  from { opacity: 0.65; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (max-width: 640px) {
+  .homepage :global(.homepage-featured) { border-radius: 1rem; }
+  .homepage :global(.homepage-featured__visual) { aspect-ratio: 1.08 / 1; }
+  .homepage :global(.homepage-featured__details) { min-height: 160px; }
+  .homepage :global(.homepage-featured__arrow) { width: 2.2rem; height: 2.2rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .homepage :global(.homepage-product-marquee__track) { animation: none; }
-  .homepage :global(.homepage-product-marquee) { overflow-x: auto; }
+  .homepage :global(.homepage-featured__image) { animation: none; }
+  .homepage :global(.homepage-featured__dots button) { transition: none; }
 }

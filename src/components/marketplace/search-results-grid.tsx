@@ -62,10 +62,17 @@ export function SearchResultsGrid({
     );
   }
 
-  if (featuredCarousel) return <FeaturedProductCarousel products={items.slice(0, 8)} />;
-
   return (
     <div>
+      {featuredCarousel && (
+        <div className="mb-7 sm:mb-9">
+          <FeaturedProductCarousel products={items.slice(0, 8)} />
+        </div>
+      )}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="font-display text-base font-semibold tracking-tight sm:text-lg">More products to explore</h3>
+        <span className="text-xs text-muted-foreground">Browse the latest listings</span>
+      </div>
       <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-5">
         {items.map((listing, i) => (
           <ListingCard key={listing.id} listing={listing} priority={i < 2} />

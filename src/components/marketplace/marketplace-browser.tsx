@@ -21,11 +21,13 @@ export async function MarketplaceBrowser({
   heading,
   compact = false,
   categoryLanding = false,
+  autoScroll = false,
 }: {
   rawParams: Record<string, string | string[] | undefined>;
   heading?: string;
   compact?: boolean;
   categoryLanding?: boolean;
+  autoScroll?: boolean;
 }) {
   const flatParams = Object.fromEntries(
     Object.entries(rawParams).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
@@ -176,6 +178,7 @@ export async function MarketplaceBrowser({
             initialItems={initialItems}
             initialNextCursor={result.nextCursor}
             initialHasMore={result.hasMore}
+            autoScroll={autoScroll}
             emptyTitle={catalogUnavailable ? "Listings are temporarily unavailable" : compact ? "New listings are on the way" : undefined}
             emptyDescription={catalogUnavailable ? "The marketplace catalogue could not be reached just now. Please refresh in a moment." : compact ? "Check back soon for fresh finds from sellers across Kenya, or explore a category to get started." : undefined}
           />

@@ -21,7 +21,8 @@ export function FeaturedProductCarousel({ products }: { products: ListingCardDat
   }, [paused, products.length]);
 
   if (!products.length) return null;
-  const product = products[activeIndex];
+  const product = products[activeIndex] ?? products[0];
+  if (!product) return null;
   const previous = () => setActiveIndex((current) => (current - 1 + products.length) % products.length);
   const next = () => setActiveIndex((current) => (current + 1) % products.length);
 
@@ -35,7 +36,10 @@ export function FeaturedProductCarousel({ products }: { products: ListingCardDat
       onTouchEnd={(event) => {
         if (touchStart === null) return;
         const delta = (event.changedTouches[0]?.clientX ?? touchStart) - touchStart;
-        if (Math.abs(delta) > 45) delta < 0 ? next() : previous();
+        if (Math.abs(delta) > 45) {
+          if (delta < 0) next();
+          else previous();
+        }
         setTouchStart(null);
       }}
     >

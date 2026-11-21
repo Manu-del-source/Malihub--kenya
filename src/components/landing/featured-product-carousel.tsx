@@ -32,6 +32,10 @@ export function FeaturedProductCarousel({ products }: { products: ListingCardDat
       aria-label="Featured products"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
       onTouchStart={(event) => setTouchStart(event.touches[0]?.clientX ?? null)}
       onTouchEnd={(event) => {
         if (touchStart === null) return;

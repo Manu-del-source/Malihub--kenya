@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { CategoriesSection } from "@/components/landing/categories-section";
-import { getActiveCategoriesWithCounts } from "@/services/category-service";
+import { MarketplaceBenefitsSection } from "@/components/landing/marketplace-benefits-section";
 import { HeroSection } from "@/components/landing/hero-section";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
 import styles from "./homepage.module.css";
@@ -52,7 +51,6 @@ const jsonLd = {
 };
 
 export default async function HomePage() {
-  const activeCategories = await getActiveCategoriesWithCounts(15);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -68,7 +66,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <CategoriesSection categories={activeCategories} />
+        <MarketplaceBenefitsSection />
       </div>
     </>
   );

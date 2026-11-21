@@ -14,6 +14,7 @@ export function SearchResultsGrid({
   initialHasMore,
   emptyTitle = "No listings match your search",
   emptyDescription = "Try adjusting your filters or searching a broader term.",
+  autoScroll = false,
 }: {
   searchParamsString: string;
   initialItems: ListingCardData[];
@@ -21,6 +22,7 @@ export function SearchResultsGrid({
   initialHasMore: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  autoScroll?: boolean;
 }) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useSearchListings(
@@ -56,6 +58,23 @@ export function SearchResultsGrid({
         title={emptyTitle}
         description={emptyDescription}
       />
+    );
+  }
+
+  if (autoScroll) {
+    const loopItems = items.length < 5 ? [...items, ...items, ...items] : [...items, ...items];
+    return (
+      <div className="homepage-product-marquee" aria-label="Scrolling product listings">
+        <div className="homepage-product-marquee__track">
+          {[0, 1].map((copy) => (
+            <div className="homepage-product-marquee__group" key={copy} aria-hidden={copy === 1}>
+              {loopItems.map((listing, i) => (
+                <ListingCard key={`${copy}-${listing.id}-${i}`} listing={listing} priority={i < 2} className="homepage-product-marquee__card" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 

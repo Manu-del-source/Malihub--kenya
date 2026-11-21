@@ -64,7 +64,7 @@ export default async function HomePage() {
           className="border-y border-foreground/10 bg-background py-8 text-foreground sm:py-12"
         >
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-            <MarketplaceBrowser rawParams={{}} heading="Discover products and local finds" compact autoScroll />
+            <MarketplaceBrowser rawParams={{}} heading="Discover products and local finds" compact featuredCarousel />
           </div>
         </section>
 

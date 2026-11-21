@@ -5,6 +5,12 @@ name: Seed Demo Listings (Production)
 
 on:
   workflow_dispatch:
+    inputs:
+      wipe_demo:
+        description: "Wipe demo data instead of seeding (deletes demo sellers, users and listings only)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -44,7 +50,15 @@ jobs:
           DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}
 
       - name: Seed production database with demo listings
+        if: inputs.wipe_demo != true
         run: npm run prisma:seed:demo
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Wipe demo data from production database
+        if: inputs.wipe_demo == true
+        run: npm run prisma:seed:demo:wipe
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}

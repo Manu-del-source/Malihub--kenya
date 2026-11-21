@@ -3,6 +3,10 @@
  *
  * Run with: npm run prisma:seed:demo
  *
+ * Remove ALL demo data later with: npm run prisma:seed:demo:wipe
+ * (see prisma/wipe-demo.ts; it deletes only the demo sellers/users/listings
+ * created here, matched by the seed- email/slug markers below.)
+ *
  * Creates verified ACTIVE demo sellers and realistic Kenyan marketplace
  * listings so the public catalogue is not empty before real sellers onboard.
  * Every row is upserted by a stable seed key, so the script is idempotent:
@@ -10,12 +14,13 @@
  * never touches real users, sellers, or listings whose keys do not match
  * the demo keys below. Deleting demo listings is left to the admin UI.
  *
- * Images: listing cards render the first image unconditionally, and a
- * listing with no image row yields an empty imageUrl that next/image
- * rejects. Demo listings therefore point at the checked-in local asset
- * public/images/seed-placeholder.svg — no remote image URL is fabricated,
- * so nothing 404s and no external host needs allowlisting. Sellers can
- * upload real Cloudinary photos later; the placeholder is only the seed.
+ * Images: each listing gets a real product photo (Unsplash, verified
+ * reachable 2026-11-21) stored as a ProductImage row with url. The
+ * `images.unsplash.com` host is allowlisted in next/image remotePatterns and
+ * CSP img-src in next.config.ts, so cards render them. Sellers can upload
+ * real Cloudinary photos later; these stock photos only exist to make the
+ * demo catalogue look like a real marketplace. If an Unsplash URL ever
+ * stops returning an image, replace it here and re-run this seed.
  */
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
@@ -23,7 +28,34 @@ import { DEFAULT_CATEGORIES } from "@/lib/constants";
 
 const prisma = new PrismaClient();
 
-const SEED_IMAGE_URL = "/images/seed-placeholder.svg";
+// Real product photos, one per listing, indexed by listing slug. Verified
+// 200 + image/jpeg on 2026-11-21 and eyeballed against the item type.
+const SEED_IMAGES: Record<string, string> = {
+  "seed-wooden-dining-table":
+    "https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=900&q=80&auto=format&fit=crop",
+  "seed-von-2-door-fridge":
+    "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=900&q=80&auto=format&fit=crop",
+  "seed-6x6-mattress":
+    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900&q=80&auto=format&fit=crop",
+  "seed-mahogany-3-seater-sofa":
+    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=900&q=80&auto=format&fit=crop",
+  "seed-microwave-20l":
+    "https://images.unsplash.com/photo-1588854337115-1c67d9247e4d?w=900&q=80&auto=format&fit=crop",
+  "seed-hisense-55-smart-tv":
+    "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=900&q=80&auto=format&fit=crop",
+  "seed-hp-elitebook-840":
+    "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=900&q=80&auto=format&fit=crop",
+  "seed Tecno Camon 30":
+    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=900&q=80&auto=format&fit=crop",
+  "seed-samsung-galaxy-a55":
+    "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=900&q=80&auto=format&fit=crop",
+  "seed-running-trainers":
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=900&q=80&auto=format&fit=crop",
+  "seed-mens-slim-fit-suit":
+    "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=900&q=80&auto=format&fit=crop",
+  "seed-kitenge-dress":
+    "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=900&q=80&auto=format&fit=crop",
+};
 
 const SEED_SELLERS = [
   {
@@ -383,14 +415,18 @@ async function main() {
         publishedAt: new Date(),
       },
     });
+    const imageUrl = SEED_IMAGES[listing.slug];
+    if (!imageUrl) {
+      throw new Error(`No demo image configured for listing: ${listing.slug}`);
+    }
     await prisma.productImage.deleteMany({
       where: { productId: product.id },
     });
     await prisma.productImage.create({
       data: {
         productId: product.id,
-        url: SEED_IMAGE_URL,
-        cloudinaryId: `seed-placeholder:${product.id}`,
+        url: imageUrl,
+        cloudinaryId: `seed-demo:${listing.slug}`,
         sortOrder: 0,
         isPrimary: true,
       },

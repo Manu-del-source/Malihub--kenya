@@ -18,7 +18,9 @@ import { resolveChatWebSocketBase } from "./src/lib/chat/ws-config";
  *    through our own POST /api/chat/ws-ticket + the FastAPI WebSocket), so no
  *    `*.supabase.co` / `wss://*.supabase.co` origin is needed.
  *  - images: our own, data/blob (picker previews), Cloudinary, Google Analytics
- *    audience endpoints, Google profile avatars, and `*.supabase.co` — legacy-only, for avatars
+ *    audience endpoints, Google profile avatars, `images.unsplash.com` (demo
+ *    seed product photos in prisma/seed-demo.ts), and `*.supabase.co` —
+ *    legacy-only, for avatars
  *    still hosted in the old Supabase bucket until the avatar migration in
  *    scripts/migrate-avatars-to-cloudinary.mjs is verified in production.
  *  - frames: same-origin only, plus Paystack's checkout host. The Cloudinary
@@ -97,6 +99,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+        // Demo seed product photos only (prisma/seed-demo.ts). Remove this
+        // entry when the demo data is wiped and real seller uploads (which
+        // go to Cloudinary) are the only listing images.
       },
     ],
   },

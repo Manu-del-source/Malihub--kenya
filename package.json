@@ -34,7 +34,8 @@
     "backend:test": "cd backend && python -m pytest",
     "backend:lint": "cd backend && python -m ruff check app tests",
     "backend:format": "cd backend && python -m ruff format app tests",
-    "prisma:seed:demo": "tsx prisma/seed-demo.ts"
+    "prisma:seed:demo": "tsx prisma/seed-demo.ts",
+    "prisma:seed:demo:wipe": "tsx prisma/wipe-demo.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

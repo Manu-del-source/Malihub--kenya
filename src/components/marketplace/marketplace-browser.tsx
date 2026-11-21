@@ -8,6 +8,7 @@ import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
 import { toListingCardData } from "@/lib/mappers";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
+import { getActiveCategoriesWithCounts } from "@/services/category-service";
 import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back-button";
 import { CategoryBrowser } from "@/components/marketplace/category-browser";
 
@@ -49,6 +50,10 @@ export async function MarketplaceBrowser({
   const clientParamsString = new URLSearchParams(
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
   ).toString();
+  const liveCategories = await getActiveCategoriesWithCounts(12);
+  const chipCategories = liveCategories.length > 0
+    ? liveCategories.map((c) => ({ name: c.name, slug: c.slug }))
+    : DEFAULT_CATEGORIES;
   const activeCategory = flatParams.category;
   const hasActiveFilters = ["q", "category", "county", "town", "brand", "condition", "minPrice", "maxPrice", "sort"].some((key) => Boolean(flatParams[key]));
   const showCategoryLanding = categoryLanding && !hasActiveFilters;
@@ -98,7 +103,7 @@ export async function MarketplaceBrowser({
         </form>
       </section>}
 
-      {showCategoryLanding ? <CategoryBrowser /> : null}
+      {showCategoryLanding ? <CategoryBrowser activeCategories={liveCategories} /> : null}
 
       {!showCategoryLanding && !compact && <nav aria-label="Browse categories" className="mb-5 sm:mb-7">
         <div className="mb-2 flex items-center justify-between">
@@ -106,7 +111,7 @@ export async function MarketplaceBrowser({
           <span className="hidden text-xs text-muted-foreground sm:inline">Shop by category</span>
         </div>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {DEFAULT_CATEGORIES.slice(0, 10).map((category) => {
+          {chipCategories.slice(0, 10).map((category) => {
             const selected = activeCategory === category.slug;
             return (
               <Link
@@ -115,7 +120,7 @@ export async function MarketplaceBrowser({
                 aria-current={selected ? "page" : undefined}
                 className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${selected ? "border-amber-400 bg-amber-400 text-primary-foreground" : "border-foreground/10 bg-card text-foreground/80 hover:border-amber-400/50 hover:bg-amber-400/5"}`}
               >
-                {category.name}
+                {category.name}{"count" in category && typeof (category as { count?: unknown }).count === "number" ? ` (${(category as { count: number }).count})` : ""}
               </Link>
             );
           })}

@@ -2,7 +2,8 @@ import { Container } from "@/components/ui/container";
 import { CategoryCard } from "@/components/landing/category-card";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
 
-export function CategoriesSection() {
+export function CategoriesSection({ categories }: { categories?: { name: string; slug: string; iconName: string; count: number }[] }) {
+  const visibleCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
   return (
     <section id="categories" className="border-b border-border/70 py-14 sm:py-20 lg:py-24">
       <Container className="flex flex-col gap-7 sm:gap-9">
@@ -21,12 +22,13 @@ export function CategoriesSection() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-12 lg:auto-rows-[minmax(150px,auto)] lg:gap-4">
-          {DEFAULT_CATEGORIES.map((category, index) => (
+          {visibleCategories.map((category, index) => (
             <CategoryCard
               key={category.slug}
               name={category.name}
               slug={category.slug}
               iconName={category.iconName}
+              count={"count" in category ? (category as { count: number }).count : undefined}
               featured={index < 3}
               position={index}
             />

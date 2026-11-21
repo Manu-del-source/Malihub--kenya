@@ -40,12 +40,14 @@ export function CategoryCard({
   name,
   slug,
   iconName,
+  count,
   featured = false,
   position = 0,
 }: {
   name: string;
   slug: string;
   iconName: string;
+  count?: number;
   featured?: boolean;
   position?: number;
 }) {
@@ -83,6 +85,7 @@ export function CategoryCard({
         </h3>
         <p className={`mt-1.5 max-w-[17rem] leading-5 text-muted-foreground ${featured && position === 0 ? "text-sm sm:text-base sm:leading-6" : "text-xs"}`}>
           {DESCRIPTIONS[slug] ?? "Explore listings from sellers across Kenya"}
+          {typeof count === "number" ? ` · ${count} listing${count === 1 ? "" : "s"}` : ""}
         </p>
         <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-400 opacity-90 transition-all group-hover:gap-2">
           Explore <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />

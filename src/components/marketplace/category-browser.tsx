@@ -75,10 +75,72 @@ const groups: Group[] = [
   ] },
 ];
 
-export function CategoryBrowser() {
+export type LiveCategory = { name: string; slug: string; count: number; iconName?: string };
+
+/** Lucide icon for a category slug, matching the landing category cards. */
+export const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  electronics: Headphones,
+  phones: Smartphone,
+  fashion: Shirt,
+  "shoes-footwear": Footprints,
+  furniture: Armchair,
+  "home-appliances": CookingPot,
+  beauty: Sparkles,
+  agriculture: ShoppingBag,
+  jobs: Package,
+  services: Package,
+  sports: Package,
+  books: Package,
+  kids: Package,
+  pets: Package,
+  other: Package,
+};
+
+function buildLiveGroups(live: LiveCategory[]): Group[] {
+  const topCategories: Item[] = live.slice(0, 6).map((c) => ({
+    name: c.name,
+    href: cat(c.slug),
+    icon: CATEGORY_ICONS[c.slug] ?? Package,
+  }));
+  const featured: Group = {
+    id: "mali-featured",
+    name: "Mali Featured",
+    banner: { title: "Mali Deals", subtitle: "Hot picks from sellers across Kenya" },
+    sections: [
+      { title: "Featured", items: [
+        { name: "Popular products", href: "/marketplace?sort=most_viewed", icon: BadgePercent },
+        { name: "Latest arrivals", href: "/marketplace?sort=newest", icon: Package },
+      ] },
+    ],
+  };
+  if (topCategories.length > 0) {
+    featured.sections.push({
+      title: "Top categories",
+      viewAll: "/marketplace?sort=newest",
+      items: topCategories,
+    });
+  }
+  const categoryGroups: Group[] = live.map((c) => ({
+    id: c.slug,
+    name: c.name,
+    banner: { title: c.name, subtitle: `${c.count} listing${c.count === 1 ? "" : "s"} in this category` },
+    sections: [
+      {
+        title: c.name,
+        viewAll: cat(c.slug),
+        items: [{ name: c.name, href: cat(c.slug), icon: CATEGORY_ICONS[c.slug] ?? Package }],
+      },
+    ],
+  }));
+  return [featured, ...categoryGroups];
+}
+
+export function CategoryBrowser({ activeCategories }: { activeCategories?: LiveCategory[] }) {
+  const liveGroups = activeCategories && activeCategories.length > 0 ? buildLiveGroups(activeCategories) : null;
+  const visibleGroups = liveGroups ?? groups;
   const [selectedId, setSelectedId] = useState("mali-featured");
   const paneRef = useRef<HTMLDivElement>(null);
-  const active = groups.find((g) => g.id === selectedId);
+  const active = visibleGroups.find((g) => g.id === selectedId) ?? visibleGroups[0];
 
   useEffect(() => {
     paneRef.current?.scrollTo({ top: 0 });
@@ -93,7 +155,7 @@ export function CategoryBrowser() {
     >
       {/* Left rail */}
       <nav aria-label="Main categories" role="tablist" aria-orientation="vertical" className="pwa-category-nav overflow-y-auto overscroll-contain bg-background/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {groups.map((group) => {
+        {visibleGroups.map((group) => {
           const isActive = group.id === selectedId;
           return (
             <button

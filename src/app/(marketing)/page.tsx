@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CategoriesSection } from "@/components/landing/categories-section";
+import { getActiveCategoriesWithCounts } from "@/services/category-service";
 import { HeroSection } from "@/components/landing/hero-section";
 import { MarketplaceBrowser } from "@/components/marketplace/marketplace-browser";
 import styles from "./homepage.module.css";
@@ -23,10 +24,10 @@ const jsonLd = {
       description: "A Kenyan online marketplace connecting buyers with independent sellers and product listings across Kenya.",
       logo: `${APP_URL}/icons/logo.svg`,
       email: "support@malihubke.online",
-      telephone: "+254795787261",
+      telephone: "+254****7261",
       contactPoint: {
         "@type": "ContactPoint",
-        telephone: "+254795787261",
+        telephone: "+254****7261",
         email: "support@malihubke.online",
         contactType: "customer support",
       },
@@ -50,7 +51,8 @@ const jsonLd = {
   ],
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const activeCategories = await getActiveCategoriesWithCounts(15);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -66,7 +68,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <CategoriesSection />
+        <CategoriesSection categories={activeCategories} />
       </div>
     </>
   );

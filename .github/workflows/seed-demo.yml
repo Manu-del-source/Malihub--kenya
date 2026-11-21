@@ -1,0 +1,50 @@
+name: Seed Demo Listings (Production)
+
+# Manually seeds the production database with the demo listings.
+# The PROD_DATABASE_URL secret must be added in repo Settings > Secrets and variables > Actions > Repository secrets.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seed-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify production database secret is set
+        run: |
+          if [ -z "$PROD_DATABASE_URL" ]; then
+            echo "::error::PROD_DATABASE_URL secret is missing."
+            echo "Add it in repo Settings > Secrets and variables > Actions > Repository secrets."
+            exit 1
+          fi
+          echo "PROD_DATABASE_URL is set."
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Seed production database with demo listings
+        run: npm run prisma:seed:demo
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}

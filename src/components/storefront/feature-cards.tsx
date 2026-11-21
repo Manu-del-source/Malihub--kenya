@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { productDetailPath } from "@/utils";
 
 type Product = { id: string; title: string; slug: string; imageUrl: string | null; categoryName: string; categorySlug: string; priceCents: number };
 export function FeatureCards({ products }: { products: Product[] }) {
@@ -19,7 +20,7 @@ export function FeatureCards({ products }: { products: Product[] }) {
           <span className="rounded bg-gold px-2 py-1 text-[10px] font-bold tracking-wide text-background">{item.label}</span>
           <h3 className="mt-4 font-display text-2xl text-white">{product ? product.title : item.title}</h3>
           <p className="mt-2 text-sm leading-6 text-white/80">{product ? `Explore ${product.categoryName.toLowerCase()} listings from MaliHub sellers.` : item.copy}</p>
-          <Link href={product ? `/products/${product.slug}` : item.href} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#e6c98b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e6c98b]">Explore <ArrowUpRight size={16} /></Link>
+          <Link href={product ? productDetailPath(product.slug) : item.href} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#e6c98b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e6c98b]">Explore <ArrowUpRight size={16} /></Link>
         </div>
       </article>;
     })}

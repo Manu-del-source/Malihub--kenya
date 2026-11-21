@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser, isAdministratorRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listingSchema, type ListingInput } from "@/lib/validations/listing";
+import { productDetailPath } from "@/utils";
 import {
   createListing,
   updateListing,
@@ -109,7 +110,7 @@ export async function updateListingAction(
     }
     const product = await updateListing(productId, userId, parsed.data);
     revalidatePath("/seller/listings");
-    revalidatePath(`/products/${product.slug}`);
+    revalidatePath(productDetailPath(product.slug));
     return { slug: product.slug };
   });
 }

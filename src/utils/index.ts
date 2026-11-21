@@ -34,6 +34,28 @@ export function slugify(input: string): string {
   return `${base}-${suffix}`;
 }
 
+/**
+ * Totally normalize a slug for address-bar/Next-link encoding. Some
+ * historical/demo rows shipped slugs containing raw spaces, e.g.
+ * "seed Tecno Camon 30". Next.js encodes those spaces as %20 in the URL,
+ * so the raw bytes arriving back at the app no longer match the DB.
+ * Idempotent: calling this on an already-clean slug is a no-op.
+ */
+export function sanitizeSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Canonical product-detail path. Every call site that builds a public
+ * product link should go through this so encoded spaces can never slip in. */
+export function productDetailPath(slug: string): string {
+  return `/products/${encodeURIComponent(sanitizeSlug(slug))}`;
+}
+
 /** Human-friendly relative time, e.g. "3 hours ago". Falls back to a date for older items. */
 export function timeAgo(date: Date | string): string {
   const then = new Date(date).getTime();

@@ -4,6 +4,7 @@ import { ProductDetail } from "@/components/marketplace/product-detail";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewListing } from "@/lib/listing-visibility";
 import { getListingBySlug } from "@/services/search-service";
+import { productDetailPath } from "@/utils";
 
 /**
  * Rendered per request — never prerendered: this route reads the session.
@@ -50,5 +51,5 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  return <ProductDetail product={product} canonicalPath={`/products/${product.slug}`} />;
+  return <ProductDetail product={product} canonicalPath={productDetailPath(product.slug)} />;
 }

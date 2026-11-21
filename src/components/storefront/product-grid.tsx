@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, BadgeCheck, MapPin, Star } from "lucide-react";
+import { productDetailPath } from "@/utils";
 
 type Product = { id: string; title: string; slug: string; priceCents: number; county: string; condition: string; imageUrl: string | null; categoryName: string; categorySlug: string; sellerName: string; sellerVerified: boolean; rating: number; ratingCount: number };
 const price = (cents: number) => new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(cents / 100);
@@ -13,7 +14,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
     </div>
     {products.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {products.map((product) => <article key={product.id} className="group relative overflow-hidden rounded-2xl border border-foreground/[0.08] bg-card transition duration-300 hover:-translate-y-1 hover:border-gold/40 hover:shadow-[0_12px_40px_rgba(184,147,74,0.08)]">
-        <Link href={`/products/${product.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`View ${product.title}`}>
+        <Link href={productDetailPath(product.slug)} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`View ${product.title}`}>
           <div className="relative aspect-square overflow-hidden bg-muted">
             {product.imageUrl ? <Image src={product.imageUrl} alt={product.title} fill sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 240px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Image coming soon</div>}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
@@ -27,7 +28,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
         </Link>
         <div className="flex items-center justify-between gap-2 px-3 pb-4 sm:px-4">
           <p className="text-sm font-semibold text-foreground sm:text-base">{price(product.priceCents)}</p>
-          <Link href={`/products/${product.slug}`} aria-label={`View ${product.title} purchase options`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-foreground/10 text-primary transition hover:border-primary/50 hover:bg-primary/10"><ArrowUpRight size={16} /></Link>
+          <Link href={productDetailPath(product.slug)} aria-label={`View ${product.title} purchase options`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-foreground/10 text-primary transition hover:border-primary/50 hover:bg-primary/10"><ArrowUpRight size={16} /></Link>
         </div>
       </article>)}
     </div> : <div className="rounded-2xl border border-foreground/10 bg-card p-8 text-sm text-muted-foreground">New listings are on the way. Please check back soon.</div>}

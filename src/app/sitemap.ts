@@ -1,6 +1,7 @@
 import { logServerError } from "@/lib/safe-log";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { productDetailPath } from "@/utils";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.malihubke.online";
 
@@ -65,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const productRoutes: MetadataRoute.Sitemap = products.map(
     (p) => ({
-      url: `${BASE_URL}/products/${p.slug}`,
+      url: `${BASE_URL}${productDetailPath(p.slug)}`,
       lastModified: p.updatedAt,
       changeFrequency: "weekly",
       priority: 0.6,

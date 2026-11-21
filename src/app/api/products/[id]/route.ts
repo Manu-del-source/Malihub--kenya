@@ -12,11 +12,20 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
 
   try {
-    const product = await prisma.product.findUnique({
-      where: { id },
-      // ownerId is needed for the authorization check, never for the response.
-      select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
-    });
+    // This route is addressed by UUID (PATCH/DELETE need it), but public
+    // callers sometimes probe it with a slug (/api/products/<slug>).
+    // findUnique({where:{id:<slug>}}) throws a Prisma malformed-UUID error
+    // and leaks a 500. Resolve slug & uuid separately instead.
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const product = isUuid
+      ? await prisma.product.findUnique({
+          where: { id },
+          select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
+        })
+      : await prisma.product.findFirst({
+          where: { slug: id },
+          select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
+        });
 
     if (!product) {
       return NextResponse.json({ success: false, error: "Listing not found." }, { status: 404 });

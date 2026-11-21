@@ -17,7 +17,7 @@ import { BUYER_FULFILMENT_SELECT } from "@/lib/dropshipping/selects";
 import { BUYER_FULFILMENT_MESSAGE, SUPPLIER_FULFILMENT_LABEL } from "@/lib/dropshipping/fulfilment-state-machine";
 import { PaystackPaySection } from "@/components/shell/buyer/paystack-pay-section";
 import { paymentAttemptLabel } from "@/lib/payments/checkout-client";
-import { formatKes, timeAgo } from "@/utils";
+import { formatKes, timeAgo, productDetailPath } from "@/utils";
 import { ORDER_STATUS_LABEL, isPaidOrderStatus } from "@/lib/order-status";
 import { buildOrderProgress, orderProgressHeadline } from "@/lib/order-progress";
 import { OrderStepper } from "@/components/shell/buyer/order-stepper";
@@ -154,7 +154,7 @@ export default async function BuyerOrderDetailPage({
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
-                      href={`/products/${item.product.slug}`}
+                      href={productDetailPath(item.product.slug)}
                       className="block truncate text-sm font-medium hover:text-primary-400"
                     >
                       {item.product.title}

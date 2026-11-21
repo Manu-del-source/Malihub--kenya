@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { SearchParamsInput } from "@/lib/validations/listing";
 import type { ProductWithRelations, PaginatedResult } from "@/types";
 import { PUBLIC_PRODUCT_SELECT, toPublicProduct } from "@/lib/catalog/public-product";
+import { sanitizeSlug } from "@/utils";
 
 const SORT_COLUMNS = {
   newest: { column: "created_at", direction: "DESC" as const },
@@ -153,9 +154,23 @@ export async function searchListings(
   return { items: items.map(toPublicProduct), nextCursor, hasMore };
 }
 
-export async function getListingBySlug(slug: string) {
+export async function getListingBySlug(rawSlug: string) {
+  // Next.js/URL decoding already turned %20 back into a space by the time
+  // the param arrives, but a slug stored WITH spaces can still mismatch
+  // because the canonical card link encodes the URL. Normalize & fall
+  // back to a space-insensitive match so legacy/demo rows (e.g.
+  // "seed Tecno Camon 30") resolve from either the hyphenated or spaced
+  // form of their slug.
+  const slug = sanitizeSlug(rawSlug);
   const product = await prisma.product.findFirst({
-    where: { slug, category: { slug: { notIn: ["vehicles", "property"] } } },
+    where: {
+      OR: [
+        { slug },
+        { slug: { equals: rawSlug } },
+        { slug: { equals: slug.replace(/-/g, " ") } },
+      ],
+      category: { slug: { notIn: ["vehicles", "property"] } },
+    },
     // ownerId is used only by server-side visibility/contact checks.
     select: { ...PUBLIC_PRODUCT_SELECT, ownerId: true, owner: { select: { role: true } } },
   });

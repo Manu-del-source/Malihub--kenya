@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, MapPin } from "lucide-react";
 import { FavoriteButton } from "@/components/marketplace/favorite-button";
-import { formatKes, cn } from "@/utils";
+import { formatKes, cn, productDetailPath } from "@/utils";
 
 export type ListingCardData = {
   id: string;
@@ -46,7 +46,7 @@ export function ListingCard({
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <Link
-          href={`/products/${listing.slug}`}
+          href={productDetailPath(listing.slug)}
           aria-label={`View ${listing.title}`}
           className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
@@ -82,7 +82,7 @@ export function ListingCard({
         </div>
 
         <Link
-          href={`/products/${listing.slug}`}
+          href={productDetailPath(listing.slug)}
           className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <h3 className="line-clamp-2 min-h-10 break-words text-xs font-medium leading-5 text-foreground sm:text-sm">

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CHECKOUT_PATH } from "@/lib/payments/checkout-client";
-import { formatKes } from "@/utils";
+import { formatKes, productDetailPath } from "@/utils";
 
 /**
  * Buyer cart.
@@ -127,7 +127,7 @@ export function CartView({
           {items.map((item) => (
             <div key={item.id} className="flex gap-4 p-5">
               <Link
-                href={`/products/${item.slug}`}
+                href={productDetailPath(item.slug)}
                 className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-muted"
               >
                 {item.imageUrl && (
@@ -145,7 +145,7 @@ export function CartView({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      href={`/products/${item.slug}`}
+                      href={productDetailPath(item.slug)}
                       className="block truncate text-sm font-medium hover:text-primary-400"
                     >
                       {item.title}

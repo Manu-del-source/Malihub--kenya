@@ -31,6 +31,7 @@ import {
   SellerOnboardingError,
 } from "@/services/admin-seller-onboarding-service";
 import type { ApiResult } from "@/types";
+import { productDetailPath } from "@/utils";
 
 /**
  * Admin mutations — the ONLY write surface of the admin dashboard.
@@ -202,7 +203,7 @@ export async function moderateListingAction(
     });
     // A moderation decision changes public visibility, so the public
     // surfaces revalidate alongside the admin ones.
-    revalidateAdmin("/admin/listings", `/products/${result.slug}`);
+    revalidateAdmin("/admin/listings", productDetailPath(result.slug));
     revalidatePath("/marketplace");
     revalidatePath("/search");
     revalidatePath("/seller/listings");
@@ -227,7 +228,7 @@ export async function deleteAdminListingAction(
 
   return toResult({ id: auth.user.id, email: auth.user.email }, async (actor) => {
     const result = await deleteAdminListing({ productId: parsed.data.productId, actor });
-    revalidateAdmin("/admin/listings", `/admin/listings/${result.id}`, `/products/${result.slug}`);
+    revalidateAdmin("/admin/listings", `/admin/listings/${result.id}`, productDetailPath(result.slug));
     revalidatePath("/marketplace");
     revalidatePath("/search");
     revalidatePath("/seller/listings");

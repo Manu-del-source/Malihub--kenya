@@ -11,7 +11,7 @@ import { ListingStatusBadge } from "@/components/shell/seller/listing-status-bad
 import { formatDateTime } from "@/components/shell/admin/admin-format";
 import { requireAdministrator } from "@/lib/auth";
 import { getAdminListingDetail } from "@/services/admin-service";
-import { formatKes } from "@/utils";
+import { formatKes, productDetailPath } from "@/utils";
 import { PRODUCT_CONDITIONS } from "@/lib/constants";
 import type { ProductCondition } from "@prisma/client";
 
@@ -50,7 +50,7 @@ export default async function AdminListingDetailPage({
         </Link>
         {(product.status === "ACTIVE" || product.status === "SOLD") && (
           <Link
-            href={`/products/${product.slug}`}
+            href={productDetailPath(product.slug)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs hover:text-foreground hover:underline"

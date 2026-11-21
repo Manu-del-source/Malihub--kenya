@@ -72,7 +72,7 @@ export function HeroSearchBar() {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSuggestionsOpen(true)}
             onBlur={() => setSuggestionsOpen(false)}
-            placeholder="Search phones, furniture, fashion…"
+            placeholder="Search products…"
             autoComplete="off"
             className="h-11 w-full min-w-0 border-0 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
           />

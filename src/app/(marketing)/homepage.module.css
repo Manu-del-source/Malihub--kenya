@@ -29,19 +29,23 @@
 }
 
 
-/* Featured product carousel */
+/* Featured product carousel — responsive app and desktop layouts */
 .homepage :global(.homepage-featured) {
-  width: min(100%, 520px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 560px);
   margin: 0 auto;
   overflow: hidden;
   border: 1px solid hsl(var(--foreground) / 0.12);
-  border-radius: 1.25rem;
+  border-radius: 1.1rem;
   background: hsl(var(--card));
-  box-shadow: 0 18px 60px rgb(0 0 0 / 0.22);
+  box-shadow: 0 14px 42px rgb(0 0 0 / 0.2);
+  touch-action: pan-y;
 }
 .homepage :global(.homepage-featured__visual) {
   position: relative;
-  aspect-ratio: 1.55 / 1;
+  width: 100%;
+  aspect-ratio: 1.35 / 1;
   overflow: hidden;
   background: #f4f1ec;
 }
@@ -52,7 +56,7 @@
 }
 .homepage :global(.homepage-featured__image) {
   object-fit: contain;
-  padding: clamp(1rem, 5vw, 2.5rem);
+  padding: clamp(0.75rem, 4vw, 2rem);
   animation: featured-product-enter 420ms ease both;
 }
 .homepage :global(.homepage-featured__arrow) {
@@ -60,55 +64,60 @@
   z-index: 2;
   top: 50%;
   display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.35rem;
+  height: 2.35rem;
   place-items: center;
   transform: translateY(-50%);
-  border: 1px solid rgb(255 255 255 / 0.25);
+  border: 1px solid rgb(255 255 255 / 0.3);
   border-radius: 999px;
   color: white;
-  background: rgb(10 10 10 / 0.72);
+  background: rgb(10 10 10 / 0.76);
   backdrop-filter: blur(8px);
   transition: background 160ms ease, border-color 160ms ease;
 }
-.homepage :global(.homepage-featured__arrow:hover) {
+.homepage :global(.homepage-featured__arrow:hover),
+.homepage :global(.homepage-featured__arrow:focus-visible) {
   border-color: #c9a45f;
   background: #9a7438;
 }
-.homepage :global(.homepage-featured__arrow--left) { left: 0.85rem; }
-.homepage :global(.homepage-featured__arrow--right) { right: 0.85rem; }
+.homepage :global(.homepage-featured__arrow--left) { left: 0.7rem; }
+.homepage :global(.homepage-featured__arrow--right) { right: 0.7rem; }
 .homepage :global(.homepage-featured__details) {
   display: flex;
-  min-height: 138px;
+  min-width: 0;
+  min-height: 132px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.85rem 1rem 1rem;
+  padding: 0.8rem 1rem 0.9rem;
   text-align: center;
   background: linear-gradient(135deg, #17120d, #24180f);
   color: #f8f4ec;
 }
 .homepage :global(.homepage-featured__eyebrow) {
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.4rem;
   color: #c9a45f;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.18em;
 }
 .homepage :global(.homepage-featured__title) {
-  max-width: 90%;
+  display: -webkit-box;
+  max-width: 100%;
   overflow: hidden;
   color: #fff;
   font-family: var(--font-display, inherit);
-  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-size: clamp(0.95rem, 2.5vw, 1.2rem);
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .homepage :global(.homepage-featured__price) {
-  margin-top: 0.35rem;
+  margin-top: 0.3rem;
   color: #e7c98d;
-  font-size: clamp(1.25rem, 4vw, 1.65rem);
+  font-size: clamp(1.15rem, 3vw, 1.55rem);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
@@ -116,37 +125,74 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  margin-top: 0.35rem;
-  color: rgb(255 255 255 / 0.62);
-  font-size: 0.72rem;
+  margin-top: 0.3rem;
+  color: rgb(255 255 255 / 0.68);
+  font-size: 0.7rem;
 }
 .homepage :global(.homepage-featured__dots) {
   display: flex;
+  min-height: 0.75rem;
   align-items: center;
   justify-content: center;
   gap: 0.42rem;
-  margin-top: 0.8rem;
+  margin-top: 0.55rem;
 }
 .homepage :global(.homepage-featured__dots button) {
   width: 0.42rem;
   height: 0.42rem;
+  flex: 0 0 auto;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.32);
   transition: width 180ms ease, background 180ms ease;
 }
 .homepage :global(.homepage-featured__dots button.is-active) {
-  width: 1.15rem;
+  width: 1.1rem;
   background: #d7b675;
 }
 @keyframes featured-product-enter {
   from { opacity: 0.65; transform: scale(0.985); }
   to { opacity: 1; transform: scale(1); }
 }
-@media (max-width: 640px) {
-  .homepage :global(.homepage-featured) { width: min(100%, 420px); border-radius: 1rem; }
-  .homepage :global(.homepage-featured__visual) { aspect-ratio: 1.45 / 1; }
-  .homepage :global(.homepage-featured__details) { min-height: 128px; padding: 0.75rem 0.85rem 0.9rem; }
-  .homepage :global(.homepage-featured__arrow) { width: 2.2rem; height: 2.2rem; }
+
+/* Desktop: landscape feature with image and product details side by side. */
+@media (min-width: 900px) {
+  .homepage :global(.homepage-featured) {
+    grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.85fr);
+    width: min(100%, 980px);
+    border-radius: 1.35rem;
+  }
+  .homepage :global(.homepage-featured__visual) {
+    height: 100%;
+    min-height: 300px;
+    aspect-ratio: auto;
+  }
+  .homepage :global(.homepage-featured__image) { padding: clamp(1.5rem, 3vw, 3rem); }
+  .homepage :global(.homepage-featured__details) {
+    min-height: 300px;
+    padding: 2rem 1.5rem;
+  }
+  .homepage :global(.homepage-featured__title) { font-size: clamp(1.05rem, 1.5vw, 1.35rem); }
+  .homepage :global(.homepage-featured__price) { font-size: 1.7rem; }
+}
+
+/* Small app/webview screens: use the full available width and tighter controls. */
+@media (max-width: 480px) {
+  .homepage :global(.homepage-featured) {
+    width: 100%;
+    border-radius: 0.9rem;
+  }
+  .homepage :global(.homepage-featured__visual) { aspect-ratio: 1.2 / 1; }
+  .homepage :global(.homepage-featured__image) { padding: 0.65rem; }
+  .homepage :global(.homepage-featured__details) {
+    min-height: 120px;
+    padding: 0.7rem 0.75rem 0.8rem;
+  }
+  .homepage :global(.homepage-featured__arrow) {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+  .homepage :global(.homepage-featured__arrow--left) { left: 0.5rem; }
+  .homepage :global(.homepage-featured__arrow--right) { right: 0.5rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .homepage :global(.homepage-featured__image) { animation: none; }

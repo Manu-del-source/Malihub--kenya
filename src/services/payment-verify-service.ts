@@ -284,6 +284,7 @@ export async function verifyPaystackPaymentStatus(
       {
         providerReference: status.reference,
         providerTransactionId: status.id != null ? String(status.id) : undefined,
+        method: status.channel === "card" ? "CARD" : status.channel === "mobile_money" ? "MOBILE_MONEY" : undefined,
       },
       undefined
     )

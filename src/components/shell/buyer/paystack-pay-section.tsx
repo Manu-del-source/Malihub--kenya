@@ -8,7 +8,7 @@ import {
   Loader2,
   Lock,
   RefreshCw,
-  Smartphone,
+  CreditCard,
   TriangleAlert,
   XCircle,
 } from "lucide-react";
@@ -94,7 +94,7 @@ export function PaystackPaySection({
     if (payment.phase === "initiating") return "Opening Paystack…";
     if (payment.phase === "awaiting") return "Waiting for Paystack…";
     if (payment.phase === "failed" || payment.phase === "timed_out") return "Try Paystack again";
-    return `Pay ${formatKes(amountCents)} with M-Pesa (Paystack)`;
+    return `Pay ${formatKes(amountCents)} securely`;
   })();
 
   return (
@@ -104,8 +104,8 @@ export function PaystackPaySection({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Smartphone className="h-4 w-4 text-primary-400" aria-hidden />
-          <h3 className="font-display text-base font-medium">Pay with M-Pesa</h3>
+          <CreditCard className="h-4 w-4 text-primary-400" aria-hidden />
+          <h3 className="font-display text-base font-medium">Secure payment</h3>
         </div>
         <Badge variant={payment.phase === "succeeded" ? "primary" : "default"}>
           {paymentAttemptLabel(snapshot)}
@@ -114,7 +114,7 @@ export function PaystackPaySection({
 
       <p className="mt-1 text-xs text-muted-foreground">
         Order <span className="font-mono">{order.orderNumber}</span>
-        {order.sellerName ? ` · ${order.sellerName}` : ""} · {PAYSTACK.label} secure checkout
+        {order.sellerName ? ` · ${order.sellerName}` : ""} · {PAYSTACK.label} secure checkout · Choose M-Pesa or card in Paystack checkout
       </p>
 
       {payment.phase === "succeeded" ? (
@@ -163,7 +163,7 @@ export function PaystackPaySection({
                 Awaiting payment
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Complete the payment in the Paystack window (M-Pesa). This page updates
+                Complete your payment in the secure Paystack window using M-Pesa or a debit/credit card. This page updates
                 automatically once Paystack confirms.
               </p>
               {reference && (

@@ -531,6 +531,7 @@ export async function handlePaystackWebhook(
         {
           providerReference: verified.reference,
           providerTransactionId: transactionId ?? undefined,
+          method: verified.channel === "card" ? "CARD" : verified.channel === "mobile_money" ? "MOBILE_MONEY" : undefined,
         },
         payload
       );

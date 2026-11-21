@@ -17,7 +17,7 @@ import {
 } from "@/lib/payments/payment-snapshot";
 
 /**
- * One order's Paystack collection, from "Pay with Paystack (M-Pesa)" to a
+ * One order's Paystack collection, from "Pay with Paystack" to a
  * confirmed outcome — the state machine the checkout screen and the order
  * screen share.
  *

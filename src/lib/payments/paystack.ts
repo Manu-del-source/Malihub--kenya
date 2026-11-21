@@ -205,7 +205,8 @@ export function createPaystackClient(config: PaystackConfig): PaystackClient {
           currency: "KES",
           reference: input.reference,
           callback_url: config.callbackUrl,
-          channels: ["mobile_money"],
+          // Let hosted checkout offer the KES channels enabled on the merchant account.
+          channels: ["card", "mobile_money"],
           ...(input.metadata ? { metadata: input.metadata } : {}),
         }),
       });

@@ -31,7 +31,7 @@
 
 /* Featured product carousel */
 .homepage :global(.homepage-featured) {
-  width: min(100%, 720px);
+  width: min(100%, 520px);
   margin: 0 auto;
   overflow: hidden;
   border: 1px solid hsl(var(--foreground) / 0.12);
@@ -41,7 +41,7 @@
 }
 .homepage :global(.homepage-featured__visual) {
   position: relative;
-  aspect-ratio: 1.18 / 1;
+  aspect-ratio: 1.55 / 1;
   overflow: hidden;
   background: #f4f1ec;
 }
@@ -79,11 +79,11 @@
 .homepage :global(.homepage-featured__arrow--right) { right: 0.85rem; }
 .homepage :global(.homepage-featured__details) {
   display: flex;
-  min-height: 174px;
+  min-height: 138px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.1rem 1rem 1.25rem;
+  padding: 0.85rem 1rem 1rem;
   text-align: center;
   background: linear-gradient(135deg, #17120d, #24180f);
   color: #f8f4ec;
@@ -143,9 +143,9 @@
   to { opacity: 1; transform: scale(1); }
 }
 @media (max-width: 640px) {
-  .homepage :global(.homepage-featured) { border-radius: 1rem; }
-  .homepage :global(.homepage-featured__visual) { aspect-ratio: 1.08 / 1; }
-  .homepage :global(.homepage-featured__details) { min-height: 160px; }
+  .homepage :global(.homepage-featured) { width: min(100%, 420px); border-radius: 1rem; }
+  .homepage :global(.homepage-featured__visual) { aspect-ratio: 1.45 / 1; }
+  .homepage :global(.homepage-featured__details) { min-height: 128px; padding: 0.75rem 0.85rem 0.9rem; }
   .homepage :global(.homepage-featured__arrow) { width: 2.2rem; height: 2.2rem; }
 }
 @media (prefers-reduced-motion: reduce) {

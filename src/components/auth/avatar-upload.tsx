@@ -8,6 +8,16 @@ import { cn } from "@/utils";
 const MAX_SIZE_BYTES = 3 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+/** Only render browser-safe avatar URLs; never interpret an arbitrary value as markup. */
+function isSafePreviewUrl(value: string): boolean {
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.protocol === "https:" || url.protocol === "blob:";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The file goes to `POST /api/avatar/upload` — a server-side, session-
  * authenticated Cloudinary upload (no Supabase, no browser-held credentials).
@@ -42,7 +52,7 @@ export function AvatarUpload({
   onChange: (url: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(value || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(isSafePreviewUrl(value) ? value : null);
   const [isUploading, setIsUploading] = useState(false);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -70,12 +80,9 @@ export function AvatarUpload({
       // A `TypeError` is a network failure (fetch couldn't complete) — show
       // the friendly copy. Anything else is the server's own message
       // (validation, rate limit, storage hiccup), safe to surface as-is.
-      toast.error(
-        error instanceof Error && !(error instanceof TypeError)
-          ? error.message
-          : "Couldn't upload that photo — please try again."
-      );
-      setPreviewUrl(value || null);
+      // Do not render upstream-controlled error text in the client UI.
+      toast.error("Couldn't upload that photo — please try again.");
+      setPreviewUrl(isSafePreviewUrl(value) ? value : null);
     } finally {
       setIsUploading(false);
     }

@@ -9,7 +9,8 @@ export function logServerError(label: string, error: unknown): void {
   const code = value === "P2002" || value === "P2003" || value === "P2025"
     ? value
     : "unexpected";
-  console.error(label, { code });
+  // Keep the format string constant: labels may contain user-controlled % sequences.
+  console.error("%s", label, { code });
 }
 
 type CloudinaryDiagnostic = {

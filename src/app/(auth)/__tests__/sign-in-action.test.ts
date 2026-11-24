@@ -412,7 +412,9 @@ describe("signInAction — mapping an authenticated identity to a MaliHub accoun
       assert.ok(provider.events.includes("signOut"));
 
       const provisioningLog = logged.find(
-        (args) => typeof args[0] === "string" && args[0].includes("Failed to provision application rows")
+        (args) => args.some(
+          (value) => typeof value === "string" && value.includes("Failed to provision application rows")
+        )
       );
       assert.ok(provisioningLog, "the provisioning failure is logged server-side");
       assert.doesNotMatch(JSON.stringify(provisioningLog), /auth_user_id/, "raw database errors must not be logged");

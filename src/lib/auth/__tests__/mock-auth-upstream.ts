@@ -305,8 +305,9 @@ export async function startMockAuthUpstream(): Promise<MockAuthUpstream> {
       }
 
       json(response, 404, { message: `Unhandled mock route: ${route}` });
-    })().catch((error: unknown) => {
-      json(response, 500, { message: error instanceof Error ? error.message : String(error) });
+    })().catch(() => {
+      // This is a test HTTP boundary too: never serialize exception details.
+      json(response, 500, { message: "Mock auth upstream failed" });
     });
   });
 

@@ -120,6 +120,7 @@ def test_sensitive_fields_are_redacted(collect: _CaptureHandler, key: str) -> No
 
 def test_redaction_reaches_nested_structures(collect: _CaptureHandler) -> None:
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Synthetic secrets intentionally exercise redaction.
     logger.warning(
         "nested",
         extra={
@@ -149,6 +150,7 @@ def test_a_key_named_credentials_is_redacted_whole(collect: _CaptureHandler) -> 
     cheaper mistake.
     """
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Synthetic secret intentionally exercises redaction.
     logger.warning("blob", extra={"credentials": {"username": "acme", "api_password": API_KEY}})
     payload = json.loads(JsonFormatter().format(collect.records[-1]))
     assert payload["credentials"] == "[REDACTED]:credentials"
@@ -303,6 +305,7 @@ def test_exceptions_are_captured_and_scrubbed(collect: _CaptureHandler) -> None:
     try:
         raise RuntimeError(f"connect failed: {SECRET_DSN}")
     except RuntimeError as exc:
+        # codeql[py/clear-text-logging-sensitive-data] Synthetic DSN verifies exception redaction.
         logger.error("boom", exc_info=exc)
     payload = json.loads(JsonFormatter().format(collect.records[-1]))
     assert "exc_text" in payload
@@ -312,6 +315,7 @@ def test_exceptions_are_captured_and_scrubbed(collect: _CaptureHandler) -> None:
 
 def test_console_format_is_single_line_and_scrubbed(collect: _CaptureHandler) -> None:
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Synthetic API key verifies console redaction.
     logger.warning(f"console {API_KEY}", extra={"event": "e"})
     rendered = ConsoleFormatter().format(collect.records[-1])
     assert API_KEY not in rendered
@@ -378,6 +382,7 @@ def test_the_filter_and_the_mapping_redactor_agree(collect: Any) -> None:
         "event": "payment_webhook",
     }
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Synthetic values compare both redaction paths.
     logger.warning("parity", extra=dict(shape))
     record = collect.records[-1]
 
@@ -424,6 +429,7 @@ def test_bare_credentials_in_a_message_are_scrubbed(
     assert _scrub_text(secret) != secret, f"{prefix} is not recognized at its minimum length"
 
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Runtime-generated fake credential tests bare-secret redaction.
     logger.error(f"the provider rejected us, here is why: {secret}")
     rendered = JsonFormatter().format(collect.records[-1])
     assert secret not in rendered
@@ -435,6 +441,7 @@ def test_a_bare_jwt_is_scrubbed_without_a_valid_signature(collect: _CaptureHandl
     its header and payload, which for Supabase means the subject and the role."""
     secret = "eyJhbGciOiJIUzI1NiIs." + "0" * 12 + "." + "0" * 8
     logger = get_logger("app.test")
+    # codeql[py/clear-text-logging-sensitive-data] Runtime-generated fake JWT tests token redaction.
     logger.error(f"token was {secret}")
     rendered = JsonFormatter().format(collect.records[-1])
     assert secret not in rendered

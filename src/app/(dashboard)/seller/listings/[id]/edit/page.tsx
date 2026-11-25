@@ -45,6 +45,12 @@ export default async function EditListingPage({
 
   if (!product || product.ownerId !== user.id) notFound();
 
+  const categories = await prisma.category.findMany({
+    where: { OR: [{ isActive: true }, { id: product.categoryId }] },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { name: true, slug: true },
+  });
+
   return (
     <Container className="max-w-2xl py-12">
       <h1 className="mb-1 font-display text-3xl font-medium">Edit listing</h1>
@@ -78,6 +84,7 @@ export default async function EditListingPage({
       <div className="glass rounded-2xl p-6 sm:p-8">
         <ListingForm
           productId={product.id}
+          categories={categories}
           defaultValues={{
             title: product.title,
             description: product.description,

@@ -24,6 +24,11 @@ export function SearchFiltersSidebar({
   const [town, setTown] = useState(searchParams.get("town") ?? "");
 
   function updateParam(key: string, value: string) {
+    if (key === "category" && pathname.startsWith("/categories/")) {
+      const destination = value ? `/marketplace?category=${encodeURIComponent(value)}` : "/marketplace";
+      router.push(destination);
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);

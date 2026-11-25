@@ -10,7 +10,11 @@ import { kesToCents, formatKes } from "@/utils";
 const selectClass =
   "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold";
 
-export function SearchFiltersSidebar() {
+export function SearchFiltersSidebar({
+  categories = DEFAULT_CATEGORIES.map((category) => ({ ...category, depth: 0 })),
+}: {
+  categories?: Array<{ name: string; slug: string; depth: number }>;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -70,9 +74,9 @@ export function SearchFiltersSidebar() {
           onChange={(e) => updateParam("category", e.target.value)}
         >
           <option className="bg-card text-foreground" value="">All categories</option>
-          {DEFAULT_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option className="bg-card text-foreground" key={c.slug} value={c.slug}>
-              {c.name}
+              {"— ".repeat(c.depth)}{c.name}
             </option>
           ))}
         </select>

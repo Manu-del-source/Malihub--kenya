@@ -59,6 +59,14 @@ async function requireSeller(options: { allowAdminProvision?: boolean } = {}) {
   return { userId: user.id, sellerId: seller.id, verificationStatus: seller.verificationStatus, isAdmin };
 }
 
+async function requireActiveCategory(categorySlug: string) {
+  const category = await prisma.category.findFirst({
+    where: { slug: categorySlug, isActive: true },
+    select: { id: true },
+  });
+  if (!category) throw new ListingServiceError("Select an available category.");
+}
+
 function toResult<T>(fn: () => Promise<T>): Promise<ApiResult<T>> {
   return fn()
     .then((data) => ({ success: true as const, data }))
@@ -80,6 +88,7 @@ export async function createListingAction(
   }
 
   return toResult(async () => {
+    await requireActiveCategory(parsed.data.categorySlug);
     const { userId, sellerId, verificationStatus, isAdmin } = await requireSeller({
       allowAdminProvision: true,
     });
@@ -104,6 +113,7 @@ export async function updateListingAction(
   }
 
   return toResult(async () => {
+    await requireActiveCategory(parsed.data.categorySlug);
     const { userId, verificationStatus } = await requireSeller();
     if (parsed.data.status === "ACTIVE" && verificationStatus !== "VERIFIED") {
       throw new ListingServiceError("Complete seller verification before publishing a listing.");

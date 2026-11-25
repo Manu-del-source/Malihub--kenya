@@ -43,7 +43,9 @@ export function AdminCategoryManager({ categories }: { categories: AdminCategory
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const parents = categories.filter((category) => !category.parentId);
+  // Any existing category can parent a newly-created child; the new row
+  // cannot create a cycle because it has no descendants yet.
+  const parents = categories;
 
   function run<T>(action: () => Promise<T>, success: string) {
     startTransition(async () => {

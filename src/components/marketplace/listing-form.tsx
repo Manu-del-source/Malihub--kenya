@@ -11,7 +11,7 @@ import { FormField } from "@/components/auth/form-field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ImageUploadGrid } from "@/components/marketplace/image-upload-grid";
-import { DEFAULT_CATEGORIES, KENYA_COUNTIES, PRODUCT_CONDITIONS } from "@/lib/constants";
+import { KENYA_COUNTIES, PRODUCT_CONDITIONS } from "@/lib/constants";
 import { cn } from "@/utils";
 
 const selectClass =
@@ -20,9 +20,11 @@ const selectClass =
 export function ListingForm({
   productId,
   defaultValues,
+  categories,
 }: {
   productId?: string;
   defaultValues?: Partial<ListingInput>;
+  categories: Array<{ name: string; slug: string }>;
 }) {
   const router = useRouter();
 
@@ -108,7 +110,7 @@ export function ListingForm({
             <option value="" disabled>
               Select a category
             </option>
-            {DEFAULT_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
               </option>

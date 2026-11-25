@@ -67,6 +67,7 @@ export async function searchListings(
 
   const conditions: Prisma.Sql[] = [
     Prisma.sql`p.status = 'ACTIVE'`,
+    Prisma.sql`c.is_active = TRUE`,
     Prisma.sql`c.slug NOT IN ('vehicles', 'property')`,
     Prisma.sql`(EXISTS (SELECT 1 FROM sellers s WHERE s.id = p.seller_id AND s.verification_status = 'VERIFIED') OR EXISTS (SELECT 1 FROM users u WHERE u.id = p.owner_id AND u.role IN ('ADMIN', 'SUPER_ADMIN')))`,
   ];
@@ -77,7 +78,24 @@ export async function searchListings(
     );
   }
   if (params.category) {
-    conditions.push(Prisma.sql`c.slug = ${params.category}`);
+    // A parent category page includes products assigned to any active
+    // descendant category. Keep the slug parameterized; never interpolate
+    // user-controlled category input into raw SQL.
+    conditions.push(Prisma.sql`c.id IN (
+      WITH RECURSIVE category_tree(id) AS (
+        SELECT id
+        FROM categories
+        WHERE slug = ${params.category} AND is_active = TRUE
+
+        UNION
+
+        SELECT child.id
+        FROM categories child
+        INNER JOIN category_tree parent ON child.parent_id = parent.id
+        WHERE child.is_active = TRUE
+      )
+      SELECT id FROM category_tree
+    )`);
   }
   if (params.county) {
     conditions.push(Prisma.sql`p.county = ${params.county}`);
@@ -137,7 +155,7 @@ export async function searchListings(
   const products = await withTransientReadRetry(() => prisma.product.findMany({
     // Re-check visibility when hydrating: a listing/seller may have changed
     // since the raw search query ran.
-    where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { slug: { notIn: ["vehicles", "property"] } } },
+    where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { isActive: true, slug: { notIn: ["vehicles", "property"] } } },
     select: PUBLIC_PRODUCT_SELECT,
   }));
 

@@ -12,6 +12,7 @@ export async function GET() {
         name: true,
         slug: true,
         iconName: true,
+        parentId: true,
         _count: { select: { products: { where: { status: "ACTIVE" } } } },
       },
     });
@@ -23,6 +24,7 @@ export async function GET() {
         name: c.name,
         slug: c.slug,
         iconName: c.iconName,
+        parentId: c.parentId,
         listingCount: c._count.products,
       })),
     });

@@ -45,7 +45,7 @@ export const PAYMENT_POLL_WINDOW_MS = 120_000;
 /**
  * The payment methods the checkout may offer.
  *
- * One entry today: Paystack-hosted checkout (mobile money). It is a list,
+ * One entry today: Paystack-hosted checkout (card and mobile money). It is a list,
  * and the payment-method section renders it as one, so adding a provider
  * later is a data change plus its own server route — not a checkout rewrite.
  * Nothing here claims a method MaliHub cannot actually collect.
@@ -54,9 +54,13 @@ export type PaymentMethodOption = {
   id: "paystack";
   label: string;
   description: string;
-  /** The channel behind this option, for display and diagnostics only. */
+  /** The provider used for hosted checkout. */
   provider: "PAYSTACK";
-  method: "MOBILE_MONEY";
+  /**
+   * Paystack hosted checkout lets the buyer choose the actual channel.
+   * It is unknown until the server verifies the completed transaction.
+   */
+  method: null;
   enabled: boolean;
 };
 
@@ -64,9 +68,9 @@ export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
     id: "paystack",
     label: "Paystack",
-    description: "Pay securely with M-Pesa mobile money through Paystack's hosted checkout.",
+    description: "Pay securely by M-Pesa or debit/credit card through Paystack hosted checkout.",
     provider: "PAYSTACK",
-    method: "MOBILE_MONEY",
+    method: null,
     enabled: true,
   },
 ];

@@ -77,17 +77,18 @@ function snapshot(overrides: Partial<BuyerPaymentSnapshot> = {}): BuyerPaymentSn
 }
 
 describe("payment methods — only what the backend can actually collect", () => {
-  it("offers M-Pesa through Paystack and nothing else", () => {
+  it("offers Paystack hosted checkout with M-Pesa and card support", () => {
     assert.equal(CHECKOUT_PATH, "/checkout");
     assert.equal(PAYMENT_METHODS.length, 1);
     assert.equal(PAYSTACK_METHOD.id, "paystack");
     assert.equal(PAYSTACK_METHOD.label, "Paystack");
     assert.equal(PAYSTACK_METHOD.provider, "PAYSTACK");
-    assert.equal(PAYSTACK_METHOD.method, "MOBILE_MONEY");
+    assert.equal(PAYSTACK_METHOD.method, null, "the buyer chooses the actual channel in Paystack checkout");
     assert.equal(PAYSTACK_METHOD.enabled, true);
 
     const advertised = JSON.stringify(PAYMENT_METHODS).toLowerCase();
-    for (const unsupported of ["airtel", "paypal", "card", "bank transfer", "stripe"]) {
+    assert.match(PAYMENT_METHODS[0]!.description, /M-Pesa or debit\/credit card/);
+    for (const unsupported of ["airtel", "paypal", "bank transfer", "stripe"]) {
       assert.equal(
         advertised.includes(unsupported),
         false,

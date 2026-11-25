@@ -552,10 +552,10 @@ convention:
 2. `POST /api/payments/paystack/initialize` (server action behind auth + CSRF
    + per-buyer rate limit) calls Paystack's `POST /transaction/initialize`
    with the amount in **subunits** (KES cents × 100), the buyer's email,
-   `channels: ["mobile_money"]`, and our reference. The provider's
+   `channels: ["card", "mobile_money"]`, and our reference. The provider's
    `reference` and `access_code` are stored on the attempt **immediately** —
    the webhook can arrive before the initiation response does.
-3. Paystack's hosted checkout collects the M-Pesa payment. The buyer's browser
+3. Paystack's hosted checkout lets the buyer choose an enabled KES channel (card or mobile money). The buyer's browser
    may land on `/checkout/payment-result`; that page is a navigation
    convenience and is **not** a payment signal.
 4. Paystack posts `charge.success` to `POST /api/payments/paystack/webhook`.

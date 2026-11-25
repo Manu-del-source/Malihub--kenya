@@ -4,9 +4,9 @@ import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/co
 import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 import { boundedArray } from "@/lib/validations/bounded-array";
 
-const categorySlug = z.enum(
-  DEFAULT_CATEGORIES.map((c) => c.slug) as [string, ...string[]]
-);
+// Category slugs are database-managed and may be nested or added by admins.
+// The server action verifies the selected slug against active categories.
+const categorySlug = z.string().trim().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Select a valid category");
 
 /**
  * Listing images must be IMAGE deliveries from OUR Cloudinary account — the

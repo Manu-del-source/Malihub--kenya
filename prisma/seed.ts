@@ -6,7 +6,7 @@
  * Run with: npm run prisma:seed
  */
 import { PrismaClient } from "@prisma/client";
-import { DEFAULT_CATEGORIES } from "../src/lib/constants";
+import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_CHILDREN } from "../src/lib/constants";
 
 const prisma = new PrismaClient();
 
@@ -30,6 +30,32 @@ async function main() {
     });
   }
 
+  for (const [index, child] of DEFAULT_CATEGORY_CHILDREN.entries()) {
+    const parent = await prisma.category.findUnique({
+      where: { slug: child.parentSlug },
+      select: { id: true },
+    });
+    if (!parent) {
+      throw new Error(`Missing parent category "${child.parentSlug}" for "${child.slug}".`);
+    }
+
+    await prisma.category.upsert({
+      where: { slug: child.slug },
+      update: {
+        name: child.name,
+        parentId: parent.id,
+        sortOrder: index,
+      },
+      create: {
+        name: child.name,
+        slug: child.slug,
+        parentId: parent.id,
+        sortOrder: index,
+      },
+    });
+  }
+
+  console.log(`Seeded ${DEFAULT_CATEGORY_CHILDREN.length} category subcategories.`);
   console.log("Done.");
 }
 

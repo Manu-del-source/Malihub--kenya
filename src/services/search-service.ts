@@ -155,7 +155,7 @@ export async function searchListings(
   const products = await withTransientReadRetry(() => prisma.product.findMany({
     // Re-check visibility when hydrating: a listing/seller may have changed
     // since the raw search query ran.
-    where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { slug: { notIn: ["vehicles", "property"] } } },
+    where: { id: { in: ids }, status: "ACTIVE", OR: [{ seller: { verificationStatus: "VERIFIED" } }, { owner: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } }], category: { isActive: true, slug: { notIn: ["vehicles", "property"] } } },
     select: PUBLIC_PRODUCT_SELECT,
   }));
 

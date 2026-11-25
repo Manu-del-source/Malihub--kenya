@@ -7,6 +7,7 @@ import { SearchResultsGrid } from "@/components/marketplace/search-results-grid"
 import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrapper";
 import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
+import { getActiveCategoryOptions } from "@/services/category-service";
 import { toListingCardData } from "@/lib/mappers";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -54,7 +55,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const parsed = searchParamsSchema.safeParse({ ...flatParams, category: slug });
   const searchInput = parsed.success ? parsed.data : { sort: "newest" as const, category: slug };
 
-  const result = await searchListings(searchInput);
+  const [result, categoryOptions] = await Promise.all([
+    searchListings(searchInput),
+    getActiveCategoryOptions(),
+  ]);
   const initialItems = result.items.map((item) => toListingCardData(item));
 
   const clientParamsString = new URLSearchParams({
@@ -98,7 +102,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       <div className="flex flex-col gap-8 lg:flex-row">
         <Suspense fallback={null}>
-          <SearchFiltersSidebar />
+          <SearchFiltersSidebar categories={categoryOptions} />
         </Suspense>
         <div className="flex-1">
           <SearchResultsGrid

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { validateProductPriceTiers } from "@/lib/pricing/product-price-tiers";
-import { KENYA_COUNTIES, DEFAULT_CATEGORIES, MAX_LISTING_IMAGES } from "@/lib/constants";
+import { KENYA_COUNTIES, MAX_LISTING_IMAGES } from "@/lib/constants";
 import { isOwnCloudinaryImageUrl } from "@/lib/validations/upload-security";
 import { boundedArray } from "@/lib/validations/bounded-array";
 

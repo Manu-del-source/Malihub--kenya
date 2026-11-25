@@ -8,7 +8,7 @@ import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
 import { toListingCardData } from "@/lib/mappers";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
-import { getActiveCategoriesWithCounts } from "@/services/category-service";
+import { getActiveCategoriesWithCounts, getActiveCategoryOptions } from "@/services/category-service";
 import { MarketplaceBackButton } from "@/components/marketplace/marketplace-back-button";
 import { CategoryBrowser } from "@/components/marketplace/category-browser";
 
@@ -52,7 +52,10 @@ export async function MarketplaceBrowser({
   const clientParamsString = new URLSearchParams(
     Object.entries(flatParams).filter(([k, v]) => !!v && k !== "cursor") as [string, string][]
   ).toString();
-  const liveCategories = await getActiveCategoriesWithCounts(12);
+  const [liveCategories, categoryOptions] = await Promise.all([
+    getActiveCategoriesWithCounts(12),
+    getActiveCategoryOptions(),
+  ]);
   const chipCategories = liveCategories.length > 0
     ? liveCategories.map((c) => ({ name: c.name, slug: c.slug }))
     : DEFAULT_CATEGORIES;
@@ -157,7 +160,7 @@ export async function MarketplaceBrowser({
               <span className="hidden text-xs text-muted-foreground group-open:inline">Tap to close</span>
             </summary>
             <div className="border-t border-foreground/10 p-2">
-              <Suspense fallback={null}><SearchFiltersSidebar /></Suspense>
+              <Suspense fallback={null}><SearchFiltersSidebar categories={categoryOptions} /></Suspense>
             </div>
           </details>
         </div>}

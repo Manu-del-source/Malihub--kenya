@@ -20,6 +20,12 @@ export default async function NewListingPage() {
   if (!isAdmin && !seller) redirect("/account");
   if (!isAdmin && seller?.verificationStatus !== "VERIFIED") redirect("/seller/onboarding");
 
+  const categories = await prisma.category.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { name: true, slug: true },
+  });
+
   return (
     <Container className="max-w-2xl py-12">
       <h1 className="mb-1 font-display text-3xl font-medium">Create a listing</h1>
@@ -27,7 +33,7 @@ export default async function NewListingPage() {
         Add clear photos and an accurate description — listings with 3+ photos get noticed faster.
       </p>
       <div className="glass rounded-2xl p-6 sm:p-8">
-        <ListingForm />
+        <ListingForm categories={categories} />
       </div>
     </Container>
   );

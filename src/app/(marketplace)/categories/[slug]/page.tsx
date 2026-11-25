@@ -8,6 +8,8 @@ import { SortDropdownWrapper } from "@/components/marketplace/sort-dropdown-wrap
 import { searchParamsSchema } from "@/lib/validations/listing";
 import { searchListings } from "@/services/search-service";
 import { toListingCardData } from "@/lib/mappers";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 type CategoryPageProps = {
@@ -31,7 +33,17 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
   if (slug === "vehicles" || slug === "property") notFound();
-  const category = await prisma.category.findUnique({ where: { slug, isActive: true } });
+  const category = await prisma.category.findUnique({
+    where: { slug, isActive: true },
+    include: {
+      parent: { select: { name: true, slug: true } },
+      children: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, slug: true },
+      },
+    },
+  });
   if (!category) notFound();
 
   const rawParams = await searchParams;
@@ -52,6 +64,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <Container className="py-10">
+      {category.parent && (
+        <Link href={`/categories/${encodeURIComponent(category.parent.slug)}`} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-amber-400">
+          <ChevronRight className="h-4 w-4 rotate-180" aria-hidden />
+          {category.parent.name}
+        </Link>
+      )}
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-medium sm:text-3xl">{category.name}</h1>
@@ -63,6 +81,20 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           <SortDropdownWrapper currentSort={searchInput.sort} />
         </Suspense>
       </div>
+
+      {category.children.length > 0 && (
+        <nav aria-label={`${category.name} subcategories`} className="mb-7 overflow-hidden rounded-xl border border-foreground/10 bg-card">
+          <h2 className="border-b border-foreground/10 px-4 py-3 text-sm font-semibold">Shop by subcategory</h2>
+          <div className="divide-y divide-foreground/10">
+            {category.children.map((child) => (
+              <Link key={child.id} href={`/categories/${encodeURIComponent(child.slug)}`} className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-amber-400/5 hover:text-amber-400">
+                <span>{child.name}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
 
       <div className="flex flex-col gap-8 lg:flex-row">
         <Suspense fallback={null}>

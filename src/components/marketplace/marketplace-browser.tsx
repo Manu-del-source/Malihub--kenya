@@ -132,8 +132,7 @@ export async function MarketplaceBrowser({
         </div>
       </nav>}
 
-      {!showCategoryLanding && (
-      <div className="mb-4 flex items-end justify-between gap-3 border-b border-foreground/10 pb-3 sm:mb-5 sm:pb-4">
+      <div className="mb-4 mt-7 flex items-end justify-between gap-3 border-b border-foreground/10 pb-3 sm:mb-5 sm:pb-4">
         <div className="min-w-0">
           <h2 id={compact ? "latest-listings-heading" : undefined} className="font-display text-lg font-semibold tracking-tight sm:text-2xl">
             {heading ?? (flatParams.q ? "Search results" : activeCategory ? "Explore this category" : "Browse all listings")}
@@ -148,9 +147,6 @@ export async function MarketplaceBrowser({
         </div>
       </div>
 
-      )}
-
-      {!showCategoryLanding && (
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:gap-7">
         {!compact && <div className="lg:hidden">
           <details className="group rounded-xl border border-foreground/10 bg-card">
@@ -187,8 +183,6 @@ export async function MarketplaceBrowser({
           />
         </div>
       </div>
-
-      )}
 
       {!compact && !showCategoryLanding && <div className="mt-8 hidden grid-cols-3 gap-3 rounded-2xl border border-foreground/10 bg-card p-4 sm:grid sm:p-5 lg:mt-10">
         <div className="flex items-center gap-3">

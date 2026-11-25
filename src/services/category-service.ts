@@ -87,3 +87,45 @@ export async function getActiveCategoriesWithCounts(
     return [];
   }
 }
+
+
+export type CategoryOption = { name: string; slug: string; depth: number };
+
+/** All active categories for filters and listing forms, in stable tree order. */
+export async function getActiveCategoryOptions(): Promise<CategoryOption[]> {
+  try {
+    const rows = await prisma.category.findMany({
+      where: { isActive: true, slug: { notIn: ["vehicles", "property"] } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true, parentId: true },
+    });
+    const byParent = new Map<string | null, typeof rows>();
+    for (const row of rows) {
+      const siblings = byParent.get(row.parentId) ?? [];
+      siblings.push(row);
+      byParent.set(row.parentId, siblings);
+    }
+    const result: CategoryOption[] = [];
+    const visited = new Set<string>();
+    const visit = (parentId: string | null, depth: number) => {
+      for (const row of byParent.get(parentId) ?? []) {
+        if (visited.has(row.id)) continue;
+        visited.add(row.id);
+        result.push({ name: row.name, slug: row.slug, depth });
+        visit(row.id, Math.min(depth + 1, 5));
+      }
+    };
+    visit(null, 0);
+    // Keep any orphaned legacy rows visible rather than silently hiding them.
+    for (const row of rows) {
+      if (!visited.has(row.id)) result.push({ name: row.name, slug: row.slug, depth: 0 });
+    }
+    return result;
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code ?? "unknown")
+      : "unknown";
+    console.error("Active category options query failed.", { code });
+    return [];
+  }
+}
